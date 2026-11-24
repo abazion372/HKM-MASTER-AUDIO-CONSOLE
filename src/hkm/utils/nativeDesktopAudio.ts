@@ -19,6 +19,8 @@ export interface DesktopAudioStatus {
   osBuild: number;
   apoActive: boolean;
   activeStreams: string[];
+  /** Live native output stream: null = off, 'shared …' / 'exclusive …' = running, '…-error: …' = last failure. */
+  rawOutputMode?: string | null;
   reason: string | null;
 }
 
@@ -252,10 +254,21 @@ export async function uninstallSystemApo(endpointId: string): Promise<string> {
   return core.invoke<string>('uninstall_system_apo', { endpointId });
 }
 
-export async function startRawOutput(endpointId?: string): Promise<boolean> {
+export async function startRawOutput(
+  endpointId?: string,
+  channels?: number,
+  exclusive?: boolean
+): Promise<boolean> {
   const core = getTauriCore();
   if (!core?.invoke) return false;
-  await core.invoke('start_raw_output', { endpointId: endpointId || null });
+  // channels: 2 = classic stereo tap; 3..32 arms the discrete multichannel
+  // per-jack stream. exclusive: bit-perfect event-driven WASAPI (v2 native
+  // engine — no shared mixer / APO interference on the jack layout).
+  await core.invoke('start_raw_output', {
+    endpointId: endpointId || null,
+    channels: Number.isFinite(channels) ? channels : null,
+    exclusive: exclusive === true,
+  });
   return true;
 }
 

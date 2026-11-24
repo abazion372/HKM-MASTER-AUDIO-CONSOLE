@@ -284,6 +284,55 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
     return () => window.clearInterval(t);
   }, [activeTab]);
 
+  // v2 native per-jack WASAPI engine (desktop app only): shared vs exclusive
+  // share-mode, armed with the active sink's channel layout.
+  const [nativeJackEngineMode, setNativeJackEngineMode] = useState<'shared' | 'exclusive'>('shared');
+  const [nativeJackEngineBusy, setNativeJackEngineBusy] = useState(false);
+  const [nativeJackEngineNote, setNativeJackEngineNote] = useState<string | null>(null);
+  const [nativeEngineStatus, setNativeEngineStatus] = useState('OFF');
+  useEffect(() => {
+    if (activeTab !== 'outputs') return;
+    const t = window.setInterval(() => {
+      if (document.hidden) return;
+      const st = liveAudioEngine.getRawOutputEngineStatus();
+      if (!st.active) {
+        setNativeEngineStatus('OFF');
+        return;
+      }
+      setNativeEngineStatus(
+        `${st.exclusive ? 'EXCLUSIVE' : 'SHARED'} · ${st.channels}CH · ${
+          st.feed === 'jack' ? 'PER-JACK FEED' : 'MASTER STEREO FEED'
+        }`
+      );
+    }, 600);
+    return () => window.clearInterval(t);
+  }, [activeTab]);
+
+  const handleToggleNativeJackEngine = async (
+    enabled: boolean,
+    endpointId: string,
+    channels: number
+  ) => {
+    if (!isDesktopApp()) return;
+    setNativeJackEngineBusy(true);
+    setNativeJackEngineNote(null);
+    try {
+      const ok = await liveAudioEngine.setRawOutputEnabled(enabled, endpointId, {
+        channels: enabled ? channels : undefined,
+        exclusive: enabled ? nativeJackEngineMode === 'exclusive' : undefined,
+      });
+      setNativeJackEngineNote(
+        ok
+          ? enabled
+            ? `Native WASAPI engine armed (${nativeJackEngineMode.toUpperCase()} · ${channels}ch) — per-jack channels render through the native stream.`
+            : 'Native engine disarmed — Web Audio output restored.'
+          : 'Native engine could not be armed on this endpoint (device busy, exclusive conflict, or unsupported format).'
+      );
+    } finally {
+      setNativeJackEngineBusy(false);
+    }
+  };
+
   if (collapsed) {
     return (
       <aside
@@ -1452,6 +1501,112 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                   );
                 });
               })()}
+
+            {/* ==== NATIVE WASAPI ENGINE (v2 per-jack path — desktop app only) ==== */}
+            {(() => {
+              const sinkJack = outputJackEndpoints.find(
+                (j) => j.parentDeviceId === preferredOutputDeviceId && !j.simulated
+              );
+              const sinkChannels = sinkJack?.channelCount ?? 0;
+              if (!isDesktopApp() || sinkChannels < 4) return null;
+              const engine = liveAudioEngine.getRawOutputEngineStatus();
+              return (
+                <div className="rounded-md border border-[#3A4B5E] bg-gradient-to-b from-[#1B2431] to-[#121821] p-1.5 space-y-1.5">
+                  <div className="flex items-center justify-between gap-1 px-0.5">
+                    <span className="flex items-center gap-1 min-w-0">
+                      <Cable className="w-3 h-3 text-amber-300 shrink-0" />
+                      <span className="font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-amber-300">
+                        Native WASAPI Engine
+                      </span>
+                      <span
+                        className={`px-1 py-0.5 rounded border font-mono text-[7px] font-bold shrink-0 ${
+                          engine.active
+                            ? engine.exclusive
+                              ? 'text-fuchsia-300 border-fuchsia-500/40 bg-fuchsia-950/40'
+                              : 'text-emerald-300 border-emerald-500/40 bg-emerald-950/40'
+                            : 'text-slate-400 border-slate-600/50 bg-slate-900/40'
+                        }`}
+                      >
+                        {nativeEngineStatus}
+                      </span>
+                    </span>
+                    <span className="font-mono text-[7.5px] text-slate-500 truncate">
+                      {sinkChannels}ch sink
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    {/* Share-mode selector */}
+                    <div className="flex p-0.5 rounded border border-[#293544] bg-[#0B1017]" role="group" aria-label="WASAPI share mode">
+                      {(['shared', 'exclusive'] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          disabled={engine.active || nativeJackEngineBusy || locked}
+                          onClick={() => setNativeJackEngineMode(mode)}
+                          title={
+                            mode === 'shared'
+                              ? 'SHARED — mixed by the Windows audio engine (AUTOCONVERTPCM); coexists with system audio.'
+                              : 'EXCLUSIVE — bit-perfect event-driven stream, no shared mixer or APO interference; the device is held by the console alone (close other DAWs first).'
+                          }
+                          className={`px-2 h-6 rounded font-mono text-[8px] font-bold cursor-pointer disabled:opacity-45 ${
+                            nativeJackEngineMode === mode
+                              ? mode === 'exclusive'
+                                ? 'bg-fuchsia-500/25 text-fuchsia-200 border border-fuchsia-500/45'
+                                : 'bg-emerald-500/20 text-emerald-200 border border-emerald-500/45'
+                              : 'text-slate-400 hover:text-slate-200 border border-transparent'
+                          }`}
+                        >
+                          {mode === 'shared' ? 'SHARED' : 'EXCLUSIVE'}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={nativeJackEngineBusy || locked}
+                      onClick={() =>
+                        void handleToggleNativeJackEngine(
+                          !engine.active,
+                          preferredOutputDeviceId,
+                          sinkChannels
+                        )
+                      }
+                      title={
+                        engine.active
+                          ? 'Disarm the native engine — output returns to the Web Audio destination.'
+                          : `Arm the native engine on the active sink (${sinkChannels} channels) — per-jack zone mixes render through the native WASAPI stream.`
+                      }
+                      className={`flex-1 h-7 rounded border font-mono text-[8.5px] font-bold cursor-pointer disabled:opacity-45 ${
+                        engine.active
+                          ? 'border-rose-500/50 bg-rose-950/40 hover:bg-rose-900/50 text-rose-200'
+                          : 'border-amber-500/50 bg-amber-950/35 hover:bg-amber-900/50 text-amber-200'
+                      }`}
+                    >
+                      {nativeJackEngineBusy
+                        ? 'ARMING…'
+                        : engine.active
+                          ? 'DISARM NATIVE ENGINE'
+                          : `ARM ${nativeJackEngineMode === 'exclusive' ? 'EXCLUSIVE' : 'SHARED'} ENGINE`}
+                    </button>
+                  </div>
+
+                  {nativeJackEngineNote && (
+                    <p
+                      role="status"
+                      className="font-mono text-[7px] leading-relaxed text-slate-400 px-0.5"
+                    >
+                      {nativeJackEngineNote}
+                    </p>
+                  )}
+                  <p className="font-mono text-[7px] leading-relaxed text-slate-500 px-0.5">
+                    Native engine takes over the sink&apos;s {sinkChannels}-channel stream — each jack
+                    pair below carries its zone mix 1:1. EXCLUSIVE holds the device bit-perfect
+                    (float32, integer-PCM fallback). Disarm to return to browser Web Audio output.
+                  </p>
+                </div>
+              );
+            })()}
 
             {/* Jack probe / training-card controls */}
             <div className="flex items-center gap-1">

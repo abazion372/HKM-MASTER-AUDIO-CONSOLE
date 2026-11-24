@@ -113,13 +113,24 @@ The reserved next steps for pro PCIe cards:
   endpoint in `raw_output_pump`~~ — **implemented**: `target_wave_format_channels()`
   requests a WAVEFORMATEXTENSIBLE speaker-mask stream for 3..=32 channels and
   the raw render pump honours the console-selected endpoint (default-device
-  fallback on hot-unplug). The bundled web worklet still pushes stereo blocks;
-  >2 channels are armed for the v2 multichannel worklet.
-- Parse `WAVEFORMATEXTENSIBLE.dwChannelMask` for exact jack layout —
-  **in progress** (multichannel WAVEFORMATEXTENSIBLE output for
-  >8-channel pro cards).
-- `IKsJackDescription` jack hints (colour, connector, panel location) —
+  fallback on hot-unplug). The web worklet (`raw-output-tap-worklet.js`) now
+  carries the armed channel count (2..32) — per-jack merger blocks feed the
+  native stream directly (`OutputRouter.rawTapFeed = 'jack'`).
+- ~~Parse `WAVEFORMATEXTENSIBLE.dwChannelMask` for exact jack layout~~ —
+  **implemented**: standard speaker masks per layout (`channel_mask_for`),
+  generated `aux-N` jack pairs beyond channel 8 (Dante/MADI-class 10..32ch
+  cards), one zone per pair, UI ordered by physical channel index.
+- ~~`IKsJackDescription` jack hints (colour, connector, panel location)~~ —
   **implemented**: the `list_jack_descriptions` Rust command feeds real
   silkscreen colours/labels into the Discrete Jack Bay.
+- ~~Exclusive WASAPI per-jack path~~ — **implemented (v2 native engine)**:
+  `start_raw_output(endpointId, channels, exclusive)` opens the endpoint in
+  `AUDCLNT_SHAREMODE_EXCLUSIVE` with an event-driven stream
+  (`AUDCLNT_STREAMFLAGS_EVENTCALLBACK`), performs the documented
+  buffer-alignment retry (`AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED`), negotiates
+  float32 first with a 16-bit PCM fallback for integer-only endpoints, and
+  maps `AUDCLNT_E_DEVICE_IN_USE` to a clear operator message. The Discrete
+  Jack Bay exposes SHARED/EXCLUSIVE mode + ARM ENGINE; live mode is reported
+  through `desktop_audio_status.rawOutputMode`.
 - Optional ASIO path (cpal `asio` feature) for per-jack exclusive streams —
   the zero-conflict professional route for RME/Focusrite-class cards.

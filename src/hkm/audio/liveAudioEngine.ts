@@ -188,10 +188,12 @@ class LiveAudioEngine {
       this.syncOutputsAndSafety();
 
       if (this.outputRouter.isRawOutputActive()) {
+        const prev = this.outputRouter.getRawOutputEngineStatus();
         await this.outputRouter.setRawOutputEnabled(
           true,
           this.isRunning,
-          this.outputRouter.getRawOutputEndpointId()
+          this.outputRouter.getRawOutputEndpointId(),
+          { channels: prev.channels, exclusive: prev.exclusive }
         );
         this.syncOutputsAndSafety();
       }
@@ -276,10 +278,29 @@ class LiveAudioEngine {
     return this.outputRouter.getPreferredStreamOutputDeviceId();
   }
 
-  public async setRawOutputEnabled(enabled: boolean, endpointId?: string): Promise<boolean> {
-    const ok = await this.outputRouter.setRawOutputEnabled(enabled, this.isRunning, endpointId);
+  public async setRawOutputEnabled(
+    enabled: boolean,
+    endpointId?: string,
+    options?: { channels?: number; exclusive?: boolean }
+  ): Promise<boolean> {
+    const ok = await this.outputRouter.setRawOutputEnabled(
+      enabled,
+      this.isRunning,
+      endpointId,
+      options
+    );
     this.syncOutputsAndSafety();
     return ok;
+  }
+
+  /** v2 native per-jack engine snapshot (Discrete Jack Bay UI). */
+  public getRawOutputEngineStatus(): {
+    active: boolean;
+    exclusive: boolean;
+    channels: number;
+    feed: 'master' | 'jack' | null;
+  } {
+    return this.outputRouter.getRawOutputEngineStatus();
   }
 
   public setMonitorAudible(audible: boolean): void {

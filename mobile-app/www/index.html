@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#080B10" />
+    <title>HKM FOH Companion</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="screen">
+      <header class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <span class="brand-bar"></span>
+          <span class="brand-bar"></span>
+          <span class="brand-bar"></span>
+          <span class="brand-bar"></span>
+        </div>
+        <div>
+          <h1>HKM FOH Companion</h1>
+          <p>Master Audio Console · Remote</p>
+        </div>
+      </header>
+
+      <section class="card" aria-labelledby="pair-heading">
+        <h2 id="pair-heading">Link to a desktop console</h2>
+        <p class="hint">
+          On the desktop console open <strong>Hardware &amp; Diagnostics → Remote Access</strong>,
+          then scan the <strong>HKM app pairing QR</strong> with this phone — or type the console
+          address and pairing token below.
+        </p>
+
+        <form id="pair-form" autocomplete="off" novalidate>
+          <label class="field">
+            <span class="field-label" for="host">Desktop console address</span>
+            <input
+              id="host"
+              name="host"
+              type="text"
+              inputmode="url"
+              autocapitalize="off"
+              autocorrect="off"
+              spellcheck="false"
+              placeholder="192.168.1.42"
+              required
+            />
+            <span class="field-note">IP or hostname of the PC running the console (port 3000 unless changed)</span>
+          </label>
+
+          <label class="field">
+            <span class="field-label" for="token">Pairing token</span>
+            <input
+              id="token"
+              name="token"
+              type="text"
+              autocapitalize="characters"
+              autocorrect="off"
+              spellcheck="false"
+              maxlength="16"
+              placeholder="PAIRING TOKEN"
+              required
+            />
+            <span class="field-note">16-character token shown under the desktop pairing QR</span>
+          </label>
+
+          <button id="connect-btn" type="submit" class="primary-btn">
+            <span id="connect-btn-label">Link console</span>
+          </button>
+        </form>
+
+        <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+      </section>
+
+      <section class="card secondary" id="recent-card" aria-labelledby="recent-heading" hidden>
+        <h2 id="recent-heading">Recent consoles</h2>
+        <ul id="recent-list" class="recent-list"></ul>
+        <button id="clear-recent" type="button" class="ghost-btn">Clear list</button>
+      </section>
+
+      <footer class="foot">
+        <p>Phone and desktop console must be on the same Wi-Fi network.</p>
+        <p class="foot-sub">HKM Audio System · Companion 1.0</p>
+      </footer>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,304 @@
+/* HKM FOH Companion — pairing screen (offline, bundled in the APK). */
+
+:root {
+  --bg: #080b10;
+  --panel: #0e1524;
+  --panel-edge: #1e2a3d;
+  --ink: #e2e8f0;
+  --ink-dim: #94a3b8;
+  --ink-faint: #64748b;
+  --accent: #38bdf8;
+  --accent-strong: #0ea5e9;
+  --ok: #34d399;
+  --warn: #fbbf24;
+  --err: #f87171;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 30rem;
+  margin: 0 auto;
+  padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+}
+
+/* ---------- brand header ---------- */
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 2px 0;
+}
+
+.brand-mark {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 40px;
+}
+
+.brand-bar {
+  width: 7px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--accent), #0369a1);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.45);
+}
+
+.brand-bar:nth-child(1) { height: 40%; }
+.brand-bar:nth-child(2) { height: 65%; }
+.brand-bar:nth-child(3) { height: 85%; }
+.brand-bar:nth-child(4) { height: 100%; }
+
+.brand h1 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #f8fafc;
+}
+
+.brand p {
+  margin: 2px 0 0;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--ink-dim);
+}
+
+/* ---------- cards ---------- */
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.card.secondary {
+  background: #0b111d;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--ink-dim);
+}
+
+.hint strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* ---------- form ---------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-dim);
+}
+
+.field input {
+  height: 48px;
+  border-radius: 10px;
+  border: 1px solid #27364d;
+  background: #070a10;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  padding: 0 14px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+#token {
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+.field input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
+}
+
+.field-note {
+  font-size: 0.68rem;
+  color: var(--ink-faint);
+}
+
+.primary-btn {
+  height: 50px;
+  margin-top: 4px;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #0ea5e9, #0369a1);
+  color: #f8fafc;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  box-shadow: 0 6px 18px rgba(14, 165, 233, 0.28);
+  transition: filter 0.15s ease, transform 0.05s ease;
+}
+
+.primary-btn:active {
+  transform: translateY(1px);
+  filter: brightness(1.08);
+}
+
+.primary-btn:disabled {
+  filter: grayscale(0.6) brightness(0.7);
+  box-shadow: none;
+}
+
+.ghost-btn {
+  height: 40px;
+  border: 1px solid #27364d;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink-dim);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.ghost-btn:active {
+  color: var(--ink);
+  border-color: #3a4d6b;
+}
+
+/* ---------- status ---------- */
+
+.status {
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  border: 1px solid;
+  word-break: break-word;
+}
+
+.status.info {
+  color: var(--accent);
+  border-color: rgba(56, 189, 248, 0.35);
+  background: rgba(56, 189, 248, 0.07);
+}
+
+.status.ok {
+  color: var(--ok);
+  border-color: rgba(52, 211, 153, 0.35);
+  background: rgba(52, 211, 153, 0.07);
+}
+
+.status.error {
+  color: var(--err);
+  border-color: rgba(248, 113, 113, 0.4);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+/* ---------- recent list ---------- */
+
+.recent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recent-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  border: 1px solid #1e2a3d;
+  border-radius: 10px;
+  background: #070a10;
+  padding: 12px 14px;
+  color: var(--ink);
+}
+
+.recent-item:active {
+  border-color: var(--accent);
+}
+
+.recent-item .recent-host {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--ink);
+}
+
+.recent-item .recent-meta {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* ---------- footer ---------- */
+
+.foot {
+  margin-top: auto;
+  text-align: center;
+  padding: 8px 0 0;
+}
+
+.foot p {
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--ink-faint);
+  line-height: 1.6;
+}
+
+.foot-sub {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}

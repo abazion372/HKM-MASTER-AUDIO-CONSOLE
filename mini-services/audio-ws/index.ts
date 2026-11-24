@@ -104,6 +104,31 @@ function isLoopbackRequest(req: import('bun').BunRequest): boolean {
 
 let clientIdCounter = 0;
 
+// Dead-socket reaper: browsers killed without a close frame (crash, sleep,
+// Wi-Fi drop) leave entries in the clients map forever. Every client sends an
+// app-level ping every 20 s; anything silent for > 90 s is closed and dropped
+// so the desktop client list never fills with ghosts.
+const REAP_INTERVAL_MS = 30_000;
+const CLIENT_STALE_MS = 90_000;
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, client] of clients.entries()) {
+    const lastSeen = Date.parse(client.lastSeenAt);
+    if (Number.isFinite(lastSeen) && now - lastSeen > CLIENT_STALE_MS) {
+      try {
+        client.ws.close(4004, 'Stale link reaped by relay keepalive');
+      } catch {
+        // already closed
+      }
+      clients.delete(id);
+      if (client.role === 'mobile') {
+        broadcastClientList();
+      }
+    }
+  }
+}, REAP_INTERVAL_MS);
+
 const server = Bun.serve<WsSocketData>({
   port: PORT,
   async fetch(req, srv) {
@@ -292,6 +317,13 @@ const server = Bun.serve<WsSocketData>({
       }
 
       record.lastSeenAt = new Date().toISOString();
+
+      // App-level keepalive — answered before the auth gate so sockets stay
+      // fresh during PIN entry and otherwise-idle 24/7 sessions.
+      if (msg.type === 'ping') {
+        safeSend(ws, JSON.stringify({ type: 'pong', ts: Date.now() }));
+        return;
+      }
 
       if (msg.type === 'telemetry:frame' && record.role === 'desktop') {
         // Hot path (5Hz, never touches the JSON store): handled BEFORE the

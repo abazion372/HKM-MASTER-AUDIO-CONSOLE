@@ -126,8 +126,14 @@ impl CaptureRegistry {
 // v1.1: honours the console-selected render endpoint (falls back to the default
 // device on hot-unplug) and supports N-channel WAVEFORMATEXTENSIBLE streams so
 // a 5.1/7.1/pro card can be addressed per discrete jack pair (see
-// docs/DISCRETE-JACK-ROUTING.md). The bundled web worklet currently pushes
-// stereo blocks; >2 channels are armed for the v2 multichannel worklet.
+// docs/DISCRETE-JACK-ROUTING.md). The bundled web worklet pushes stereo or
+// N-channel blocks matching the armed channel count.
+//
+// v2 (exclusive WASAPI per-jack path): `exclusive = true` opens the endpoint
+// in AUDCLNT_SHAREMODE_EXCLUSIVE with an event-driven stream — bit-perfect
+// per-jack delivery, no shared-mixer/APO interference, pro-grade latency.
+// Endpoints without float support in exclusive mode fall back to 16-bit PCM
+// (converted from the f32 worklet wire format).
 // ---------------------------------------------------------------------------
 
 struct RawOutputWorker {
@@ -139,6 +145,10 @@ struct RawOutputWorker {
 #[derive(Default)]
 pub struct RawOutputEngine {
     worker: Mutex<Option<RawOutputWorker>>,
+    /// Live stream status surfaced through `desktop_audio_status`:
+    /// None = off, `"shared …"` / `"exclusive …"` = running,
+    /// `"…-error: …"` = last failure (set by the pump thread).
+    status: std::sync::Arc<Mutex<Option<String>>>,
 }
 
 impl RawOutputEngine {
@@ -146,17 +156,32 @@ impl RawOutputEngine {
         Self::default()
     }
 
-    pub fn start(&self, endpoint_id: Option<String>, channels: u16) -> Result<(), String> {
+    pub fn start(
+        &self,
+        endpoint_id: Option<String>,
+        channels: u16,
+        exclusive: bool,
+    ) -> Result<(), String> {
         let mut guard = self.worker.lock().map_err(|e| e.to_string())?;
         stop_worker(&mut guard);
+        if let Ok(mut s) = self.status.lock() {
+            *s = None;
+        }
         let stop = std::sync::Arc::new(AtomicBool::new(false));
         let (tx, rx) = mpsc::sync_channel::<Vec<u8>>(256);
         let thread_stop = stop.clone();
+        let status_handle = self.status.clone();
+        let mode = if exclusive { "exclusive" } else { "shared" };
         let join = thread::Builder::new()
             .name("hkm-raw-output".to_string())
             .spawn(move || {
-                if let Err(err) = raw_output_pump(&thread_stop, rx, endpoint_id, channels) {
+                if let Err(err) =
+                    raw_output_pump(&thread_stop, rx, endpoint_id, channels, exclusive, status_handle.clone())
+                {
                     eprintln!("[hkm-audio] raw output stream failed: {}", err);
+                    if let Ok(mut s) = status_handle.lock() {
+                        *s = Some(format!("{}-error: {}", mode, err));
+                    }
                 }
             })
             .map_err(|e| format!("Failed to spawn raw output thread: {}", e))?;
@@ -181,6 +206,14 @@ impl RawOutputEngine {
         if let Ok(mut guard) = self.worker.lock() {
             stop_worker(&mut guard);
         }
+        if let Ok(mut s) = self.status.lock() {
+            *s = None;
+        }
+    }
+
+    /// Current raw-output stream status (mode, channel/bit format, or error).
+    pub fn current_status(&self) -> Option<String> {
+        self.status.lock().ok().and_then(|s| s.clone())
     }
 }
 
@@ -356,20 +389,22 @@ mod windows_impl {
     use super::*;
 
     use windows::core::{GUID, Interface, PCSTR, PCWSTR};
+    use windows::Win32::Foundation::{BOOL, CloseHandle, WAIT_OBJECT_0};
     use windows::Win32::Media::Audio::{
-        AUDCLNT_BUFFERFLAGS_SILENT, AUDCLNT_SHAREMODE, AUDCLNT_SHAREMODE_SHARED,
-        AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY,
+        AUDCLNT_BUFFERFLAGS_SILENT, AUDCLNT_SHAREMODE, AUDCLNT_SHAREMODE_EXCLUSIVE,
+        AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM,
+        AUDCLNT_STREAMFLAGS_EVENTCALLBACK, AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY,
         DEVICE_STATE_ACTIVE, IAudioCaptureClient, IAudioClient, IAudioRenderClient, IConnector,
         IDeviceTopology, IKsJackDescription, IMMDevice, IMMDeviceCollection,
         IMMDeviceEnumerator, IPart, KSJACK_DESCRIPTION, MMDeviceEnumerator, WAVEFORMATEX,
         WAVEFORMATEXTENSIBLE, eConsole, eRender,
     };
-    use windows::Win32::Media::Multimedia::WAVE_FORMAT_IEEE_FLOAT;
+    use windows::Win32::Media::Multimedia::{WAVE_FORMAT_IEEE_FLOAT, WAVE_FORMAT_PCM};
     use windows::Win32::System::Com::{
         CLSCTX, CLSCTX_ALL, COINIT_MULTITHREADED, CoCreateInstance, CoInitializeEx, CoTaskMemFree,
     };
     use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW};
-    use windows::Win32::System::Threading::GetCurrentProcessId;
+    use windows::Win32::System::Threading::{CreateEventW, GetCurrentProcessId, WaitForSingleObject};
 
     const WAVE_FORMAT_EXTENSIBLE: u32 = 0xFFFE;
 
@@ -384,6 +419,16 @@ mod windows_impl {
     const S_OK: i32 = 0;
     /// RPC_E_CHANGED_MODE — the thread already joined an apartment; calls still work.
     const RPC_E_CHANGED_MODE: i32 = 0x8001_0106u32 as i32;
+
+    /// AUDCLNT_E_UNSUPPORTED_FORMAT — the endpoint refuses this format in the
+    /// requested mode (exclusive negotiation falls back to 16-bit PCM).
+    pub(super) const AUDCLNT_E_UNSUPPORTED_FORMAT: u32 = 0x8889_0008;
+    /// AUDCLNT_E_DEVICE_IN_USE — another application holds the endpoint
+    /// exclusively (classic DAW / pro player conflict).
+    pub(super) const AUDCLNT_E_DEVICE_IN_USE: u32 = 0x8889_000A;
+    /// AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED — exclusive-mode streams must have a
+    /// buffer that is an integral number of periods; re-init with the aligned size.
+    pub(super) const AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED: u32 = 0x8889_0019;
 
     /// `AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK`
     const ACTIVATION_TYPE_PROCESS_LOOPBACK: u32 = 1;
@@ -668,6 +713,26 @@ mod windows_impl {
             .map_err(|e| format!("Render endpoint '{}' not found: {}", endpoint_id, e))
     }
 
+    /// Activate an [`IAudioClient`] on the console-selected render endpoint,
+    /// falling back to the default device on hot-unplug so the show keeps
+    /// running (shared by the shared-mode and exclusive-mode output pumps).
+    pub(super) fn activate_render_client(
+        endpoint_id: Option<&str>,
+    ) -> Result<IAudioClient, String> {
+        let device = match endpoint_id {
+            Some(id) if !id.is_empty() => get_render_device_by_id(id).or_else(|err| {
+                eprintln!(
+                    "[hkm-audio] selected render endpoint '{}' unavailable ({}); falling back to the default device.",
+                    id, err
+                );
+                get_default_render_device()
+            }),
+            _ => get_default_render_device(),
+        }?;
+        unsafe { device.Activate(CLSCTX_ALL, None) }
+            .map_err(|e| format!("IAudioClient activation failed: {}", e))
+    }
+
     pub(super) fn parse_wave_format(wfx: &WAVEFORMATEX) -> FormatInfo {
         let format_tag = wfx.wFormatTag as u32;
         let cb_size = wfx.cbSize;
@@ -738,6 +803,41 @@ mod windows_impl {
             6 => 0x0000_003F, // 5.1: FL|FR|FC|LFE|BL|BR
             8 => 0x0000_063F, // 7.1: 5.1 + SL|SR
             _ => 0,
+        }
+    }
+
+    /// 48 kHz interleaved 16-bit PCM stereo request format — the integer
+    /// fallback for endpoints whose exclusive mode exposes no float support
+    /// (typical onboard HDA codecs).
+    pub(super) fn target_wave_format_pcm16() -> WAVEFORMATEX {
+        WAVEFORMATEX {
+            wFormatTag: WAVE_FORMAT_PCM as u16,
+            nChannels: 2,
+            nSamplesPerSec: 48_000,
+            wBitsPerSample: 16,
+            nBlockAlign: 4,
+            nAvgBytesPerSec: 48_000 * 4,
+            cbSize: 0,
+        }
+    }
+
+    /// N-channel 16-bit PCM variant of [`target_wave_format_pcm16`] for the
+    /// exclusive-mode integer fallback on 5.1/7.1/pro cards.
+    pub(super) fn target_wave_format_channels_pcm16(channels: u16) -> WAVEFORMATEXTENSIBLE {
+        let block_align = channels.saturating_mul(2);
+        WAVEFORMATEXTENSIBLE {
+            Format: WAVEFORMATEX {
+                wFormatTag: WAVE_FORMAT_EXTENSIBLE as u16,
+                nChannels: channels,
+                nSamplesPerSec: 48_000,
+                wBitsPerSample: 16,
+                nBlockAlign: block_align,
+                nAvgBytesPerSec: 48_000 * block_align as u32,
+                cbSize: 22,
+            },
+            wValidBitsPerSample: 16,
+            dwChannelMask: channel_mask_for(channels),
+            SubFormat: SUBTYPE_PCM,
         }
     }
 
@@ -923,6 +1023,16 @@ mod windows_impl {
 
     pub(super) fn share_mode_shared() -> AUDCLNT_SHAREMODE {
         AUDCLNT_SHAREMODE_SHARED
+    }
+
+    pub(super) fn share_mode_exclusive() -> AUDCLNT_SHAREMODE {
+        AUDCLNT_SHAREMODE_EXCLUSIVE
+    }
+
+    /// Exclusive event-driven streams are woken by the audio engine once per
+    /// period instead of polling (lowest latency, no busy-wait).
+    pub(super) fn event_stream_flags() -> u32 {
+        AUDCLNT_STREAMFLAGS_EVENTCALLBACK
     }
 
     pub(super) fn flag_silent_mask() -> u32 {
@@ -1116,30 +1226,286 @@ fn raw_output_pump(
     queue: mpsc::Receiver<Vec<u8>>,
     endpoint_id: Option<String>,
     channels: u16,
+    exclusive: bool,
+    status: std::sync::Arc<Mutex<Option<String>>>,
+) -> Result<(), String> {
+    if exclusive {
+        raw_output_pump_exclusive(stop, queue, endpoint_id, channels, status)
+    } else {
+        raw_output_pump_shared(stop, queue, endpoint_id, channels, status)
+    }
+}
+
+/// Failure info from the exclusive-mode Initialize negotiation (the HRESULT is
+/// kept so the caller can decide whether a 16-bit PCM retry makes sense).
+#[cfg(windows)]
+struct ExclusiveInitFailure {
+    unsupported_format: bool,
+    message: String,
+}
+
+/// Exclusive WASAPI negotiation: event-driven stream, buffer-alignment retry,
+/// float32 first with a 16-bit PCM fallback for integer-only endpoints.
+/// Returns the armed client plus its period buffer size in frames.
+#[cfg(windows)]
+fn initialize_exclusive_stream(
+    endpoint_id: &Option<String>,
+    channels: u16,
+    pcm16: bool,
+) -> Result<(sys::AudioClientT, u32), ExclusiveInitFailure> {
+    let stereo_f32 = sys::target_wave_format();
+    let multi_f32 = sys::target_wave_format_channels(channels);
+    let stereo_pcm16 = sys::target_wave_format_pcm16();
+    let multi_pcm16 = sys::target_wave_format_channels_pcm16(channels);
+    let format_ptr: *const WAVEFORMATEX = if channels > 2 {
+        if pcm16 {
+            &multi_pcm16 as *const WAVEFORMATEXTENSIBLE as *const WAVEFORMATEX
+        } else {
+            &multi_f32 as *const WAVEFORMATEXTENSIBLE as *const WAVEFORMATEX
+        }
+    } else if pcm16 {
+        &stereo_pcm16 as *const WAVEFORMATEX
+    } else {
+        &stereo_f32 as *const WAVEFORMATEX
+    };
+
+    // Exclusive event-driven streams require hnsPeriodicity == hnsBufferDuration.
+    // 30 ms keeps pro-grade latency while leaving the queue a safety margin.
+    let mut duration_100ns: i64 = 300_000;
+    let mut attempts = 0u8;
+    loop {
+        attempts += 1;
+        let audio_client = sys::activate_render_client(endpoint_id.as_deref())
+            .map_err(|e| ExclusiveInitFailure {
+                unsupported_format: false,
+                message: e,
+            })?;
+        let init = unsafe {
+            audio_client.Initialize(
+                sys::share_mode_exclusive(),
+                sys::event_stream_flags(),
+                duration_100ns,
+                duration_100ns,
+                format_ptr,
+                None,
+            )
+        };
+        match init {
+            Ok(()) => {
+                let frames = unsafe { audio_client.GetBufferSize() }.map_err(|e| {
+                    ExclusiveInitFailure {
+                        unsupported_format: false,
+                        message: format!("GetBufferSize failed: {}", e),
+                    }
+                })?;
+                return Ok((audio_client, frames));
+            }
+            Err(e) => {
+                let code = e.code().0 as u32;
+                if code == sys::AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED && attempts < 3 {
+                    // Documented exclusive-mode dance: read the driver-aligned
+                    // frame count from the failed client, convert to a duration
+                    // and re-initialize a freshly activated client with it.
+                    if let Ok(aligned_frames) = unsafe { audio_client.GetBufferSize() } {
+                        let aligned =
+                            ((aligned_frames as f64) * 10_000_000.0 / 48_000.0).round() as i64;
+                        if aligned > 0 {
+                            duration_100ns = aligned;
+                            continue;
+                        }
+                    }
+                }
+                let message = if code == sys::AUDCLNT_E_DEVICE_IN_USE {
+                    "another application already holds this endpoint in exclusive mode (or it is disabled). Close other DAW / pro-audio apps using the device, then re-arm".to_string()
+                } else if code == sys::AUDCLNT_E_UNSUPPORTED_FORMAT {
+                    "the device does not accept this 48 kHz channel layout in exclusive mode. Set the Windows speaker configuration to match the jack layout (Sound Control Panel), or use shared mode".to_string()
+                } else {
+                    format!("Initialize failed (0x{:08X}): {}", code, e)
+                };
+                return Err(ExclusiveInitFailure {
+                    unsupported_format: code == sys::AUDCLNT_E_UNSUPPORTED_FORMAT,
+                    message,
+                });
+            }
+        }
+    }
+}
+
+/// v2 exclusive per-jack path: bit-perfect event-driven WASAPI stream. The
+/// per-jack routing itself happens in the web worklet merger (channel
+/// positions); exclusive mode guarantees those channels hit the DAC 1:1 with
+/// no shared-mixer/APO interference.
+#[cfg(windows)]
+fn raw_output_pump_exclusive(
+    stop: &AtomicBool,
+    queue: mpsc::Receiver<Vec<u8>>,
+    endpoint_id: Option<String>,
+    channels: u16,
+    status: std::sync::Arc<Mutex<Option<String>>>,
+) -> Result<(), String> {
+    sys::init_com_mta()?;
+
+    // Negotiate the exclusive format: 48 kHz float32 first; endpoints whose
+    // exclusive mode is integer-only retry once at 16-bit PCM.
+    let (audio_client, buffer_frames, bits_per_sample) =
+        match initialize_exclusive_stream(&endpoint_id, channels, false) {
+            Ok((client, frames)) => (client, frames, 32u16),
+            Err(first) => {
+                if first.unsupported_format {
+                    match initialize_exclusive_stream(&endpoint_id, channels, true) {
+                        Ok((client, frames)) => (client, frames, 16u16),
+                        Err(second) => {
+                            return Err(format!(
+                                "Exclusive WASAPI failed — float32: {}; 16-bit PCM: {}.",
+                                first.message, second.message
+                            ));
+                        }
+                    }
+                } else {
+                    return Err(format!("Exclusive WASAPI failed — {}.", first.message));
+                }
+            }
+        };
+
+    let frame_bytes = channels as usize * (bits_per_sample as usize / 8);
+    let f32_frame_bytes = channels as usize * 4;
+
+    // Event-driven exclusive stream: the audio engine signals once per period
+    // and the ENTIRE buffer is writable each period (no padding bookkeeping).
+    let event = unsafe { CreateEventW(None, BOOL(0), BOOL(0), PCWSTR::null()) }
+        .map_err(|e| format!("CreateEventW failed: {}", e))?;
+    if let Err(e) = unsafe { audio_client.SetEventHandle(event) } {
+        let _ = unsafe { CloseHandle(event) };
+        return Err(format!("SetEventHandle failed: {}", e));
+    }
+
+    let render_client: sys::RenderClientT = unsafe { audio_client.GetService() }
+        .map_err(|e| format!("GetService(IAudioRenderClient) failed: {}", e))?;
+
+    // Prime the endpoint with one full silent period so the first event finds
+    // the DAC fed (the worklet queue needs one period to arrive).
+    if let Ok(ptr) = unsafe { render_client.GetBuffer(buffer_frames) } {
+        if !ptr.is_null() {
+            unsafe {
+                std::ptr::write_bytes(ptr, 0, buffer_frames as usize * frame_bytes);
+                let _ = render_client.ReleaseBuffer(buffer_frames, sys::zero_buffer_flags());
+            }
+        }
+    }
+
+    unsafe { audio_client.Start() }.map_err(|e| format!("Raw output Start failed: {}", e))?;
+    if let Ok(mut s) = status.lock() {
+        *s = Some(format!(
+            "exclusive {}ch/{}bit {} frames/period",
+            channels, bits_per_sample, buffer_frames
+        ));
+    }
+
+    let mut pending: Vec<u8> = Vec::new();
+    let mut converted: Vec<u8> = Vec::with_capacity(buffer_frames as usize * frame_bytes);
+    loop {
+        if stop.load(Ordering::Relaxed) {
+            break;
+        }
+        // Wake on the audio period; a 200 ms timeout keeps the stop flag
+        // responsive even if the endpoint dies silently.
+        let wait = unsafe { WaitForSingleObject(event, 200) };
+        if wait != WAIT_OBJECT_0 {
+            continue;
+        }
+
+        while let Ok(block) = queue.try_recv() {
+            pending.extend_from_slice(&block);
+            // Bound the backlog defensively (≈1 s of audio).
+            if pending.len() > 48_000 * f32_frame_bytes {
+                pending.drain(..pending.len() - 48_000 * f32_frame_bytes);
+            }
+        }
+
+        let ptr = match unsafe { render_client.GetBuffer(buffer_frames) } {
+            Ok(p) => p,
+            Err(_) => break, // endpoint lost
+        };
+        if ptr.is_null() {
+            continue;
+        }
+
+        if bits_per_sample == 32 {
+            // Device speaks float32 — direct block copy with zero-pad tail.
+            let needed = buffer_frames as usize * frame_bytes;
+            unsafe {
+                let take = pending.len().min(needed);
+                if take > 0 {
+                    std::ptr::copy_nonoverlapping(pending.as_ptr(), ptr, take);
+                    pending.drain(..take);
+                }
+                if take < needed {
+                    std::ptr::write_bytes(ptr.add(take), 0, needed - take);
+                }
+                let _ = render_client.ReleaseBuffer(buffer_frames, sys::zero_buffer_flags());
+            }
+        } else {
+            // Integer-only endpoint: convert the f32 wire format to 16-bit PCM.
+            converted.clear();
+            let total_samples = buffer_frames as usize * channels as usize;
+            let mut src_idx = 0usize;
+            for _ in 0..total_samples {
+                if src_idx + 4 <= pending.len() {
+                    let sample = f32::from_le_bytes([
+                        pending[src_idx],
+                        pending[src_idx + 1],
+                        pending[src_idx + 2],
+                        pending[src_idx + 3],
+                    ]);
+                    src_idx += 4;
+                    let scaled = (sample.clamp(-1.0, 1.0) * 32767.0) as i16;
+                    converted.extend_from_slice(&scaled.to_le_bytes());
+                } else {
+                    converted.extend_from_slice(&0i16.to_le_bytes());
+                }
+            }
+            pending.drain(..src_idx);
+            unsafe {
+                std::ptr::copy_nonoverlapping(converted.as_ptr(), ptr, converted.len());
+                let _ = render_client.ReleaseBuffer(buffer_frames, sys::zero_buffer_flags());
+            }
+        }
+    }
+
+    let _ = unsafe { audio_client.Stop() };
+    let _ = unsafe { CloseHandle(event) };
+    if let Ok(mut s) = status.lock() {
+        *s = None;
+    }
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn raw_output_pump_exclusive(
+    stop: &AtomicBool,
+    queue: mpsc::Receiver<Vec<u8>>,
+    endpoint_id: Option<String>,
+    channels: u16,
+    status: std::sync::Arc<Mutex<Option<String>>>,
+) -> Result<(), String> {
+    let _ = (stop, queue, endpoint_id, channels, status);
+    Err("Exclusive WASAPI output requires Windows.".to_string())
+}
+
+fn raw_output_pump_shared(
+    stop: &AtomicBool,
+    queue: mpsc::Receiver<Vec<u8>>,
+    endpoint_id: Option<String>,
+    channels: u16,
+    status: std::sync::Arc<Mutex<Option<String>>>,
 ) -> Result<(), String> {
     #[cfg(windows)]
     {
         sys::init_com_mta()?;
 
-        let audio_client: sys::AudioClientT = {
-            // Honour the console-selected render endpoint; fall back to the
-            // default device when it disappeared (hot-unplug) so the show
-            // keeps running.
-            let device = match endpoint_id.as_deref() {
-                Some(id) if !id.is_empty() => sys::get_render_device_by_id(id).or_else(|err| {
-                    eprintln!(
-                        "[hkm-audio] selected render endpoint '{}' unavailable ({}); falling back to the default device.",
-                        id, err
-                    );
-                    sys::get_default_render_device()
-                }),
-                _ => sys::get_default_render_device(),
-            }?;
-            unsafe { device.Activate(sys::clsctx_all(), None) }
-                .map_err(|e| format!("IAudioClient activation failed: {}", e))?
-        };
+        let audio_client: sys::AudioClientT = sys::activate_render_client(endpoint_id.as_deref())?;
 
-        // Stereo keeps the plain float format (the current worklet contract);
+        // Stereo keeps the plain float format (the classic worklet contract);
         // 3..=32 channels request a WAVEFORMATEXTENSIBLE stream with the
         // standard speaker mask so discrete jack pairs are addressed 1:1.
         let stereo_format = sys::target_wave_format();
@@ -1180,6 +1546,9 @@ fn raw_output_pump(
         }
 
         unsafe { audio_client.Start() }.map_err(|e| format!("Raw output Start failed: {}", e))?;
+        if let Ok(mut s) = status.lock() {
+            *s = Some(format!("shared {}ch", channels));
+        }
 
         // Each pushed block is 480 frames (10 ms); fill whenever ≥ 20 ms is available.
         let mut pending: Vec<u8> = Vec::new();
@@ -1230,11 +1599,14 @@ fn raw_output_pump(
             thread::sleep(std::time::Duration::from_millis(8));
         }
         let _ = unsafe { audio_client.Stop() };
+        if let Ok(mut s) = status.lock() {
+            *s = None;
+        }
         Ok(())
     }
     #[cfg(not(windows))]
     {
-        let _ = (stop, queue, endpoint_id, channels);
+        let _ = (stop, queue, endpoint_id, channels, status);
         Err("Raw WASAPI output requires Windows.".to_string())
     }
 }

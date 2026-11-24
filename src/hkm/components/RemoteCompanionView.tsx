@@ -20,6 +20,7 @@ import type {
   SpeakerZone,
 } from '../types/audio.ts';
 import { HARDWARE_CATALOG } from '../data/hardwareCatalog.ts';
+import { buildRelayWsUrls } from '../utils/wsUrls.ts';
 
 interface RemoteCompanionViewProps {
   token: string;
@@ -187,25 +188,19 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
     const connect = () => {
       setWsStatus('connecting');
       setAuthError(null);
-      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const deviceLabel = encodeURIComponent(
-        /iPhone|iPad|Android/i.test(navigator.userAgent)
-          ? navigator.platform || 'Mobile FOH'
-          : 'Remote Companion Browser'
-      );
-      const url = `${proto}//${window.location.host}/ws?role=mobile&token=${encodeURIComponent(
-        token
-      )}&device=${deviceLabel}&XTransformPort=3030`;
+      const deviceLabel = /iPhone|iPad|Android/i.test(navigator.userAgent)
+        ? navigator.platform || 'Mobile FOH'
+        : 'Remote Companion Browser';
+      // Transport ladder (see utils/wsUrls.ts): same-origin gateway URL first,
+      // direct ws://<host>:3030 fallback for LAN consoles without a gateway.
+      // (buildRelayWsUrls encodes params itself — pass the raw label.)
+      const urls = buildRelayWsUrls({
+        role: 'mobile',
+        token,
+        device: deviceLabel,
+      });
 
-      const socket = new WebSocket(url);
-      wsRef.current = socket;
-
-      socket.onopen = () => {
-        reconnectAttempts = 0;
-        setWsStatus('connected');
-      };
-
-      socket.onmessage = (event) => {
+      const handleSocketMessage = (event: MessageEvent) => {
         try {
           const msg = JSON.parse(String(event.data));
           lastMsgAtRef.current = Date.now();
@@ -293,32 +288,85 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
         }
       };
 
-      socket.onclose = (ev) => {
-        wsRef.current = null;
-        if (ev.code === 4001 || ev.code === 4002 || ev.code === 4003) {
-          setWsStatus('error');
-          const fatalMessage = ev.reason || 'Remote session closed by FOH console.';
-          setAuthError(fatalMessage);
-          onFatalAuthErrorRef.current?.(fatalMessage);
-          return;
-        }
-        setWsStatus('disconnected');
-        if (!closedByUser) {
-          const delay = Math.min(10000, 2000 * Math.pow(2, reconnectAttempts));
-          reconnectAttempts = Math.min(reconnectAttempts + 1, 10);
-          reconnectTimerRef.current = window.setTimeout(connect, delay);
-        }
+      const openSocket = (urlIndex: number) => {
+        const socket = new WebSocket(urls[urlIndex]);
+        wsRef.current = socket;
+        let sawMessage = false;
+        let opened = false;
+        let advanced = false;
+
+        // Open-timeout guard: a direct LAN hit on the Next.js origin never
+        // answers the /ws upgrade (no close frame either — it just hangs), so
+        // the primary transport is abandoned after 2.5 s and the direct
+        // :3030 relay URL takes over.
+        const openTimer = window.setTimeout(() => {
+          if (!opened && !advanced) {
+            advanced = true;
+            try {
+              socket.close();
+            } catch {
+              // already closed
+            }
+          }
+        }, 2500);
+
+        socket.onopen = () => {
+          opened = true;
+          window.clearTimeout(openTimer);
+          reconnectAttempts = 0;
+          setWsStatus('connected');
+        };
+
+        socket.onmessage = (event) => {
+          sawMessage = true;
+          handleSocketMessage(event);
+        };
+
+        socket.onclose = (ev) => {
+          window.clearTimeout(openTimer);
+          if (wsRef.current === socket) wsRef.current = null;
+          if (ev.code === 4001 || ev.code === 4002 || ev.code === 4003) {
+            setWsStatus('error');
+            const fatalMessage = ev.reason || 'Remote session closed by FOH console.';
+            setAuthError(fatalMessage);
+            onFatalAuthErrorRef.current?.(fatalMessage);
+            return;
+          }
+          // Primary URL died before opening (hung upgrade / unreachable) —
+          // retry once immediately on the direct :3030 transport.
+          if (urlIndex === 0 && !opened && !closedByUser) {
+            openSocket(1);
+            return;
+          }
+          setWsStatus('disconnected');
+          if (!closedByUser) {
+            const delay = Math.min(10000, 2000 * Math.pow(2, reconnectAttempts));
+            reconnectAttempts = Math.min(reconnectAttempts + 1, 10);
+            reconnectTimerRef.current = window.setTimeout(connect, delay);
+          }
+        };
+
+        socket.onerror = () => {
+          if (!opened) setWsStatus('error');
+        };
       };
 
-      socket.onerror = () => {
-        setWsStatus('error');
-      };
+      openSocket(0);
     };
+
+    // App-level keepalive: refreshes the relay's lastSeenAt and the link
+    // health ticker while the socket is otherwise idle.
+    const pingTimer = window.setInterval(() => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'ping' }));
+      }
+    }, 20000);
 
     connect();
 
     return () => {
       closedByUser = true;
+      window.clearInterval(pingTimer);
       if (reconnectTimerRef.current) window.clearTimeout(reconnectTimerRef.current);
       if (wsRef.current) wsRef.current.close();
     };

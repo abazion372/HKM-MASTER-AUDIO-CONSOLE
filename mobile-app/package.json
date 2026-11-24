@@ -1,0 +1,18 @@
+{
+  "name": "hkm-companion-mobile",
+  "private": true,
+  "version": "1.0.0",
+  "description": "HKM FOH Companion — Android shell for the HKM Master Audio Console remote control surface.",
+  "scripts": {
+    "apk": "cap sync android && cd android && ./gradlew assembleDebug",
+    "open:android": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.7",
+    "@capacitor/app": "^7.0.1",
+    "@capacitor/core": "^7.4.7"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.7"
+  }
+}

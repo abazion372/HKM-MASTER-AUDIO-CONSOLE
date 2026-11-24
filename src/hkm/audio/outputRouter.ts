@@ -68,6 +68,11 @@ export class OutputRouter {
   private emergencyMuted = false;
   private rawOutputActive = false;
   private rawOutputEndpointId: string | undefined = undefined;
+  /** v2 native per-jack engine: armed channel count + share mode. */
+  private rawOutputExclusive = false;
+  private rawOutputChannels = 2;
+  /** Which graph feeds the raw tap: 'master' (post-DSP stereo) or 'jack' (per-jack merger). */
+  private rawTapFeed: 'master' | 'jack' | null = null;
   private preferredOutputDeviceId: string | undefined = undefined;
   private preferredStreamOutputDeviceId: string | undefined = undefined;
   private onOutputFallbackCb: ((staleDeviceId: string, reason: string) => void) | null = null;
@@ -315,6 +320,23 @@ export class OutputRouter {
     }
     merger.connect(ctx.destination);
     this.jackMerger = merger;
+
+    // v2 native per-jack engine already armed → hand the fresh merger to the
+    // raw tap (bit-perfect shared/exclusive WASAPI) instead of the browser sink.
+    if (
+      this.rawOutputActive &&
+      this.rawTapNode &&
+      this.rawOutputChannels >= 4 &&
+      !this.jackSimulated
+    ) {
+      try {
+        merger.disconnect(ctx.destination);
+      } catch {
+        // ignore
+      }
+      merger.connect(this.rawTapNode);
+      this.rawTapFeed = 'jack';
+    }
   }
 
   /** Remove the discrete graph and restore the legacy stereo PA chain. */
@@ -349,6 +371,17 @@ export class OutputRouter {
     this.jackMerger = null;
     this.jackSlotZones.clear();
     this.jackLayoutChannels = 0;
+
+    // Native per-jack feed lost its merger — revert the raw tap to the
+    // post-DSP master stereo feed so the native stream keeps running.
+    if (this.rawTapFeed === 'jack' && this.rawTapNode && this.ctx && this.postAnalyser) {
+      try {
+        this.postAnalyser.connect(this.rawTapNode);
+      } catch {
+        // ignore
+      }
+      this.rawTapFeed = 'master';
+    }
 
     if (this.ctx && this.monitorGain && this.paZoneDelayNode && this.paZoneGainNode) {
       // Restore legacy chain wiring.
@@ -630,6 +663,21 @@ export class OutputRouter {
     return this.rawOutputActive;
   }
 
+  /** v2 native engine snapshot for the Discrete Jack Bay UI. */
+  public getRawOutputEngineStatus(): {
+    active: boolean;
+    exclusive: boolean;
+    channels: number;
+    feed: 'master' | 'jack' | null;
+  } {
+    return {
+      active: this.rawOutputActive,
+      exclusive: this.rawOutputExclusive,
+      channels: this.rawOutputChannels,
+      feed: this.rawTapFeed,
+    };
+  }
+
   public getRawOutputEndpointId(): string | undefined {
     return this.rawOutputEndpointId;
   }
@@ -756,16 +804,29 @@ export class OutputRouter {
       }
       this.rawTapSilentSink = null;
     }
+    // Native per-jack path was carrying the jack graph — hand the merger back
+    // to the Web Audio destination so audio keeps flowing after teardown.
+    if (this.rawTapFeed === 'jack' && this.jackMerger && this.ctx) {
+      try {
+        this.jackMerger.connect(this.ctx.destination);
+      } catch {
+        // ignore
+      }
+    }
+    this.rawTapFeed = null;
   }
 
   public async setRawOutputEnabled(
     enabled: boolean,
     isRunning: boolean,
-    endpointId?: string
+    endpointId?: string,
+    options?: { channels?: number; exclusive?: boolean }
   ): Promise<boolean> {
     if (endpointId !== undefined) {
       this.rawOutputEndpointId = endpointId || undefined;
     }
+    const channels = Math.max(2, Math.min(32, Math.round(options?.channels ?? 2)));
+    const exclusive = options?.exclusive === true;
     if (!enabled) {
       this.rawOutputActive = false;
       this.teardownRawTap();
@@ -779,7 +840,15 @@ export class OutputRouter {
     }
 
     try {
-      await startRawOutput(this.rawOutputEndpointId);
+      // Arm the native WASAPI stream (shared or exclusive) with the requested
+      // channel layout — the Rust shell opens the endpoint and the worklet
+      // below feeds it interleaved 48 kHz f32 blocks of the same width.
+      this.rawOutputChannels = channels;
+      this.rawOutputExclusive = exclusive;
+      const armed = await startRawOutput(this.rawOutputEndpointId, channels, exclusive);
+      if (!armed) {
+        throw new Error('Native WASAPI stream could not be opened on this endpoint.');
+      }
       await this.ensureRawTapWorklet();
       if (!this.ctx || !this.postAnalyser || !isRunning) {
         await stopRawOutput();
@@ -790,8 +859,11 @@ export class OutputRouter {
       const tapNode = new AudioWorkletNode(this.ctx, 'raw-output-tap-processor', {
         numberOfInputs: 1,
         numberOfOutputs: 1,
-        channelCount: 2,
-        outputChannelCount: [2],
+        channelCount: channels,
+        channelCountMode: 'explicit',
+        channelInterpretation: 'discrete',
+        outputChannelCount: [channels],
+        processorOptions: { channels },
       });
       const silentSink = this.ctx.createGain();
       silentSink.gain.value = 0;
@@ -802,7 +874,23 @@ export class OutputRouter {
         }
       };
 
-      this.postAnalyser.connect(tapNode);
+      // Feed choice: a discrete jack graph (≥4 channels, real sink) hands its
+      // per-jack merger to the native engine — bit-perfect per-jack delivery.
+      // Everything else keeps the classic post-DSP master-stereo tap.
+      const jackFeed =
+        channels >= 4 && this.jackMerger && !this.jackSimulated && this.jackLayoutChannels >= channels;
+      if (jackFeed && this.jackMerger) {
+        try {
+          this.jackMerger.disconnect(this.ctx.destination);
+        } catch {
+          // not connected
+        }
+        this.jackMerger.connect(tapNode);
+        this.rawTapFeed = 'jack';
+      } else {
+        this.postAnalyser.connect(tapNode);
+        this.rawTapFeed = 'master';
+      }
       tapNode.connect(silentSink);
       silentSink.connect(this.ctx.destination);
 

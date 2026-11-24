@@ -40,6 +40,7 @@ import {
 } from '../plugins/pluginManager.ts';
 import { appFetch, isDesktopApp } from '../utils/appApi.ts';
 import { saveLastActiveHardwareId } from '../utils/hardwareCacheDb.ts';
+import { buildRelayWsUrls } from '../utils/wsUrls.ts';
 import { liveAudioEngine } from '../audio/liveAudioEngine.ts';
 import {
   sanitizeAndAutoNameChannels,
@@ -378,14 +379,32 @@ export function useConsoleSession({
     let reconnectAttempts = 0;
 
     const connectWs = () => {
-      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const ws = new WebSocket(
-        `${proto}//${window.location.host}/ws?role=desktop&XTransformPort=3030`
-      );
-      desktopWsRef.current = ws;
+      // Transport ladder (utils/wsUrls.ts): same-origin gateway URL first,
+      // direct ws://<host>:3030 fallback (LAN console without a gateway).
+      const urls = buildRelayWsUrls({ role: 'desktop' });
 
-      ws.onmessage = (event) => {
-        try {
+      const openSocket = (urlIndex: number) => {
+        const ws = new WebSocket(urls[urlIndex]);
+        desktopWsRef.current = ws;
+        let opened = false;
+        let advanced = false;
+
+        // Open-timeout guard: a direct LAN hit on the Next.js origin never
+        // answers the /ws upgrade (it hangs without a close frame), so the
+        // primary transport is abandoned after 2.5 s for the direct :3030 URL.
+        const openTimer = window.setTimeout(() => {
+          if (!opened && !advanced) {
+            advanced = true;
+            try {
+              ws.close();
+            } catch {
+              // already closed
+            }
+          }
+        }, 2500);
+
+        ws.onmessage = (event) => {
+          try {
           const msg = JSON.parse(String(event.data));
           if (msg.type === 'state:full' && msg.state) {
             if (msg.state.remoteAccess) setRemoteAccess(msg.state.remoteAccess);
@@ -444,23 +463,44 @@ export function useConsoleSession({
       };
 
       ws.onopen = () => {
+        opened = true;
+        window.clearTimeout(openTimer);
         reconnectAttempts = 0;
       };
 
       ws.onclose = () => {
+        window.clearTimeout(openTimer);
         if (desktopWsRef.current === ws) desktopWsRef.current = null;
+        // Primary URL never opened (hung upgrade / unreachable) — retry once
+        // immediately on the direct :3030 transport (LAN deployment).
+        if (urlIndex === 0 && !opened && !closedByEffect) {
+          openSocket(1);
+          return;
+        }
         if (!closedByEffect) {
           const delay = Math.min(10000, 2000 * Math.pow(2, reconnectAttempts));
           reconnectAttempts = Math.min(reconnectAttempts + 1, 10);
           reconnectTimer = window.setTimeout(connectWs, delay);
         }
       };
+      };
+
+      openSocket(0);
     };
+
+    // App-level keepalive: refreshes the relay's lastSeenAt so idle 24/7
+    // sessions are never reaped as dead sockets.
+    const pingTimer = window.setInterval(() => {
+      if (desktopWsRef.current?.readyState === WebSocket.OPEN) {
+        desktopWsRef.current.send(JSON.stringify({ type: 'ping' }));
+      }
+    }, 20000);
 
     connectWs();
 
     return () => {
       closedByEffect = true;
+      window.clearInterval(pingTimer);
       if (reconnectTimer) window.clearTimeout(reconnectTimer);
       if (desktopWsRef.current) {
         desktopWsRef.current.close();

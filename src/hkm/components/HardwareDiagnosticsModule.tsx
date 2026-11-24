@@ -19,6 +19,7 @@ import {
   UserX,
   Usb,
   Radar,
+  Download,
 } from 'lucide-react';
 import type {
   AudioSourceSimulation,
@@ -215,6 +216,7 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
   const [pluginError, setPluginError] = useState<string | null>(null);
   const [pluginSuccess, setPluginSuccess] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [appQrDataUrl, setAppQrDataUrl] = useState<string>('');
   const [copiedUrl, setCopiedUrl] = useState(false);
 
   const latencyMs = calculateRoundTripLatencyMs(bufferSize, sampleRate, driver);
@@ -234,6 +236,21 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
 
   const pairingUrl = useMemo(() => {
     return `${baseHostUrl}/?mode=remote&token=${encodeURIComponent(remoteAccess.sessionToken)}`;
+  }, [baseHostUrl, remoteAccess.sessionToken]);
+
+  // Deep link for the HKM FOH Companion Android app (hkm://pair). Scanning
+  // it with the phone camera opens the installed APK straight into the
+  // pairing flow — no typing host or token on the phone.
+  const appPairingUrl = useMemo(() => {
+    try {
+      const u = new URL(baseHostUrl);
+      const port = u.port || '3000';
+      return `hkm://pair?host=${encodeURIComponent(u.hostname)}&port=${port}&token=${encodeURIComponent(
+        remoteAccess.sessionToken
+      )}`;
+    } catch {
+      return '';
+    }
   }, [baseHostUrl, remoteAccess.sessionToken]);
 
   useEffect(() => {
@@ -256,6 +273,28 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
       active = false;
     };
   }, [pairingUrl]);
+
+  useEffect(() => {
+    if (!appPairingUrl) return;
+    let active = true;
+    QRCode.toDataURL(appPairingUrl, {
+      width: 200,
+      margin: 2,
+      color: {
+        dark: '#0B101B',
+        light: '#FFFFFF',
+      },
+    })
+      .then((url) => {
+        if (active) setAppQrDataUrl(url);
+      })
+      .catch(() => {
+        if (active) setAppQrDataUrl('');
+      });
+    return () => {
+      active = false;
+    };
+  }, [appPairingUrl]);
 
   const handleCopyPairingUrl = () => {
     navigator.clipboard.writeText(pairingUrl);
@@ -303,7 +342,7 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
             { id: 'plugins', label: `PLUGINS (${plugins.length})`, icon: Puzzle },
             { id: 'crossplatform', label: 'OS & DRIVERS', icon: Layers },
             { id: 'watchdog', label: 'WATCHDOG', icon: ShieldAlert },
-          ].filter((item) => !desktopBuild || item.id !== 'remote').map((item) => {
+          ].map((item) => {
             const Icon = item.icon;
             return (
               <button
@@ -522,6 +561,55 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                 placeholder="Optional custom host e.g. http://192.168.1.50:3000"
                 className="w-full h-9 px-2.5 rounded border border-slate-700 bg-[#070A10] text-xs font-mono text-slate-200 focus:outline-none focus:border-sky-400"
               />
+            </div>
+
+            {/* HKM FOH Companion Android app — real APK + one-scan deep-link pairing */}
+            <div className="pt-2 border-t border-slate-800 space-y-2.5">
+              <div className="flex items-center gap-2">
+                <Download className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="font-mono text-[10px] font-semibold text-white uppercase tracking-wider">
+                  HKM FOH Companion App (Android)
+                </span>
+              </div>
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="p-2 rounded-lg bg-white border border-slate-300 shrink-0">
+                  {appQrDataUrl ? (
+                    <img
+                      src={appQrDataUrl}
+                      alt="Scan with the HKM FOH Companion app to pair this console"
+                      className="w-32 h-32 block"
+                    />
+                  ) : (
+                    <div className="w-32 h-32 flex items-center justify-center text-[10px] font-mono text-slate-600">
+                      Generating QR...
+                    </div>
+                  )}
+                  <div className="text-center font-mono text-[8px] text-slate-700 mt-1 uppercase tracking-wider">
+                    App pairing QR
+                  </div>
+                </div>
+                <div className="space-y-2 text-xs min-w-0 flex-1">
+                  <p className="text-slate-400 leading-relaxed">
+                    Install the companion APK on an Android phone, then scan this QR with the phone
+                    camera — the app opens already paired to this console. Works fully offline on
+                    the sanctuary Wi-Fi; the same live fader, mute, zone and master-trim sync as
+                    the browser companion.
+                  </p>
+                  <a
+                    href="/downloads/HKM-FOH-Companion.apk"
+                    download="HKM-FOH-Companion.apk"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-mono font-semibold no-underline"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>DOWNLOAD APK (~4 MB)</span>
+                  </a>
+                  <p className="text-[10px] text-slate-500 font-mono leading-relaxed">
+                    Android 7.0+ · debug-signed build · enable “Install unknown apps” when prompted.
+                    The QR above also works without the app: the standard pairing QR (left) opens
+                    the browser companion instead.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 

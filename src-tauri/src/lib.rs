@@ -38,6 +38,9 @@ struct DesktopAudioStatus {
     os_build: u32,
     apo_active: bool,
     active_streams: Vec<String>,
+    /// Live native output stream status: None = off, "shared …" / "exclusive …"
+    /// = running, "…-error: …" = last failure (v2 per-jack engine).
+    raw_output_mode: Option<String>,
     reason: Option<String>,
 }
 
@@ -93,6 +96,7 @@ fn desktop_audio_status(state: tauri::State<'_, DesktopState>) -> DesktopAudioSt
             os_build,
             apo_active: apo::get_apo_status().apo_registered_any,
             active_streams: state.captures.active_keys(),
+            raw_output_mode: state.raw_output.current_status(),
             reason: None,
         }
     }
@@ -104,6 +108,7 @@ fn desktop_audio_status(state: tauri::State<'_, DesktopState>) -> DesktopAudioSt
             os_build: 0,
             apo_active: false,
             active_streams: Vec::new(),
+            raw_output_mode: None,
             reason: Some("Desktop audio engine requires Windows.".to_string()),
         }
     }
@@ -171,17 +176,23 @@ async fn start_raw_output(
     state: tauri::State<'_, DesktopState>,
     endpoint_id: Option<String>,
     channels: Option<u16>,
+    exclusive: Option<bool>,
 ) -> Result<(), String> {
     apo::set_raw_output_active(true);
-    // Stereo is the current web-worklet contract; 3..=32 arms the discrete
+    // Stereo is the classic web-worklet contract; 3..=32 arms the discrete
     // multichannel path (WAVEFORMATEXTENSIBLE speaker-mask stream) for
-    // per-jack rendering on 5.1/7.1/pro cards.
+    // per-jack rendering on 5.1/7.1/pro cards. `exclusive` opens the endpoint
+    // in exclusive WASAPI (bit-perfect per-jack delivery, no shared mixer or
+    // APO interference — the v2 native engine path).
     let ch = channels.unwrap_or(2).clamp(2, 32);
-    state.raw_output.start(endpoint_id, ch)
+    state
+        .raw_output
+        .start(endpoint_id, ch, exclusive.unwrap_or(false))
 }
 
-/// Receives raw 48 kHz interleaved Float32 stereo blocks (10 ms / 3840 bytes)
-/// from the web `raw-output-tap` AudioWorklet via the raw IPC body.
+/// Receives raw 48 kHz interleaved Float32 blocks (10 ms / 480 frames — stereo
+/// or N-channel matching the armed jack layout) from the web `raw-output-tap`
+/// AudioWorklet via the raw IPC body.
 ///
 /// NOTE: on newer tauri versions the parameter is `tauri::ipc::Request` without
 /// a lifetime — drop `<'_>` if the compiler complains.
