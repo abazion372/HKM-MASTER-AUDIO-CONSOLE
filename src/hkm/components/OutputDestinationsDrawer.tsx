@@ -91,10 +91,16 @@ export const OutputDestinationsDrawer: React.FC<OutputDestinationsDrawerProps> =
             type="button"
             disabled={scanning}
             onClick={() => void handleScan()}
-            title="Scan Physical & Virtual Output Ports"
-            className="p-1 rounded text-slate-400 hover:text-emerald-300 hover:bg-slate-800 transition cursor-pointer disabled:opacity-40"
+            title="Live Rescan All Output Devices (speakers, headphones, USB & virtual cable sinks)"
+            aria-label="Live rescan output devices"
+            className={`px-1.5 py-1 rounded border font-mono text-[9px] font-bold flex items-center gap-1 transition cursor-pointer disabled:opacity-40 ${
+              scanning
+                ? 'border-emerald-400/70 bg-emerald-950/50 text-emerald-300'
+                : 'border-emerald-500/45 bg-emerald-950/35 hover:bg-emerald-900/50 text-emerald-300'
+            }`}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${scanning ? 'animate-spin text-emerald-400' : ''}`} />
+            <RefreshCw className={`w-3 h-3 ${scanning ? 'animate-spin' : ''}`} />
+            <span>{scanning ? 'Scanning…' : 'Rescan'}</span>
           </button>
           <button
             type="button"

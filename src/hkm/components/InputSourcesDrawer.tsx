@@ -79,10 +79,16 @@ export const InputSourcesDrawer: React.FC<InputSourcesDrawerProps> = ({
             type="button"
             disabled={scanning}
             onClick={() => void handleScan()}
-            title="Scan Physical & Virtual Input Endpoints"
-            className="p-1 rounded text-slate-400 hover:text-sky-300 hover:bg-slate-800 transition cursor-pointer disabled:opacity-40"
+            title="Live Rescan All Input Devices (USB, soundcard & virtual cables incl. VB-Audio)"
+            aria-label="Live rescan input devices"
+            className={`px-1.5 py-1 rounded border font-mono text-[9px] font-bold flex items-center gap-1 transition cursor-pointer disabled:opacity-40 ${
+              scanning
+                ? 'border-sky-400/70 bg-sky-950/50 text-sky-300'
+                : 'border-sky-500/45 bg-sky-950/35 hover:bg-sky-900/50 text-sky-300'
+            }`}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${scanning ? 'animate-spin text-sky-400' : ''}`} />
+            <RefreshCw className={`w-3 h-3 ${scanning ? 'animate-spin' : ''}`} />
+            <span>{scanning ? 'Scanning…' : 'Rescan'}</span>
           </button>
           <button
             type="button"
@@ -99,7 +105,8 @@ export const InputSourcesDrawer: React.FC<InputSourcesDrawerProps> = ({
       <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2">
         {inputDevices.length === 0 ? (
           <div className="p-3 text-center border border-dashed border-slate-800 rounded bg-[#060910] text-[10px] font-mono text-slate-500">
-            No external audio inputs detected yet. Click refresh or plug in USB audio device.
+            No external audio inputs detected yet. Click Rescan (grants mic access once to unlock
+            labels) or plug in a USB / virtual cable device.
           </div>
         ) : (
           inputDevices.map((dev, idx) => {

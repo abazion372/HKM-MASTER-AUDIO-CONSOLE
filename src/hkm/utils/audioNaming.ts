@@ -1,7 +1,8 @@
 /**
  * HKM Audio System - Hardware Audio I/O Deduplication, Loopback Filtering & 1-to-1 Auto-Slot Allocator
  * - Guarantees 1 standalone stereo endpoint per physical/virtual device (no L/R splits, no synthetic jack cloning).
- * - Filters out OS loopback / virtual mix-back traps from live input channels by default.
+ * - Filters out TRUE OS mix-back traps (Stereo Mix / What U Hear / Monitor taps) while keeping operator-installed
+ *   virtual cables (VB-Audio CABLE, VoiceMeeter) fully visible and assignable as live inputs.
  * - Occupies CH 1..CH N 1-to-1 at startup and auto-slots hot-plugged inputs into the next open slot.
  */
 
@@ -63,12 +64,27 @@ export function normalizeDeviceLabel(label?: string): string {
 }
 
 /**
- * Identifies OS loopback / system mix-back capture endpoints that cause audio feedback loops
- * when automatically mounted as live console inputs.
+ * Identifies TRUE OS mix-back / hardware loopback capture endpoints that cause runaway feedback
+ * loops when automatically mounted as live console inputs (Stereo Mix, What U Hear, Wave Out Mix,
+ * "Monitor of" taps).
+ *
+ * Intentional virtual audio cables (VB-Audio CABLE Output, VoiceMeeter VAIO/AUX buses, etc.) are
+ * deliberately NOT blacklisted: they are operator-installed routing endpoints, so they stay
+ * visible, slottable, and persistable as live inputs.
  */
 export function isLoopbackInputLabel(label?: string): boolean {
   if (!label) return false;
-  return /\b(stereo\s*mix|what\s*u\s*hear|wave\s*out\s*mix|loopback|cable\s*output|voicemeeter\s*(?:out|output|aux\s*out|vaio\s*out)|monitor\s+of)\b/i.test(
+  return /\b(stereo\s*mix|what\s*u\s*hear|wave\s*out\s*mix|monitor\s+of)\b/i.test(label);
+}
+
+/**
+ * Detects operator-installed virtual audio cable / virtual mixer capture endpoints
+ * (VB-Audio CABLE, VoiceMeeter VAIO/AUX/Out buses, BlackHole, Soundflower, OBS virtual audio).
+ * These are legitimate live input sources, never filtered as loopback traps.
+ */
+export function isVirtualCableInputLabel(label?: string): boolean {
+  if (!label) return false;
+  return /\b(cable\s*(?:output|in|input)|vb-?audio|voicemeeter|blackhole|soundflower|obs\s+(?:virtual|audio))\b/i.test(
     label
   );
 }

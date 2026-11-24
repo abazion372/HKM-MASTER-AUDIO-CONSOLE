@@ -202,10 +202,16 @@ export const LivePatchbayDrawer: React.FC<LivePatchbayDrawerProps> = ({
               type="button"
               disabled={scanning}
               onClick={() => void handleScan()}
-              title="Re-Scan Physical & Virtual Audio Ports"
-              className="p-1 rounded text-slate-400 hover:text-sky-300 hover:bg-slate-800 transition cursor-pointer disabled:opacity-40"
+              title="Live Rescan Physical & Virtual Audio Ports (inputs + outputs)"
+              aria-label="Live rescan audio ports"
+              className={`px-1.5 py-1 rounded border font-mono text-[9px] font-bold flex items-center gap-1 transition cursor-pointer disabled:opacity-40 ${
+                scanning
+                  ? 'border-sky-400/70 bg-sky-950/50 text-sky-300'
+                  : 'border-sky-500/45 bg-sky-950/35 hover:bg-sky-900/50 text-sky-300'
+              }`}
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${scanning ? 'animate-spin text-sky-400' : ''}`} />
+              <RefreshCw className={`w-3 h-3 ${scanning ? 'animate-spin' : ''}`} />
+              <span>{scanning ? 'Scanning…' : 'Rescan'}</span>
             </button>
             <button
               type="button"

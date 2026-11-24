@@ -609,35 +609,67 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
 
           {/* Collapsible Live Hardware Input Patch Tray (1-Click Route to Focused Channel) */}
           <div className="shrink-0 border-t border-[#445568] bg-[#10151B]">
-            <button
-              type="button"
-              onClick={() => setPatchTrayOpen((v) => !v)}
-              className="w-full px-2.5 py-1.5 hw-card-subheader flex items-center justify-between font-mono text-[9.5px] font-bold hover:text-white cursor-pointer"
-            >
-              <span className="flex items-center gap-1.5 min-w-0">
-                <Cable className="w-3 h-3 text-teal-300 shrink-0" />
-                <span className="truncate">HARDWARE INPUTS ({inputDevices.length})</span>
-                {desktopAudioStatus?.supported && (
-                  <span
-                    className={`px-1 py-0.2 rounded text-[7.5px] border shrink-0 ${
-                      singleSpeakerMode || desktopAudioStatus.apoActive
-                        ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-300'
-                        : 'bg-cyan-500/15 border-cyan-400/40 text-cyan-300'
-                    }`}
-                  >
-                    {singleSpeakerMode || desktopAudioStatus.apoActive ? 'APO' : 'WASAPI'}
-                  </span>
+            <div className="flex items-stretch">
+              <button
+                type="button"
+                onClick={() => setPatchTrayOpen((v) => !v)}
+                className="flex-1 min-w-0 px-2.5 py-1.5 hw-card-subheader flex items-center justify-between font-mono text-[9.5px] font-bold hover:text-white cursor-pointer"
+              >
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <Cable className="w-3 h-3 text-teal-300 shrink-0" />
+                  <span className="truncate">HARDWARE INPUTS ({inputDevices.length})</span>
+                  {desktopAudioStatus?.supported && (
+                    <span
+                      className={`px-1 py-0.2 rounded text-[7.5px] border shrink-0 ${
+                        singleSpeakerMode || desktopAudioStatus.apoActive
+                          ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-300'
+                          : 'bg-cyan-500/15 border-cyan-400/40 text-cyan-300'
+                      }`}
+                    >
+                      {singleSpeakerMode || desktopAudioStatus.apoActive ? 'APO' : 'WASAPI'}
+                    </span>
+                  )}
+                </span>
+                {patchTrayOpen ? (
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                ) : (
+                  <ChevronUp className="w-3.5 h-3.5 text-slate-300 shrink-0" />
                 )}
-              </span>
-              {patchTrayOpen ? (
-                <ChevronDown className="w-3.5 h-3.5 text-slate-300" />
-              ) : (
-                <ChevronUp className="w-3.5 h-3.5 text-slate-300" />
-              )}
-            </button>
+              </button>
+              {/* LIVE RESCAN: Input Devices */}
+              <button
+                type="button"
+                disabled={scanning}
+                onClick={() => void handleScan()}
+                title="Live Rescan All Input Devices (USB, soundcard & virtual cables incl. VB-Audio)"
+                aria-label="Live rescan input devices"
+                className="shrink-0 px-1.5 m-1 rounded hw-top-btn font-mono text-[8.5px] font-bold text-teal-200 flex items-center gap-1 cursor-pointer disabled:opacity-40"
+              >
+                <RefreshCw
+                  className={`w-3 h-3 shrink-0 ${scanning ? 'animate-spin text-teal-300' : 'text-teal-300'}`}
+                />
+                <span className="hidden 2xl:inline">RESCAN</span>
+              </button>
+            </div>
 
             {patchTrayOpen && (
               <div className="max-h-[168px] overflow-y-auto px-1.5 py-1.5 space-y-1">
+                {/* Labeled Live Input Rescan Row */}
+                <button
+                  type="button"
+                  disabled={scanning}
+                  onClick={() => void handleScan()}
+                  title="Live Rescan All Input Devices (requests mic permission once to unlock device labels)"
+                  aria-label="Live rescan input devices"
+                  className={`w-full px-2 py-1 rounded border font-mono text-[8.5px] font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-45 transition ${
+                    scanning
+                      ? 'border-teal-400/70 bg-teal-950/50 text-teal-200'
+                      : 'border-teal-500/45 bg-teal-950/35 hover:bg-teal-900/50 text-teal-200'
+                  }`}
+                >
+                  <RefreshCw className={`w-2.5 h-2.5 shrink-0 ${scanning ? 'animate-spin' : ''}`} />
+                  <span>{scanning ? 'RESCANNING INPUTS…' : `LIVE RESCAN INPUTS (${inputDevices.length} FOUND)`}</span>
+                </button>
                 {onActivateSystemAudioBridge && (
                   <button
                     type="button"
@@ -938,9 +970,31 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
             )}
           </div>
 
-          <div className="shrink-0 px-2.5 py-1.5 border-t border-[#445568] bg-[#10151B] font-mono text-[9px] text-slate-300 flex items-center justify-between">
-            <span>Standalone Outputs</span>
-            <span className="text-emerald-400 font-bold">STEREO 1:1</span>
+          {/* LIVE RESCAN: Output Devices */}
+          <div className="shrink-0 border-t border-[#445568] bg-[#10151B] p-1.5 space-y-1.5">
+            <button
+              type="button"
+              disabled={scanning}
+              onClick={() => void handleScan()}
+              title="Live Rescan All Output Devices (speakers, headphones, USB & virtual cable sinks)"
+              aria-label="Live rescan output devices"
+              className={`w-full py-1.5 rounded border font-mono text-[9.5px] font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-45 transition ${
+                scanning
+                  ? 'border-emerald-400/70 bg-emerald-950/50 text-emerald-200'
+                  : 'border-emerald-500/45 bg-emerald-950/35 hover:bg-emerald-900/50 text-emerald-200'
+              }`}
+            >
+              <RefreshCw className={`w-3 h-3 shrink-0 ${scanning ? 'animate-spin' : ''}`} />
+              <span>
+                {scanning
+                  ? 'RESCANNING OUTPUTS…'
+                  : `LIVE RESCAN OUTPUTS (${outputDevices.length} FOUND)`}
+              </span>
+            </button>
+            <div className="px-1 font-mono text-[9px] text-slate-300 flex items-center justify-between">
+              <span>Standalone Outputs</span>
+              <span className="text-emerald-400 font-bold">STEREO 1:1</span>
+            </div>
           </div>
         </div>
       )}

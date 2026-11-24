@@ -13,13 +13,13 @@
     {
       "id": "ch-1",
       "index": 1,
-      "name": "Input 1",
-      "role": "Open Slot",
+      "name": "VB-Audio Cable",
+      "role": "Virtual In",
       "authority": "software-dsp",
       "levelDb": -96,
       "peakDb": -96,
-      "gainDb": 0,
-      "faderDb": -48,
+      "gainDb": 24,
+      "faderDb": 0,
       "mute": false,
       "solo": false,
       "phantom48v": false,
@@ -45,18 +45,20 @@
       "stereoLinked": false,
       "mainPaAssign": true,
       "streamAssign": true,
-      "subAssign": false
+      "subAssign": false,
+      "hardwareInputId": "vbcable-out-123",
+      "hardwareInputLabel": "CABLE Output (VB-Audio Virtual Cable)"
     },
     {
       "id": "ch-2",
       "index": 2,
-      "name": "Input 2",
-      "role": "Open Slot",
+      "name": "Realtek Mic",
+      "role": "Microphone",
       "authority": "software-dsp",
       "levelDb": -96,
       "peakDb": -96,
-      "gainDb": 0,
-      "faderDb": -48,
+      "gainDb": 24,
+      "faderDb": 0,
       "mute": false,
       "solo": false,
       "phantom48v": false,
@@ -82,7 +84,9 @@
       "stereoLinked": false,
       "mainPaAssign": true,
       "streamAssign": true,
-      "subAssign": false
+      "subAssign": false,
+      "hardwareInputId": "mic-456",
+      "hardwareInputLabel": "Microphone (Realtek High Definition Audio)"
     },
     {
       "id": "ch-3",
@@ -311,7 +315,7 @@
     "bypassed": false,
     "inputTrimDb": 0,
     "hpfEnabled": true,
-    "hpfHz": 95,
+    "hpfHz": 160,
     "lpfEnabled": false,
     "lpfHz": 18500,
     "eqBands": [
@@ -1055,6 +1059,94 @@
   "versions": [],
   "diagnostics": [],
   "auditEvents": [
+    {
+      "id": "evt-1795510469111-bdo9",
+      "timestamp": "2026-11-24T08:54:29.111Z",
+      "actor": "Sound Engineer",
+      "action": "Auto-Slotted New Live Input",
+      "detail": "CH2 ← Microphone (Realtek High Definition Audio)",
+      "authority": "system"
+    },
+    {
+      "id": "evt-1795510469110-l7nq",
+      "timestamp": "2026-11-24T08:54:29.110Z",
+      "actor": "Sound Engineer",
+      "action": "Auto-Slotted New Live Input",
+      "detail": "CH1 ← CABLE Output (VB-Audio Virtual Cable)",
+      "authority": "system"
+    },
+    {
+      "id": "evt-1795510175301-6ecj",
+      "timestamp": "2026-11-24T08:49:35.301Z",
+      "actor": "Sound Engineer",
+      "action": "Reset DSP Configuration",
+      "detail": "Restored master DSP parameters to default factory baseline.",
+      "authority": "operator"
+    },
+    {
+      "id": "evt-1795510170950-05b2",
+      "timestamp": "2026-11-24T08:49:30.950Z",
+      "actor": "Sound Engineer",
+      "action": "Released Global Emergency Mute",
+      "detail": "Master PA & monitor outputs restored.",
+      "authority": "operator"
+    },
+    {
+      "id": "evt-1795510170222-j53x",
+      "timestamp": "2026-11-24T08:49:30.222Z",
+      "actor": "Sound Engineer",
+      "action": "Engaged Global Emergency Mute",
+      "detail": "All live PA & monitor outputs muted immediately.",
+      "authority": "operator"
+    },
+    {
+      "id": "evt-1795510170189-behf",
+      "timestamp": "2026-11-24T08:49:30.189Z",
+      "actor": "Sound Engineer",
+      "action": "Released Global Emergency Mute",
+      "detail": "Master PA & monitor outputs restored.",
+      "authority": "operator"
+    },
+    {
+      "id": "evt-1795510168975-23vc",
+      "timestamp": "2026-11-24T08:49:28.975Z",
+      "actor": "Sound Engineer",
+      "action": "Released Global Emergency Mute",
+      "detail": "Master PA & monitor outputs restored.",
+      "authority": "operator"
+    },
+    {
+      "id": "evt-1795510169006-f2lu",
+      "timestamp": "2026-11-24T08:49:29.006Z",
+      "actor": "Sound Engineer",
+      "action": "Engaged Global Emergency Mute",
+      "detail": "All live PA & monitor outputs muted immediately.",
+      "authority": "operator"
+    },
+    {
+      "id": "evt-1795510163478-j6yb",
+      "timestamp": "2026-11-24T08:49:23.478Z",
+      "actor": "Sound Engineer",
+      "action": "Engaged Global Emergency Mute",
+      "detail": "All live PA & monitor outputs muted immediately.",
+      "authority": "operator"
+    },
+    {
+      "id": "evt-1795509973327-lm4o",
+      "timestamp": "2026-11-24T08:46:13.327Z",
+      "actor": "Sound Engineer",
+      "action": "Released Global Emergency Mute",
+      "detail": "Master PA & monitor outputs restored.",
+      "authority": "operator"
+    },
+    {
+      "id": "evt-1795509569824-5dfo",
+      "timestamp": "2026-11-24T08:39:29.825Z",
+      "actor": "Sound Engineer",
+      "action": "Auto-Slotted 1 Startup Input(s)",
+      "detail": "CH1: Surface Stereo Microphones (Surface High Definition Audio)",
+      "authority": "system"
+    },
     {
       "id": "evt-init-1",
       "timestamp": "2026-11-24T08:38:04.575Z",
