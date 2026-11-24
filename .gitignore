@@ -67,3 +67,6 @@ server.log
 /src-tauri/binaries/*.exe
 /release/
 /app-icon.png
+
+# uploaded screenshots / verification artifacts
+/upload/

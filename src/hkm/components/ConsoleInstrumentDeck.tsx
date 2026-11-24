@@ -235,6 +235,7 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
     id: ConsoleProcessingPhase;
     step: string;
     label: string;
+    fullTitle: string;
     readout: string;
     activeClass: string;
     ledClass: string;
@@ -245,6 +246,7 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
       id: 'phase-1-stage',
       step: '1',
       label: 'PREAMP',
+      fullTitle: 'Phase 1 · Stage Preamp & Ground Hum Traps',
       readout: selectedAssigned ? `+${selectedChannel.gainDb}dB` : 'OPEN',
       activeClass: 'bg-amber-500/25 border-2 border-amber-400 text-amber-200 shadow-[0_0_12px_rgba(251,191,36,0.5)] font-extrabold',
       ledClass: selectedAssigned ? 'bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]' : 'bg-slate-600',
@@ -255,6 +257,7 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
       id: 'phase-2-filters',
       step: '2',
       label: 'HPF & GATE',
+      fullTitle: 'Phase 2 · Bandpass Filters & Noise Gate',
       readout: dsp.hpfEnabled ? `${dsp.hpfHz}Hz` : 'BYP',
       activeClass: 'bg-cyan-500/25 border-2 border-cyan-400 text-cyan-200 shadow-[0_0_12px_rgba(34,211,238,0.5)] font-extrabold',
       ledClass: dsp.hpfEnabled ? 'bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)]' : 'bg-slate-600',
@@ -265,6 +268,7 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
       id: 'phase-3-peq',
       step: '3',
       label: '4-BAND PEQ',
+      fullTitle: 'Phase 3 · 4-Band Parametric EQ & Live RTA',
       readout: 'RTA LIVE',
       activeClass: 'bg-sky-500/25 border-2 border-sky-400 text-sky-200 shadow-[0_0_12px_rgba(56,189,248,0.5)] font-extrabold',
       ledClass: 'bg-sky-400 shadow-[0_0_6px_rgba(56,189,248,0.8)]',
@@ -275,6 +279,7 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
       id: 'phase-4-dynamics',
       step: '4',
       label: 'VCA COMP',
+      fullTitle: 'Phase 4 · VCA Dynamics Compressor & De-Esser',
       readout: dsp.compressor.enabled ? `${dsp.compressor.ratio.toFixed(1)}:1` : 'OFF',
       activeClass: 'bg-emerald-500/25 border-2 border-emerald-400 text-emerald-200 shadow-[0_0_12px_rgba(52,211,153,0.5)] font-extrabold',
       ledClass: dsp.compressor.enabled ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]' : 'bg-slate-600',
@@ -285,6 +290,7 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
       id: 'phase-5-geq',
       step: '5',
       label: '31-BAND GEQ',
+      fullTitle: 'Phase 5 · Pro Stereo 31-Band Graphic EQ',
       readout: `±${dsp.graphicEq31?.rangeDb ?? 12}dB`,
       activeClass: 'bg-fuchsia-500/25 border-2 border-fuchsia-400 text-fuchsia-200 shadow-[0_0_12px_rgba(232,121,249,0.5)] font-extrabold',
       ledClass: dsp.graphicEq31?.enabled !== false ? 'bg-fuchsia-400 shadow-[0_0_6px_rgba(232,121,249,0.8)]' : 'bg-slate-600',
@@ -295,6 +301,7 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
       id: 'phase-6-xover',
       step: '6',
       label: '3-WAY XOVER',
+      fullTitle: 'Phase 6 · Active 3-Way Linkwitz-Riley Crossover',
       readout: `${dsp.crossover?.subToMidHz ?? 80}Hz`,
       activeClass: 'bg-violet-500/25 border-2 border-violet-400 text-violet-200 shadow-[0_0_12px_rgba(167,139,250,0.5)] font-extrabold',
       ledClass: dsp.crossover?.enabled !== false ? 'bg-violet-400 shadow-[0_0_6px_rgba(167,139,250,0.8)]' : 'bg-slate-600',
@@ -305,6 +312,7 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
       id: 'phase-7-matrix',
       step: '7',
       label: 'MATRIX & PA',
+      fullTitle: 'Phase 7 · Output Bus Matrix & Speaker Peak Limiter',
       readout: dsp.limiter.enabled ? `${dsp.limiter.ceilingDb.toFixed(1)}dB` : 'OPEN',
       activeClass: 'bg-orange-500/25 border-2 border-orange-400 text-orange-200 shadow-[0_0_12px_rgba(251,146,60,0.5)] font-extrabold',
       ledClass: dsp.limiter.enabled ? 'bg-orange-400' : 'bg-slate-600',
@@ -407,40 +415,64 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
       </div>
 
       {/* =========================================================================
-          TOP DECK ROW 2: REAL-WORLD SIGNAL-FLOW PHASE TABS (ZERO OVERLAP GRID)
+          TOP DECK ROW 2: SIGNAL-FLOW PHASE TABS — FULLY LABELED, DISTANCE-READABLE
+          Two-line hardware strip: full processor name (never truncated) on top,
+          live value readout below. Row scrolls horizontally on narrow screens
+          instead of clipping labels.
           ========================================================================= */}
-      <div className="shrink-0 bg-[#070B13] border-b border-slate-700/80 px-2.5 py-1.5 grid grid-cols-7 gap-1.5">
+      <div className="shrink-0 bg-[#070B13] border-b border-slate-700/80 px-2.5 py-1 flex items-stretch gap-1 overflow-x-auto scrollbar-none">
         {phaseTabs.map((tab, idx) => {
           const active = selectedPhase === tab.id;
           return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setSelectedPhase(tab.id)}
-              className={`relative rounded-md border-2 px-2.5 py-1.5 flex items-center justify-between gap-1.5 font-mono text-[10px] transition-all cursor-pointer min-w-0 overflow-hidden ${
-                active
-                  ? tab.activeClass
-                  : 'bg-[#0E1422] border-slate-700/90 text-slate-300 hover:bg-[#151D30] hover:text-white hover:border-slate-500 shadow-sm'
-              }`}
-            >
-              {/* Top Illuminated Hardware Accent Bar */}
-              {active && (
-                <span className={`absolute inset-x-0 top-0 h-[3px] ${tab.topBarClass}`} />
-              )}
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className={`w-2 h-2 rounded-full shrink-0 ${tab.ledClass}`} />
-                <span className={`text-[10px] font-extrabold shrink-0 ${active ? 'text-white' : 'text-slate-400'}`}>{tab.step}.</span>
-                <span className="font-bold truncate tracking-wide">{tab.label}</span>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <span className={`text-[9px] font-semibold hidden xl:inline tabular-nums ${active ? 'opacity-100 text-white' : 'opacity-75 text-slate-400'}`}>
-                  {tab.readout}
-                </span>
-                {idx < phaseTabs.length - 1 && (
-                  <ArrowRight className={`w-3 h-3 hidden lg:inline ${active ? 'text-white' : 'text-slate-500'}`} />
+            <React.Fragment key={tab.id}>
+              <button
+                type="button"
+                onClick={() => setSelectedPhase(tab.id)}
+                title={`${tab.fullTitle}${tab.readout ? ` · ${tab.readout}` : ''}`}
+                aria-current={active ? 'true' : undefined}
+                className={`relative rounded-md border-2 px-2.5 py-1 flex-1 min-w-[128px] flex flex-col items-start justify-center gap-0.5 font-mono transition-all cursor-pointer overflow-hidden shrink-0 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-white/70 ${
+                  active
+                    ? tab.activeClass
+                    : 'bg-[#0E1422] border-slate-700/90 text-slate-300 hover:bg-[#151D30] hover:text-white hover:border-slate-500 shadow-sm'
+                }`}
+              >
+                {/* Top Illuminated Hardware Accent Bar */}
+                {active && (
+                  <span className={`absolute inset-x-0 top-0 h-[3px] ${tab.topBarClass}`} />
                 )}
-              </div>
-            </button>
+                {/* Line 1: LED + phase number + full label (never truncated) */}
+                <div className="relative z-10 flex items-center gap-1.5 w-full min-w-0">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${tab.ledClass}`} />
+                  <span
+                    className={`text-[11px] font-extrabold shrink-0 tabular-nums ${
+                      active ? 'text-white' : 'text-slate-400'
+                    }`}
+                  >
+                    {tab.step}.
+                  </span>
+                  <span className="text-[11px] font-extrabold tracking-wide whitespace-nowrap">
+                    {tab.label}
+                  </span>
+                </div>
+                {/* Line 2: live value readout, always visible */}
+                <div className="relative z-10 flex items-center w-full pl-[14px]">
+                  <span
+                    className={`text-[10px] font-bold tabular-nums tracking-wide whitespace-nowrap ${
+                      active ? 'text-white opacity-100' : 'text-slate-400 opacity-80'
+                    }`}
+                  >
+                    {tab.readout}
+                  </span>
+                </div>
+              </button>
+              {idx < phaseTabs.length - 1 && (
+                <ArrowRight
+                  className={`w-3.5 h-3.5 self-center shrink-0 hidden lg:block ${
+                    active ? 'text-white/80' : 'text-slate-500'
+                  }`}
+                />
+              )}
+            </React.Fragment>
           );
         })}
       </div>
