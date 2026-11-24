@@ -351,18 +351,19 @@ mod windows_impl {
 
     use windows::core::{GUID, PCSTR, PCWSTR};
     use windows::Win32::Media::Audio::{
-        AUDCLNT_BUFFERFLAGS, AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS,
-        AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY, CLSID_MMDeviceEnumerator,
-        IAudioCaptureClient, IAudioClient, IAudioRenderClient, IMMDevice, IMMDeviceEnumerator, eConsole, eRender,
+        AUDCLNT_BUFFERFLAGS_SILENT, AUDCLNT_SHAREMODE, AUDCLNT_SHAREMODE_SHARED,
+        AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY,
+        IAudioCaptureClient, IAudioClient, IAudioRenderClient, IMMDevice, IMMDeviceEnumerator,
+        MMDeviceEnumerator, WAVEFORMATEX, WAVEFORMATEXTENSIBLE, eConsole, eRender,
     };
-    use windows::Win32::Media::Multimedia::{
-        WAVE_FORMAT_EXTENSIBLE, WAVE_FORMAT_IEEE_FLOAT, WAVEFORMATEX, WAVEFORMATEXTENSIBLE,
-    };
+    use windows::Win32::Media::Multimedia::WAVE_FORMAT_IEEE_FLOAT;
     use windows::Win32::System::Com::{
-        CLSCTX_ALL, COINIT_MULTITHREADED, CoCreateInstance, CoInitializeEx, CoTaskMemFree,
+        CLSCTX, CLSCTX_ALL, COINIT_MULTITHREADED, CoCreateInstance, CoInitializeEx, CoTaskMemFree,
     };
     use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW};
     use windows::Win32::System::Threading::GetCurrentProcessId;
+
+    const WAVE_FORMAT_EXTENSIBLE: u32 = 0xFFFE;
 
     // ----------------------------- GUIDs / constants ------------------------
 
@@ -418,6 +419,7 @@ mod windows_impl {
             unsafe extern "system" fn(*mut std::ffi::c_void, *mut std::ffi::c_void) -> HResult,
     }
 
+    #[repr(C)]
     struct CompletionHandler {
         vtable: *const CompletionVtable,
         refs: std::sync::atomic::AtomicU32,
@@ -642,15 +644,16 @@ mod windows_impl {
 
     pub(super) fn get_default_render_device() -> Result<IMMDevice, String> {
         let enumerator: IMMDeviceEnumerator =
-            unsafe { CoCreateInstance(&CLSID_MMDeviceEnumerator, None, CLSCTX_ALL) }
+            unsafe { CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL) }
                 .map_err(|e| format!("MMDevice enumerator unavailable: {}", e))?;
         unsafe { enumerator.GetDefaultAudioEndpoint(eRender, eConsole) }
             .map_err(|e| format!("No default render endpoint available: {}", e))
     }
 
+    #[allow(dead_code)]
     pub(super) fn get_render_device_by_id(endpoint_id: &str) -> Result<IMMDevice, String> {
         let enumerator: IMMDeviceEnumerator =
-            unsafe { CoCreateInstance(&CLSID_MMDeviceEnumerator, None, CLSCTX_ALL) }
+            unsafe { CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL) }
                 .map_err(|e| format!("MMDevice enumerator unavailable: {}", e))?;
         let wide: Vec<u16> = endpoint_id.encode_utf16().chain(std::iter::once(0)).collect();
         unsafe { enumerator.GetDevice(PCWSTR(wide.as_ptr())) }
@@ -658,13 +661,16 @@ mod windows_impl {
     }
 
     pub(super) fn parse_wave_format(wfx: &WAVEFORMATEX) -> FormatInfo {
-        let mut is_float = wfx.wFormatTag == WAVE_FORMAT_IEEE_FLOAT;
-        if wfx.wFormatTag == WAVE_FORMAT_EXTENSIBLE && wfx.cbSize >= 22 {
+        let format_tag = wfx.wFormatTag as u32;
+        let cb_size = wfx.cbSize;
+        let mut is_float = format_tag == WAVE_FORMAT_IEEE_FLOAT;
+        if format_tag == WAVE_FORMAT_EXTENSIBLE && cb_size >= 22 {
             // SAFETY: extensible formats guarantee cbSize >= 22.
             let ext = unsafe { &*(wfx as *const WAVEFORMATEX as *const WAVEFORMATEXTENSIBLE) };
-            if ext.SubFormat == SUBTYPE_IEEE_FLOAT {
+            let sub_format = ext.SubFormat;
+            if sub_format == SUBTYPE_IEEE_FLOAT {
                 is_float = true;
-            } else if ext.SubFormat == SUBTYPE_PCM {
+            } else if sub_format == SUBTYPE_PCM {
                 is_float = false;
             }
         }
@@ -685,7 +691,7 @@ mod windows_impl {
     /// 48 kHz interleaved Float32 stereo request format for the raw output stream.
     pub(super) fn target_wave_format() -> WAVEFORMATEX {
         WAVEFORMATEX {
-            wFormatTag: WAVE_FORMAT_IEEE_FLOAT,
+            wFormatTag: WAVE_FORMAT_IEEE_FLOAT as u16,
             nChannels: 2,
             nSamplesPerSec: 48_000,
             wBitsPerSample: 32,
@@ -695,20 +701,30 @@ mod windows_impl {
         }
     }
 
-    pub(super) fn zero_stream_flags() -> AUDCLNT_STREAMFLAGS {
-        AUDCLNT_STREAMFLAGS(0)
+    pub(super) fn zero_stream_flags() -> u32 {
+        0
     }
 
-    pub(super) fn zero_buffer_flags() -> AUDCLNT_BUFFERFLAGS {
-        AUDCLNT_BUFFERFLAGS(0)
+    pub(super) fn zero_buffer_flags() -> u32 {
+        0
     }
-    pub(super) fn render_stream_flags() -> AUDCLNT_STREAMFLAGS {
+
+    pub(super) fn render_stream_flags() -> u32 {
         AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY
     }
 
-    pub(super) use AUDCLNT_SHAREMODE_SHARED as ShareMode;
-    pub(super) use AUDCLNT_BUFFERFLAGS_SILENT as FlagSilent;
-    pub(super) use windows::Win32::System::Com::CLSCTX_ALL;
+    pub(super) fn share_mode_shared() -> AUDCLNT_SHAREMODE {
+        AUDCLNT_SHAREMODE_SHARED
+    }
+
+    pub(super) fn flag_silent_mask() -> u32 {
+        AUDCLNT_BUFFERFLAGS_SILENT.0 as u32
+    }
+
+    pub(super) fn clsctx_all() -> CLSCTX {
+        CLSCTX_ALL
+    }
+
     pub(super) type CaptureClientT = IAudioCaptureClient;
     pub(super) type RenderClientT = IAudioRenderClient;
     pub(super) type AudioClientT = IAudioClient;
@@ -733,13 +749,14 @@ pub fn default_render_device() -> Result<windows::Win32::Media::Audio::IMMDevice
 }
 
 #[cfg(windows)]
+#[allow(dead_code)]
 pub fn render_device_by_id(endpoint_id: &str) -> Result<windows::Win32::Media::Audio::IMMDevice, String> {
     sys::get_render_device_by_id(endpoint_id)
 }
 
 #[cfg(windows)]
 pub fn clsctx_all() -> windows::Win32::System::Com::CLSCTX {
-    sys::CLSCTX_ALL
+    sys::clsctx_all()
 }
 
 /// The default render endpoint's MMDevice ID string (matches the registry key
@@ -772,8 +789,7 @@ fn capture_pump(
         let audio_client = sys::activate_process_loopback_client(target_pid)?;
 
         // Use the loopback mix format, then convert to the 48 kHz f32 wire format.
-        let mut mix_format: *mut sys::WaveFormatT = std::ptr::null_mut();
-        unsafe { audio_client.GetMixFormat(&mut mix_format) }
+        let mix_format: *mut sys::WaveFormatT = unsafe { audio_client.GetMixFormat() }
             .map_err(|e| format!("GetMixFormat failed: {}", e))?;
         if mix_format.is_null() {
             return Err("GetMixFormat returned no format.".to_string());
@@ -784,7 +800,7 @@ fn capture_pump(
         // must NOT set AUDCLNT_STREAMFLAGS_LOOPBACK (the activation params select loopback).
         let init = unsafe {
             audio_client.Initialize(
-                sys::ShareMode,
+                sys::share_mode_shared(),
                 sys::zero_stream_flags(),
                 0,
                 0,
@@ -798,6 +814,8 @@ fn capture_pump(
         let capture_client: sys::CaptureClientT = unsafe { audio_client.GetService() }
             .map_err(|e| format!("GetService(IAudioCaptureClient) failed: {}", e))?;
 
+        unsafe { audio_client.Start() }.map_err(|e| format!("IAudioClient Start failed: {}", e))?;
+
         let mut converter = StreamConverter::new();
         converter.configure(&info);
 
@@ -806,10 +824,10 @@ fn capture_pump(
                 break;
             }
 
-            let mut next_frames: u32 = 0;
-            if unsafe { capture_client.GetNextPacketSize(&mut next_frames) }.is_err() {
-                break;
-            }
+            let mut next_frames: u32 = match unsafe { capture_client.GetNextPacketSize() } {
+                Ok(n) => n,
+                Err(_) => break,
+            };
             while next_frames > 0 {
                 let mut data: *mut u8 = std::ptr::null_mut();
                 let mut frames: u32 = 0;
@@ -829,7 +847,7 @@ fn capture_pump(
                     break;
                 }
 
-                let silent = (flags.0 & sys::FlagSilent.0) != 0;
+                let silent = (flags & sys::flag_silent_mask()) != 0;
                 let bytes = if silent {
                     converter.silence(frames)
                 } else if !data.is_null() {
@@ -842,20 +860,23 @@ fn capture_pump(
                     converter.silence(frames)
                 };
 
-                let _ = unsafe { capture_client.ReleaseBuffer() };
+                let _ = unsafe { capture_client.ReleaseBuffer(frames) };
 
                 if !bytes.is_empty() && channel.send(Response::new(bytes)).is_err() {
                     // Frontend dropped the channel — stop this stream cleanly.
+                    let _ = unsafe { audio_client.Stop() };
                     return Ok(());
                 }
 
-                if unsafe { capture_client.GetNextPacketSize(&mut next_frames) }.is_err() {
-                    break;
-                }
+                next_frames = match unsafe { capture_client.GetNextPacketSize() } {
+                    Ok(n) => n,
+                    Err(_) => break,
+                };
             }
 
             thread::sleep(std::time::Duration::from_millis(8));
         }
+        let _ = unsafe { audio_client.Stop() };
         Ok(())
     }
     #[cfg(not(windows))]
@@ -876,7 +897,7 @@ fn raw_output_pump(stop: &AtomicBool, queue: mpsc::Receiver<Vec<u8>>) -> Result<
 
         let audio_client: sys::AudioClientT = {
             let device = sys::get_default_render_device()?;
-            unsafe { device.Activate(sys::CLSCTX_ALL, None) }
+            unsafe { device.Activate(sys::clsctx_all(), None) }
                 .map_err(|e| format!("IAudioClient activation failed: {}", e))?
         };
 
@@ -884,7 +905,7 @@ fn raw_output_pump(stop: &AtomicBool, queue: mpsc::Receiver<Vec<u8>>) -> Result<
         let buffer_duration_100ns: i64 = 2_000_000; // 200 ms
         unsafe {
             audio_client.Initialize(
-                sys::ShareMode,
+                sys::share_mode_shared(),
                 sys::render_stream_flags(),
                 buffer_duration_100ns,
                 0,
@@ -897,12 +918,11 @@ fn raw_output_pump(stop: &AtomicBool, queue: mpsc::Receiver<Vec<u8>>) -> Result<
         let render_client: sys::RenderClientT = unsafe { audio_client.GetService() }
             .map_err(|e| format!("GetService(IAudioRenderClient) failed: {}", e))?;
 
-        let mut buffer_frames: u32 = 0;
-        unsafe { audio_client.GetBufferSize(&mut buffer_frames) }
+        let buffer_frames: u32 = unsafe { audio_client.GetBufferSize() }
             .map_err(|e| format!("GetBufferSize failed: {}", e))?;
 
         // Pre-fill the whole buffer with silence so playback starts primed.
-        if let Ok(ptr) = (unsafe { render_client.GetBuffer(buffer_frames) }) {
+        if let Ok(ptr) = unsafe { render_client.GetBuffer(buffer_frames) } {
             if !ptr.is_null() {
                 unsafe {
                     std::ptr::write_bytes(ptr, 0, buffer_frames as usize * 8);
@@ -910,6 +930,8 @@ fn raw_output_pump(stop: &AtomicBool, queue: mpsc::Receiver<Vec<u8>>) -> Result<
                 }
             }
         }
+
+        unsafe { audio_client.Start() }.map_err(|e| format!("Raw output Start failed: {}", e))?;
 
         // Each pushed block is 480 frames (10 ms); fill whenever ≥ 20 ms is available.
         let mut pending: Vec<u8> = Vec::new();
@@ -925,13 +947,13 @@ fn raw_output_pump(stop: &AtomicBool, queue: mpsc::Receiver<Vec<u8>>) -> Result<
                 }
             }
 
-            let mut padding: u32 = 0;
-            if unsafe { audio_client.GetCurrentPadding(&mut padding) }.is_err() {
-                break;
-            }
+            let padding: u32 = match unsafe { audio_client.GetCurrentPadding() } {
+                Ok(p) => p,
+                Err(_) => break,
+            };
             let available = buffer_frames.saturating_sub(padding);
             if available >= 960 {
-                if let Ok(ptr) = (unsafe { render_client.GetBuffer(available) }) {
+                if let Ok(ptr) = unsafe { render_client.GetBuffer(available) } {
                     if !ptr.is_null() {
                         let needed = available as usize * 8;
                         if pending.len() >= needed {
@@ -959,6 +981,7 @@ fn raw_output_pump(stop: &AtomicBool, queue: mpsc::Receiver<Vec<u8>>) -> Result<
 
             thread::sleep(std::time::Duration::from_millis(8));
         }
+        let _ = unsafe { audio_client.Stop() };
         Ok(())
     }
     #[cfg(not(windows))]

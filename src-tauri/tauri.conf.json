@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "HKM Audio System",
-  "version": "0.2.1",
+  "version": "0.2.35",
   "identifier": "church.hkm.audiosystem",
   "build": {
-    "beforeDevCommand": "bun run dev:desktop",
+    "beforeDevCommand": "npm run dev:desktop",
     "devUrl": "http://localhost:3000",
-    "beforeBuildCommand": "bun run build && node scripts/prepare-desktop.mjs",
+    "beforeBuildCommand": "npm run build && node scripts/prepare-desktop.mjs",
     "frontendDist": "../public"
   },
   "app": {
@@ -14,12 +14,17 @@
     "windows": [],
     "security": {
       "csp": null,
-      "capabilities": ["default", "local-server"]
+      "capabilities": [
+        "default",
+        "local-server"
+      ]
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -39,7 +44,9 @@
       },
       "nsis": {
         "installMode": "currentUser",
-        "languages": ["English"],
+        "languages": [
+          "English"
+        ],
         "displayLanguageSelector": false
       }
     }

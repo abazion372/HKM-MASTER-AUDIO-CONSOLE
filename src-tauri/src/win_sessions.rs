@@ -18,6 +18,7 @@ use std::time::Duration;
 use serde::Serialize;
 
 #[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DesktopAudioSession {
     pub pid: u32,
     pub name: String,
@@ -26,6 +27,7 @@ pub struct DesktopAudioSession {
 }
 
 #[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DesktopSourceIsolationStatus {
     pub enabled: bool,
     pub muted_sessions: u32,
@@ -157,8 +159,7 @@ mod windows_impl {
         let enumerator: IAudioSessionEnumerator = unsafe { manager.GetSessionEnumerator() }
             .map_err(|e| format!("GetSessionEnumerator failed: {}", e))?;
 
-        let mut count: i32 = 0;
-        unsafe { enumerator.GetCount(&mut count) }.map_err(|e| format!("GetCount failed: {}", e))?;
+        let count: i32 = unsafe { enumerator.GetCount() }.map_err(|e| format!("GetCount failed: {}", e))?;
 
         let mut entries = Vec::new();
         for index in 0..count {
@@ -260,7 +261,7 @@ mod windows_impl {
                     }
                     // NOTE: SetMute's bool param maps directly on current windows-rs;
                     // on versions where it is BOOL, use `true.into()`.
-                    if unsafe { volume.SetMute(true, None) }.is_ok() {
+                    if unsafe { volume.SetMute(true, std::ptr::null()) }.is_ok() {
                         muted += 1;
                         newly_muted.push(entry.pid);
                     } else {
@@ -304,7 +305,7 @@ mod windows_impl {
                         continue;
                     }
                 };
-                if unsafe { volume.SetMute(false, None) }.is_ok() {
+                if unsafe { volume.SetMute(false, std::ptr::null()) }.is_ok() {
                     restored += 1;
                 } else {
                     failed += 1;

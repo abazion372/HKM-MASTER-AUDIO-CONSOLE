@@ -15,6 +15,7 @@
 use serde::Serialize;
 
 #[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RawOutputEndpointInfo {
     pub id: String,
     pub name: String,
@@ -24,6 +25,7 @@ pub struct RawOutputEndpointInfo {
 }
 
 #[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ApoSystemStatus {
     pub dll_bundled: bool,
     pub dll_path: Option<String>,
@@ -68,7 +70,6 @@ pub fn get_apo_status() -> ApoSystemStatus {
     #[cfg(windows)]
     {
         let state = apo_state();
-        let default_endpoint = crate::win_audio::default_render_endpoint_id().ok();
         let (endpoints, dll_path) = enumerate_endpoints_and_dll();
 
         let apo_registered_any = state
@@ -180,7 +181,7 @@ pub fn uninstall_system_apo(endpoint_id: &str) -> Result<String, String> {
             "hkm_audio_apo.dll is not bundled; nothing to uninstall.".to_string()
         })?;
         run_elevated_apo_installer(endpoint_id, &dll_path, false)?;
-        apo_state().installed_endpoints.lock().map(|mut list| {
+        let _ = apo_state().installed_endpoints.lock().map(|mut list| {
             list.retain(|id| id != endpoint_id);
         });
         Ok(format!("APO hook removed from endpoint {}.", endpoint_id))
@@ -251,10 +252,11 @@ fn enumerate_endpoints_and_dll() -> (Vec<RawOutputEndpointInfo>, Option<String>)
             .unwrap_or(false)
             || installed.iter().any(|id| id == &key);
 
+        let is_default = default_id.as_deref() == Some(key.as_str());
         endpoints.push(RawOutputEndpointInfo {
             id: key,
             name,
-            is_default: default_id.as_deref() == Some(key.as_str()),
+            is_default,
             raw_supported: true,
             apo_registered,
         });

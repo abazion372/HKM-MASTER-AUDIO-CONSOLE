@@ -29,6 +29,7 @@ pub struct DesktopState {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct DesktopAudioStatus {
     supported: bool,
     os_build: u32,
@@ -184,6 +185,12 @@ fn system_cpu_usage() -> Option<f64> {
     sys_cmds::system_cpu_usage()
 }
 
+#[tauri::command]
+fn restart_app(app: AppHandle) {
+    shutdown_everything(&app);
+    app.restart();
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -299,6 +306,7 @@ pub fn run() {
             stop_raw_output,
             open_windows_sound_settings,
             system_cpu_usage,
+            restart_app,
         ]);
 
     let app = builder

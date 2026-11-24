@@ -49,16 +49,13 @@ static LAST_CPU_SAMPLE: std::sync::Mutex<Option<(CpuSample, std::time::Instant)>
 #[cfg(windows)]
 pub fn system_cpu_usage() -> Option<f64> {
     use windows::Win32::Foundation::FILETIME;
-    use windows::Win32::System::SystemInformation::GetSystemTimes;
+    use windows::Win32::System::Threading::GetSystemTimes;
 
     let mut idle = FILETIME::default();
     let mut kernel = FILETIME::default();
     let mut user = FILETIME::default();
 
-    let ok = unsafe { GetSystemTimes(&mut idle, &mut kernel, &mut user) }.as_bool();
-    if !ok {
-        return None;
-    }
+    unsafe { GetSystemTimes(Some(&mut idle), Some(&mut kernel), Some(&mut user)) }.ok()?;
     let to_u64 = |ft: &FILETIME| ((ft.dwHighDateTime as u64) << 32) | ft.dwLowDateTime as u64;
     let sample = CpuSample {
         idle: to_u64(&idle),

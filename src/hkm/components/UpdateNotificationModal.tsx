@@ -148,7 +148,14 @@ export function UpdateNotificationModal({
           ) : (
             <button
               type="button"
-              onClick={() => window.location.reload()}
+              onClick={() => {
+                const invoke = window.__TAURI__?.core?.invoke;
+                if (invoke) {
+                  void invoke('restart_app').catch(() => window.location.reload());
+                } else {
+                  window.location.reload();
+                }
+              }}
               className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />

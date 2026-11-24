@@ -1,0 +1,69 @@
+name: Build & Release Windows Desktop App
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Optional release tag (e.g. v0.2.35) when triggered manually'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  release-windows:
+    name: Build Windows x64 NSIS Installer
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rust build cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Fetch bundled Bun server runtime (hkm-server.exe)
+        run: npm run desktop:fetch-server
+
+      - name: Build Next.js standalone server & prepare desktop bundle
+        run: npm run build
+
+      - name: Build Tauri Windows NSIS Installer
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'HKM Audio System ${{ github.ref_name }}'
+          releaseBody: |
+            ## HKM Audio System — Native Windows Desktop Release (${{ github.ref_name }})
+
+            ### Highlights
+            - **Self-Contained Windows x64 NSIS Installer** (`HKM Audio System_*_x64-setup.exe`) with embedded Next.js standalone control plane & bundled server runtime.
+            - **Native Windows WASAPI Process-Exclusion Loopback** (`ActivateAudioInterfaceAsync`): zero-driver desktop audio capture without self-feedback.
+            - **Per-Application Audio Capture & Source Isolation Firewall**.
+            - **16-Channel Virtual Console, 31-Band GEQ, Active Crossover, Real-Time Feedback & Hum Analyzer, and Room Acoustics DSP**.
+          releaseDraft: false
+          prerelease: false
