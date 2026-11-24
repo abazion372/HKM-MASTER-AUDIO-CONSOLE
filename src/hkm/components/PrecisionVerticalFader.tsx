@@ -12,6 +12,8 @@ interface PrecisionVerticalFaderProps {
   isKeyFreq?: boolean;
   trackHeightClass?: string;
   compact?: boolean;
+  /** Super-channel mode: oversized cap, wide track, large readout (single-strip edit view). */
+  large?: boolean;
   onChange: (val: number) => void;
   onDoubleClick?: () => void;
 }
@@ -28,6 +30,7 @@ export const PrecisionVerticalFader: React.FC<PrecisionVerticalFaderProps> = ({
   isKeyFreq = false,
   trackHeightClass = 'h-44',
   compact = false,
+  large = false,
   onChange,
   onDoubleClick,
 }) => {
@@ -151,7 +154,7 @@ export const PrecisionVerticalFader: React.FC<PrecisionVerticalFaderProps> = ({
   return (
     <div
       className={`flex flex-col items-center select-none group relative ${
-        compact ? 'flex-1 min-w-[18px] max-w-[28px]' : 'w-6 sm:w-7'
+        compact ? 'flex-1 min-w-[18px] max-w-[28px]' : large ? 'w-12' : 'w-6 sm:w-7'
       } ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
       onWheel={handleWheel}
       title={`${subLabel || label || ''}: ${clamped > 0 ? '+' : ''}${clamped.toFixed(1)} dB (Click/drag to slide, double-click to reset)`}
@@ -159,7 +162,7 @@ export const PrecisionVerticalFader: React.FC<PrecisionVerticalFaderProps> = ({
       {/* Top LED Optical Indicator Dot */}
       {!compact && (
         <div
-          className="w-1.5 h-1.5 rounded-full mb-1 transition-all duration-150"
+          className={`${large ? 'w-2 h-2 mb-1.5' : 'w-1.5 h-1.5 mb-1'} rounded-full transition-all duration-150`}
           style={{
             backgroundColor: isDormant
               ? 'rgba(71,85,105,0.25)'
@@ -179,7 +182,9 @@ export const PrecisionVerticalFader: React.FC<PrecisionVerticalFaderProps> = ({
 
       {/* Real-time gain numeric display above fader */}
       <span
-        className={`font-mono ${compact ? 'text-[8px] mb-0.5 h-3.5' : 'text-[9px] mb-1 h-4'} font-semibold tabular-nums flex items-center justify-center transition-colors ${
+        className={`font-mono ${
+          compact ? 'text-[8px] mb-0.5 h-3.5' : large ? 'text-[11px] mb-1.5 h-5' : 'text-[9px] mb-1 h-4'
+        } font-semibold tabular-nums flex items-center justify-center transition-colors ${
           isDormant
             ? 'text-slate-600'
             : isZero
@@ -201,7 +206,7 @@ export const PrecisionVerticalFader: React.FC<PrecisionVerticalFaderProps> = ({
         onPointerCancel={handlePointerUp}
         onDoubleClick={handleReset}
         className={`relative ${trackHeightClass} ${
-          compact ? 'w-4' : 'w-5 sm:w-5.5'
+          compact ? 'w-4' : large ? 'w-7' : 'w-5 sm:w-5.5'
         } rounded-sm bg-[#04070D] border border-slate-800/90 shadow-[inset_0_2px_8px_rgba(0,0,0,0.95)] flex items-center justify-center touch-none overflow-visible`}
         style={{
           boxShadow: isDormant
@@ -247,7 +252,9 @@ export const PrecisionVerticalFader: React.FC<PrecisionVerticalFaderProps> = ({
 
         {/* Studio-Grade Sculpted Metallic Fader Cap with Laser-Cut Illuminated Line */}
         <div
-          className={`absolute left-[-5px] right-[-5px] h-5 rounded-xs bg-gradient-to-b from-[#4A5568] via-[#2D3748] to-[#1A202C] border-2 ${
+          className={`absolute ${
+            large ? 'left-[-10px] right-[-10px] h-6' : 'left-[-5px] right-[-5px] h-5'
+          } rounded-xs bg-gradient-to-b from-[#4A5568] via-[#2D3748] to-[#1A202C] border-2 ${
             isDormant ? 'border-slate-700/75' : 'border-slate-300/80 group-hover:border-white'
           } shadow-[0_4px_12px_rgba(0,0,0,0.95),inset_0_1px_2px_rgba(255,255,255,0.4)] flex items-center justify-center z-10 pointer-events-none transition-transform active:scale-105`}
           style={{
@@ -257,7 +264,7 @@ export const PrecisionVerticalFader: React.FC<PrecisionVerticalFaderProps> = ({
         >
           {/* Laser-etched glowing center line on fader knob */}
           <div
-            className="w-full h-[2px] transition-all shadow-sm"
+            className={`w-full ${large ? 'h-[3px]' : 'h-[2px]'} transition-all shadow-sm`}
             style={{
               backgroundColor: isDormant
                 ? '#475569'
