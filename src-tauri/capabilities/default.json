@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Main window core permissions (local app origin)",
   "windows": ["main"],
-  "permissions": ["core:default", "core:window:allow-close", "updater:default"]
+  "permissions": ["core:default", "core:window:allow-close", "updater:default", "opener:default"]
 }

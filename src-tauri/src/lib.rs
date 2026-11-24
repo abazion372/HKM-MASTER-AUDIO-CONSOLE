@@ -253,6 +253,7 @@ fn shutdown_everything(app: &AppHandle) {
 pub fn run() {
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let http = reqwest::Client::new();
             let state = DesktopState {

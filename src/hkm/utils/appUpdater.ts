@@ -87,7 +87,19 @@ async function checkGithubLatestReleaseFallback(): Promise<{
     notes: release.body,
     downloadAndInstall: async (onProgress?: (percent: number) => void) => {
       onProgress?.(50);
-      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+      // Prefer the native opener plugin (reliable system-browser launch inside
+      // the Tauri shell); fall back to window.open for non-Tauri contexts.
+      let opened = false;
+      try {
+        const { openUrl } = await import('@tauri-apps/plugin-opener');
+        await openUrl(targetUrl);
+        opened = true;
+      } catch {
+        // opener unavailable — fall through to window.open
+      }
+      if (!opened) {
+        window.open(targetUrl, '_blank', 'noopener,noreferrer');
+      }
       onProgress?.(100);
     },
   };
