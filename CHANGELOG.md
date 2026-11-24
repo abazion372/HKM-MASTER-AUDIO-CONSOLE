@@ -5,6 +5,12 @@ All notable changes to HKM Audio System are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.36] - 2026-11-24
+
+### Fixed
+
+- **Console phase tabs fully labeled**: the 7 signal-flow tabs (PREAMP, HPF & GATE, 4-BAND PEQ, VCA COMP, 31-BAND GEQ, 3-WAY XOVER, MATRIX & PA) previously truncated to ellipses ("1. P…", "2. HP…") and hid their live value readouts below XL screen width. They are now two-line hardware strips — full processor name on top, live value below — that stretch evenly on wide screens and scroll on narrow ones instead of clipping, readable from across the room. Added full tooltips and `aria-current` for accessibility.
+
 ## [0.2.2] - 2026-11-24
 
 ### Fixed (24/7 quiet-operation resource audit)
