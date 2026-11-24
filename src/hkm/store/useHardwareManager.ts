@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   AuditAuthority,
   DetectedHardwareEndpoint,
@@ -6,6 +6,12 @@ import type {
   HardwareDevice,
   PlatformTarget,
 } from '../types/audio.ts';
+import {
+  buildJackEndpoints,
+  SIM_PIE_8OUT_DEVICE_ID,
+  SIM_PIE_8OUT_LABEL,
+  type OutputJackEndpoint,
+} from '../utils/jackTopology.ts';
 import {
   buildEndpointSignature,
   clearCachedHardwareEndpoints,
@@ -94,7 +100,48 @@ export function useHardwareManager({
   const [scanningHardware, setScanningHardware] = useState(false);
   const [hotPlugEndpoint, setHotPlugEndpoint] = useState<DetectedHardwareEndpoint | null>(null);
   const [inputDevices, setInputDevices] = useState<MediaDeviceInfo[]>([]);
-  const [outputDevices, setOutputDevices] = useState<MediaDeviceInfo[]>([]);
+  const [rawOutputDevices, setRawOutputDevices] = useState<MediaDeviceInfo[]>([]);
+
+  // ---- Discrete jack router (5.1/7.1 per-jack outputs) ----
+  // Synchronous lazy init from localStorage — MUST be settled before the
+  // "sim card disabled while it is the Master PA sink" guard effect runs,
+  // otherwise that guard would clear a valid sink on every mount.
+  const [simulatedSurroundCard, setSimulatedSurroundCard] = useState(() => {
+    try {
+      return window.localStorage.getItem('church_audio_sim_71_card') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const [probedOutputJackEndpoints, setProbedOutputJackEndpoints] = useState<OutputJackEndpoint[]>([]);
+  const [jackProbeBusy, setJackProbeBusy] = useState(false);
+
+  const SIM_PIE_8OUT_DEVICE = useMemo(
+    () =>
+      ({
+        deviceId: SIM_PIE_8OUT_DEVICE_ID,
+        groupId: 'hkm-sim-pcie-jack-card',
+        kind: 'audiooutput' as MediaDeviceKind,
+        label: SIM_PIE_8OUT_LABEL,
+        toJSON: () => ({}),
+      }) as MediaDeviceInfo,
+    []
+  );
+
+  /** Real outputs + optional training card (composed list used by all UI selects). */
+  const outputDevices = useMemo(
+    () => (simulatedSurroundCard ? [SIM_PIE_8OUT_DEVICE, ...rawOutputDevices] : rawOutputDevices),
+    [rawOutputDevices, simulatedSurroundCard, SIM_PIE_8OUT_DEVICE]
+  );
+
+  /** Discrete jack endpoints: probed real 5.1/7.1 cards + the simulated card. */
+  const outputJackEndpoints = useMemo(() => {
+    if (!simulatedSurroundCard) return probedOutputJackEndpoints;
+    return [
+      ...buildJackEndpoints({ deviceId: SIM_PIE_8OUT_DEVICE_ID, label: SIM_PIE_8OUT_LABEL }, 8, true),
+      ...probedOutputJackEndpoints,
+    ];
+  }, [probedOutputJackEndpoints, simulatedSurroundCard]);
   const [specializedDesktopInputs, setSpecializedDesktopInputs] = useState<SpecializedDesktopInterface[]>([]);
   const [outputRouteError, setOutputRouteError] = useState<string | null>(null);
 
@@ -219,6 +266,136 @@ export function useHardwareManager({
     },
     [logAudit]
   );
+
+  // =========================================================================
+  //   DISCRETE JACK ROUTER — 5.1/7.1 output channel layout probing
+  //   (Realtek/ASUS/Creative/SB PCIe + onboard surround cards expose ONE
+  //   endpoint whose stream carries 6/8 channels; each physical jack pair is
+  //   a fixed channel position inside that stream. See utils/jackTopology.ts.)
+  // =========================================================================
+
+  const JACK_LAYOUT_CACHE_KEY = 'church_audio_jack_layout_cache';
+  const JACK_LAYOUT_CACHE_TTL_MS = 30 * 24 * 3600 * 1000;
+
+  const loadJackLayoutCache = (): Record<string, { label: string; count: number; ts: number }> => {
+    try {
+      return JSON.parse(window.localStorage.getItem(JACK_LAYOUT_CACHE_KEY) || '{}');
+    } catch {
+      return {};
+    }
+  };
+
+  const saveJackLayoutCache = (cache: Record<string, { label: string; count: number; ts: number }>) => {
+    try {
+      window.localStorage.setItem(JACK_LAYOUT_CACHE_KEY, JSON.stringify(cache));
+    } catch {
+      // ignore storage error
+    }
+  };
+
+  /** Open a throwaway AudioContext on the device and read its true channel count. */
+  const probeDeviceChannelCount = async (device: MediaDeviceInfo): Promise<number> => {
+    try {
+      const Ctor = window.AudioContext;
+      if (!Ctor || !device.deviceId || device.deviceId === 'default' || device.deviceId === 'communications') {
+        return 2;
+      }
+      const probeCtx = new Ctor({ sinkId: device.deviceId } as unknown as AudioContextOptions);
+      const max = probeCtx.destination?.maxChannelCount || 2;
+      void probeCtx.close().catch(() => {});
+      return Math.max(2, Math.min(max, 8));
+    } catch {
+      return 2;
+    }
+  };
+
+  /**
+   * Probe every enumerated output device for a multichannel (5.1/7.1) layout
+   * and explode those devices into discrete jack endpoints. Cached per device
+   * (label-matched, 30-day TTL); `explicit` forces a fresh probe + busy flag.
+   */
+  const probeOutputChannelLayouts = useCallback(
+    async (devices: MediaDeviceInfo[], explicit = false) => {
+      const candidates = devices.filter(
+        (d) => d.deviceId && d.deviceId !== 'default' && d.deviceId !== 'communications' && d.deviceId !== SIM_PIE_8OUT_DEVICE_ID
+      );
+      if (candidates.length === 0) {
+        setProbedOutputJackEndpoints([]);
+        return;
+      }
+      if (explicit) setJackProbeBusy(true);
+      try {
+        const cache = loadJackLayoutCache();
+        const endpoints: OutputJackEndpoint[] = [];
+        for (const dev of candidates) {
+          let count = 2;
+          const hit = cache[dev.deviceId];
+          if (!explicit && hit && hit.label === dev.label && Date.now() - hit.ts < JACK_LAYOUT_CACHE_TTL_MS) {
+            count = hit.count;
+          } else {
+            count = await probeDeviceChannelCount(dev);
+            cache[dev.deviceId] = { label: dev.label || '', count, ts: Date.now() };
+          }
+          if (count >= 4) {
+            endpoints.push(
+              ...buildJackEndpoints(
+                { deviceId: dev.deviceId, label: dev.label || `Audio Output (${dev.deviceId.slice(0, 6)})` },
+                count
+              )
+            );
+          }
+        }
+        saveJackLayoutCache(cache);
+        setProbedOutputJackEndpoints(endpoints);
+        if (explicit) {
+          const multi = endpoints.length > 0;
+          logAudit(
+            'Discrete Jack Probe',
+            multi
+              ? `Probed ${candidates.length} outputs — ${endpoints.length / (endpoints[0].channelCount >= 8 ? 4 : 3)} multi-channel card(s) with discrete jack topology found`
+              : `Probed ${candidates.length} outputs — no 5.1/7.1 jack topology detected (stereo endpoints only)`,
+            'operator'
+          );
+        }
+      } finally {
+        if (explicit) setJackProbeBusy(false);
+      }
+    },
+    [logAudit]
+  );
+
+  /** Training-mode simulated 7.1 PCIe jack card (demo without hardware). */
+  const toggleSimulatedSurroundCard = useCallback(() => {
+    setSimulatedSurroundCard((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem('church_audio_sim_71_card', next ? '1' : '0');
+      } catch {
+        // ignore storage error
+      }
+      liveAudioEngine.setSimulatedJackDeviceId(next ? SIM_PIE_8OUT_DEVICE_ID : null);
+      logAudit(
+        'Simulated 7.1 Jack Card',
+        next
+          ? 'Training card enabled — discrete jack routing armed (front/rear/center-sub/side pairs)'
+          : 'Training card disabled — standalone stereo outputs restored',
+        'operator'
+      );
+      return next;
+    });
+  }, [logAudit]);
+
+  // Keep the engine's simulated-card flag in sync (mount + toggles).
+  useEffect(() => {
+    liveAudioEngine.setSimulatedJackDeviceId(simulatedSurroundCard ? SIM_PIE_8OUT_DEVICE_ID : null);
+  }, [simulatedSurroundCard]);
+
+  // If the training card is disabled while it is the Master PA sink, clear it.
+  useEffect(() => {
+    if (!simulatedSurroundCard && preferredOutputDeviceId === SIM_PIE_8OUT_DEVICE_ID) {
+      void handleSelectOutputDevice('');
+    }
+  }, [simulatedSurroundCard, preferredOutputDeviceId, handleSelectOutputDevice]);
 
   const refreshDesktopAudioInfo = useCallback(async () => {
     if (!isDesktopApp()) return null;
@@ -393,11 +570,12 @@ export function useHardwareManager({
       lastInputSigRef.current = buildDeviceListSignature(inputs);
       lastOutputSigRef.current = buildDeviceListSignature(outputs);
       setInputDevices(inputs);
-      setOutputDevices(outputs);
+      setRawOutputDevices(outputs);
+      void probeOutputChannelLayouts(outputs, false);
       onSyncLiveInputsRef.current?.(inputs, mode === 'reset-from-ch1');
       return { inputs, outputs };
     },
-    [enumerateCleanPorts]
+    [enumerateCleanPorts, probeOutputChannelLayouts]
   );
 
   // 1. Wait for persisted session hydration, then occupy CH1..CHN 1-to-1 with all startup live inputs
@@ -422,7 +600,8 @@ export function useHardwareManager({
       lastInputSigRef.current = buildDeviceListSignature(inputs);
       lastOutputSigRef.current = buildDeviceListSignature(outputs);
       setInputDevices(inputs);
-      setOutputDevices(outputs);
+      setRawOutputDevices(outputs);
+      void probeOutputChannelLayouts(outputs, false);
       onSyncLiveInputsRef.current?.(inputs, true);
     };
 
@@ -448,7 +627,8 @@ export function useHardwareManager({
         lastInputSigRef.current = inSig;
         lastOutputSigRef.current = outSig;
         setInputDevices(inputs);
-        setOutputDevices(outputs);
+        setRawOutputDevices(outputs);
+        void probeOutputChannelLayouts(outputs, false);
         if (startupSyncedRef.current) {
           onSyncLiveInputsRef.current?.(inputs, false);
         }
@@ -652,6 +832,11 @@ export function useHardwareManager({
     hotPlugEndpoint,
     inputDevices,
     outputDevices,
+    outputJackEndpoints,
+    jackProbeBusy,
+    simulatedSurroundCard,
+    probeOutputChannelLayouts,
+    toggleSimulatedSurroundCard,
     specializedDesktopInputs,
     outputRouteError,
     preferredOutputDeviceId,

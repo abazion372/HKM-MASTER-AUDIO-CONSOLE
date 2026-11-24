@@ -93,6 +93,9 @@ interface TopBarProps {
     device: { deviceId: string | null; label?: string | null; groupId?: string | null },
     autoStartOrRestart?: boolean
   ) => void;
+  /** Training-mode simulated 7.1 PCIe jack card (discrete output jack routing). */
+  simulatedSurroundCard?: boolean;
+  onToggleSimulatedSurroundCard?: () => void;
 }
 
 const THEME_OPTIONS: { id: ConsoleThemeId; label: string }[] = [
@@ -151,6 +154,8 @@ const TopBarInner: React.FC<TopBarProps> = ({
   specializedDesktopInputs = [],
   onSelectDesktopCaptureMethod,
   onSelectSpecializedDesktopDevice,
+  simulatedSurroundCard = false,
+  onToggleSimulatedSurroundCard,
 }) => {
   const [showToolsPopover, setShowToolsPopover] = useState(false);
   const toolsRef = React.useRef<HTMLDivElement | null>(null);
@@ -326,6 +331,39 @@ const TopBarInner: React.FC<TopBarProps> = ({
                     <option value="pink-noise">Calibration Pink Noise (-20 dBFS)</option>
                   </select>
                 </div>
+
+                {onToggleSimulatedSurroundCard && (
+                  <div className="p-2 rounded border border-[#243445] bg-[#080C12] flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-[9.5px] font-bold text-cyan-300 uppercase flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-sm border border-white/25" style={{ backgroundColor: '#22C55E' }} />
+                        Simulated 7.1 PCIe Jack Card
+                      </div>
+                      <div className="text-[9px] text-slate-400 leading-snug mt-0.5">
+                        Training mode — separate FRONT / REAR / CENTER-SUB / SIDE jack outputs on the Outputs tab.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={simulatedSurroundCard}
+                      aria-label="Toggle simulated 7.1 PCIe jack card"
+                      onClick={() => onToggleSimulatedSurroundCard()}
+                      className={`shrink-0 w-11 h-6 rounded-full border transition-all cursor-pointer relative ${
+                        simulatedSurroundCard
+                          ? 'bg-amber-500/70 border-amber-300/70'
+                          : 'bg-[#0D141C] border-[#2A3646]'
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 w-4.5 h-4.5 rounded-full bg-slate-200 transition-all ${
+                          simulatedSurroundCard ? 'left-[22px]' : 'left-0.5'
+                        }`}
+                        style={{ width: 18, height: 18 }}
+                      />
+                    </button>
+                  </div>
+                )}
 
                 {audioSource === 'desktop-audio' && desktopBridgeState && (
                   <div className="p-2 rounded border border-[#243445] bg-[#080C12] space-y-1.5">

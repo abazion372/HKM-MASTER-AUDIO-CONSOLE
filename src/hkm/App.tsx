@@ -765,6 +765,8 @@ export default function App() {
         specializedDesktopInputs={hardware.specializedDesktopInputs}
         onSelectDesktopCaptureMethod={audio.setDesktopCaptureMethod}
         onSelectSpecializedDesktopDevice={audio.setSpecializedDesktopDevice}
+        simulatedSurroundCard={hardware.simulatedSurroundCard}
+        onToggleSimulatedSurroundCard={hardware.toggleSimulatedSurroundCard}
       />
 
       {session.navDockPosition === 'top' && (
@@ -944,6 +946,16 @@ export default function App() {
             audioSource={audio.audioSource}
             desktopBridgeState={audio.desktopBridgeState}
             specializedDesktopInputs={hardware.specializedDesktopInputs}
+            outputJackEndpoints={hardware.outputJackEndpoints}
+            jackProbeBusy={hardware.jackProbeBusy}
+            onProbeJacks={() =>
+              void hardware.probeOutputChannelLayouts(hardware.outputDevices, true)
+            }
+            onUpdateZone={(id, patch) => {
+              if (!consoleLocked) session.handleUpdateZone(id, patch);
+            }}
+            simulatedSurroundCard={hardware.simulatedSurroundCard}
+            onToggleSimulatedSurroundCard={hardware.toggleSimulatedSurroundCard}
             onActivateSystemAudioBridge={() =>
               void audio.setDesktopCaptureMethod(
                 isDesktopApp() ? 'native-wasapi' : 'display-media',

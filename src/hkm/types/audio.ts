@@ -300,6 +300,13 @@ export interface SpeakerZone {
   limiterDb: number;
   hardwareOutput: string;
   hardwareOutputId?: string;
+  /**
+   * Discrete jack-port routing on a 5.1/7.1 sound card: `${deviceId}::jack::${slot}`
+   * (see utils/jackTopology.ts). When set and the parent endpoint is the active
+   * engine sink, this zone is rendered exclusively onto that physical jack's
+   * channel pair — one zone per jack, enforced by the router interlock.
+   */
+  outputJackId?: string;
 }
 
 export interface ServicePreset {

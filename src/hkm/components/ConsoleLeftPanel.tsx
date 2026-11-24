@@ -39,6 +39,14 @@ import {
   type DesktopAudioStatus,
 } from '../utils/nativeDesktopAudio.ts';
 import { deriveAutoChannelNameAndRole } from '../utils/audioNaming.ts';
+import {
+  buildAutoJackAssignments,
+  OUTPUT_JACK_SLOT_ORDER,
+  type OutputJackEndpoint,
+  type OutputJackSlot,
+} from '../utils/jackTopology.ts';
+import { isDesktopApp } from '../utils/appApi.ts';
+import { openWindowsSoundSettings } from '../utils/nativeDesktopAudio.ts';
 import { RotaryKnob } from './StudioControls.tsx';
 import { PrecisionVerticalFader } from './PrecisionVerticalFader.tsx';
 
@@ -69,6 +77,13 @@ interface ConsoleLeftPanelProps {
   desktopBridgeState?: SystemAudioBridgeState;
   specializedDesktopInputs?: SpecializedDesktopInterface[];
   onActivateSystemAudioBridge?: () => void;
+  /** Discrete 5.1/7.1 jack endpoints (probed + simulated training card). */
+  outputJackEndpoints?: OutputJackEndpoint[];
+  jackProbeBusy?: boolean;
+  onProbeJacks?: () => void;
+  onUpdateZone?: (id: string, patch: Partial<SpeakerZone>) => void;
+  simulatedSurroundCard?: boolean;
+  onToggleSimulatedSurroundCard?: () => void;
 }
 
 const SEGMENTS_10 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -98,6 +113,12 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
   desktopBridgeState,
   specializedDesktopInputs = [],
   onActivateSystemAudioBridge,
+  outputJackEndpoints = [],
+  jackProbeBusy = false,
+  onProbeJacks,
+  onUpdateZone,
+  simulatedSurroundCard = false,
+  onToggleSimulatedSurroundCard,
 }) => {
   const [activeTab, setActiveTab] = useState<'inputs' | 'outputs'>('inputs');
   const [collapsed, setCollapsed] = useState(false);
@@ -106,13 +127,16 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
   const [fastChRms, setFastChRms] = useState<number[]>([]);
   const [fastChPeak, setFastChPeak] = useState<number[]>([]);
   const [fastPostDb, setFastPostDb] = useState(-96);
+  const [fastJackRms, setFastJackRms] = useState<Partial<Record<OutputJackSlot, number>>>({});
 
   // Throttled ~12.5fps live hardware level meter sampling (pauses while hidden & skips unchanged silence)
+  // — channel strips, post-fader bus and the discrete jack bay meters.
   useEffect(() => {
     if (!engineRunning) {
       setFastChRms([]);
       setFastChPeak([]);
       setFastPostDb(-96);
+      setFastJackRms({});
       return;
     }
     let timerId: number | null = null;
@@ -120,6 +144,7 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
     let prevRms: number[] = [];
     let prevPeak: number[] = [];
     let prevPost = -96;
+    let prevJack: Partial<Record<OutputJackSlot, number>> = {};
     const qHalf = (v: number) => (v <= -60 ? -96 : Math.round(v * 2) / 2);
     const sameArr = (a: number[], b: number[]) =>
       a.length === b.length && a.every((val, i) => val === b[i]);
@@ -146,6 +171,21 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
           prevPost = nextPost;
           setFastPostDb(nextPost);
         }
+      }
+      const jackLevels = liveAudioEngine.sampleJackLevels();
+      if (jackLevels.length > 0) {
+        const nextJack: Partial<Record<OutputJackSlot, number>> = {};
+        for (const j of jackLevels) nextJack[j.slot as OutputJackSlot] = qHalf(j.rmsDb);
+        const sameJack =
+          Object.keys(nextJack).length === Object.keys(prevJack).length &&
+          (Object.keys(nextJack) as OutputJackSlot[]).every((k) => nextJack[k] === prevJack[k]);
+        if (!sameJack) {
+          prevJack = nextJack;
+          setFastJackRms(nextJack);
+        }
+      } else if (Object.keys(prevJack).length > 0) {
+        prevJack = {};
+        setFastJackRms({});
       }
       if (!cancelled) timerId = window.setTimeout(tick, 80);
     };
@@ -223,6 +263,21 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
   };
 
   const meterWidth = Math.max(0, Math.min(100, (((engineRunning ? fastPostDb : telemetry.postRmsDb) + 60) / 60) * 100));
+
+  // Live engine-side jack routing status (router active/standby + driven slots)
+  const [jackRouterStatus, setJackRouterStatus] = useState('ROUTER STANDBY (legacy stereo)');
+  useEffect(() => {
+    if (activeTab !== 'outputs') return;
+    const t = window.setInterval(() => {
+      const st = liveAudioEngine.getJackRoutingStatus();
+      setJackRouterStatus(
+        st.active
+          ? `ROUTER ACTIVE · ${st.channelCount}ch · ${st.slots.length} jack${st.slots.length === 1 ? '' : 's'} driven${st.simulated ? ' · SIM' : ''}`
+          : 'ROUTER STANDBY (legacy stereo)'
+      );
+    }, 600);
+    return () => window.clearInterval(t);
+  }, [activeTab]);
 
   if (collapsed) {
     return (
@@ -1189,6 +1244,225 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
       {activeTab === 'outputs' && (
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
           <div className="flex-1 min-h-0 overflow-y-auto p-1.5 space-y-1.5">
+            {/* ==== DISCRETE JACK BAY — 5.1/7.1 cards exploded into per-jack
+                      zone routing (one zone per physical jack pair) ==== */}
+            {outputJackEndpoints.length > 0 &&
+              (() => {
+                const byDevice = new Map<string, OutputJackEndpoint[]>();
+                for (const jack of outputJackEndpoints) {
+                  const list = byDevice.get(jack.parentDeviceId) ?? [];
+                  list.push(jack);
+                  byDevice.set(jack.parentDeviceId, list);
+                }
+                return Array.from(byDevice.entries()).map(([deviceId, deviceJacks]) => {
+                  const ordered = OUTPUT_JACK_SLOT_ORDER.map((slot) =>
+                    deviceJacks.find((j) => j.slot === slot)
+                  ).filter((j): j is OutputJackEndpoint => Boolean(j));
+                  const first = ordered[0];
+                  const isSink = preferredOutputDeviceId === deviceId;
+                  const autoPatches = onUpdateZone ? buildAutoJackAssignments(zones, ordered) : [];
+                  return (
+                    <div
+                      key={`jackbay-${deviceId}`}
+                      className={`rounded-md border p-1.5 space-y-1.5 ${
+                        isSink
+                          ? 'border-teal-400/80 bg-gradient-to-b from-[#142328] to-[#0E181D] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_0_10px_rgba(45,212,191,0.22)]'
+                          : 'border-[#4B5D72] bg-gradient-to-b from-[#1E2732] to-[#131921]'
+                      }`}
+                    >
+                      {/* Bay header */}
+                      <div className="flex items-center justify-between gap-1 px-0.5">
+                        <span className="flex items-center gap-1 min-w-0">
+                          <span className="font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-teal-300 shrink-0">
+                            Discrete Jack Bay
+                          </span>
+                          <span
+                            className={`px-1 py-0.5 rounded border font-mono text-[7.5px] font-bold shrink-0 ${
+                              first.layout === '7.1'
+                                ? 'text-fuchsia-300 border-fuchsia-500/40 bg-fuchsia-950/40'
+                                : 'text-cyan-300 border-cyan-500/40 bg-cyan-950/40'
+                            }`}
+                            title={`${first.channelCount}-channel endpoint — discrete per-jack routing available`}
+                          >
+                            {first.layout}
+                          </span>
+                          {first.simulated && (
+                            <span
+                              className="px-1 py-0.5 rounded border font-mono text-[7px] font-bold text-amber-300 border-amber-500/40 bg-amber-950/40 shrink-0"
+                              title="Training card — no physical hardware behind it; jack routing logic is identical to a real 7.1 card"
+                            >
+                              SIM
+                            </span>
+                          )}
+                          {isSink && (
+                            <span className="px-1 py-0.5 rounded border font-mono text-[7px] font-bold text-emerald-300 border-emerald-500/40 bg-emerald-950/40 shrink-0">
+                              ACTIVE SINK
+                            </span>
+                          )}
+                        </span>
+                        <span
+                          className="font-mono text-[7.5px] text-slate-500 truncate"
+                          title={first.parentDeviceLabel}
+                        >
+                          {first.parentDeviceLabel}
+                        </span>
+                      </div>
+
+                      {/* One row per physical jack pair */}
+                      {ordered.map((jack) => {
+                        const zoneOnJack = zones.find((z) => z.outputJackId === jack.jackId);
+                        const jackRms = fastJackRms[jack.slot] ?? -96;
+                        const meterPct = Math.max(0, Math.min(100, ((jackRms + 54) / 54) * 100));
+                        const meterColor =
+                          meterPct > 92
+                            ? 'bg-rose-500'
+                            : meterPct > 80
+                              ? 'bg-amber-400'
+                              : 'bg-emerald-400';
+                        return (
+                          <div
+                            key={jack.jackId}
+                            className={`flex items-center gap-1.5 px-1 py-1 rounded border ${
+                              zoneOnJack
+                                ? 'border-[#3A4B5E] bg-[#0F151D]'
+                                : 'border-dashed border-[#2A3544] bg-[#0C1117]/60'
+                            }`}
+                          >
+                            <span
+                              className="w-3 h-3 rounded-[2px] border border-white/25 shrink-0"
+                              style={{ backgroundColor: jack.jackColorHex }}
+                              title={`${jack.jackColorName} jack (industry HD Audio colour code)`}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="font-mono text-[9px] font-bold text-slate-200 leading-none truncate">
+                                {jack.label}
+                              </div>
+                              <div className="font-mono text-[7px] text-slate-500 leading-none mt-1">
+                                CH {jack.channelIndices[0]}/{jack.channelIndices[1]} · {jack.jackColorName} jack
+                              </div>
+                            </div>
+                            {/* live jack meter */}
+                            <div
+                              className="w-8 h-1.5 rounded-sm bg-[#090D12] border border-[#2C394A] overflow-hidden shrink-0"
+                              aria-label={`${jack.label} jack level`}
+                            >
+                              <div
+                                className={`h-full ${meterColor} transition-all duration-100`}
+                                style={{ width: `${meterPct}%` }}
+                              />
+                            </div>
+                            {onUpdateZone ? (
+                              <select
+                                aria-label={`${jack.label} jack zone assignment`}
+                                value={zoneOnJack?.id ?? ''}
+                                disabled={locked}
+                                onChange={(e) => {
+                                  const nextZoneId = e.target.value;
+                                  // Conflict-free swap: clear whatever zone
+                                  // currently occupies this jack, then land the
+                                  // chosen zone on it (one zone per jack).
+                                  if (zoneOnJack && zoneOnJack.id !== nextZoneId) {
+                                    onUpdateZone(zoneOnJack.id, { outputJackId: undefined });
+                                  }
+                                  if (nextZoneId) {
+                                    onUpdateZone(nextZoneId, { outputJackId: jack.jackId });
+                                  }
+                                }}
+                                title={`Assign a speaker zone to the ${jack.jackColorName} ${jack.label} jack — one zone per jack (selecting swaps automatically)`}
+                                className="w-[86px] h-6 px-1 rounded border border-[#293544] bg-[#0B1017] text-slate-200 text-[8.5px] cursor-pointer disabled:opacity-45 shrink-0"
+                              >
+                                <option value="">— open jack —</option>
+                                {zones.map((z) => (
+                                  <option key={z.id} value={z.id}>
+                                    {z.name}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <span className="font-mono text-[8px] text-slate-500 shrink-0">
+                                {zoneOnJack ? zoneOnJack.name : 'open'}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {/* Bay footer: auto-assign, sink activation, Windows config */}
+                      <div className="flex items-center gap-1">
+                        {onUpdateZone && autoPatches.length > 0 && (
+                          <button
+                            type="button"
+                            disabled={locked}
+                            onClick={() => {
+                              for (const p of autoPatches) onUpdateZone(p.zoneId, p.patch);
+                            }}
+                            title="Church-install auto patch: Main PA → FRONT (green), Sub → CENTER/SUB (orange), Overflow/Rear-fill → REAR (black), Stage monitor → SIDE (grey)"
+                            className="flex-1 h-6 rounded border border-teal-500/45 bg-teal-950/35 hover:bg-teal-900/50 text-teal-200 font-mono text-[8px] font-bold cursor-pointer disabled:opacity-45"
+                          >
+                            AUTO-ASSIGN ZONES
+                          </button>
+                        )}
+                        {!isSink && onSelectOutputDevice && (
+                          <button
+                            type="button"
+                            disabled={locked}
+                            onClick={() => onSelectOutputDevice(deviceId)}
+                            title="Make this multi-channel card the Master PA sink — its jacks then carry the zone patch above"
+                            className="flex-1 h-6 rounded border border-emerald-500/45 bg-emerald-950/35 hover:bg-emerald-900/50 text-emerald-200 font-mono text-[8px] font-bold cursor-pointer disabled:opacity-45"
+                          >
+                            SET AS MASTER PA
+                          </button>
+                        )}
+                      </div>
+                      <p className="font-mono text-[7px] leading-relaxed text-slate-500 px-0.5">
+                        {jackRouterStatus} · Windows speaker configuration for this device must be set to{' '}
+                        {first.layout} (Sound Control Panel) for 1:1 per-jack routing.
+                      </p>
+                    </div>
+                  );
+                });
+              })()}
+
+            {/* Jack probe / training-card controls */}
+            <div className="flex items-center gap-1">
+              {onProbeJacks && outputDevices.length > 0 && (
+                <button
+                  type="button"
+                  disabled={jackProbeBusy}
+                  onClick={() => onProbeJacks()}
+                  title="Probe every output endpoint for a 5.1/7.1 multichannel layout and expose its discrete jack pairs"
+                  className="flex-1 h-7 rounded border border-cyan-500/45 bg-cyan-950/35 hover:bg-cyan-900/50 text-cyan-200 font-mono text-[8.5px] font-bold flex items-center justify-center gap-1 cursor-pointer disabled:opacity-45"
+                >
+                  {jackProbeBusy ? 'PROBING JACKS…' : 'PROBE DISCRETE JACKS'}
+                </button>
+              )}
+              {onToggleSimulatedSurroundCard && (
+                <button
+                  type="button"
+                  disabled={locked}
+                  onClick={() => onToggleSimulatedSurroundCard()}
+                  title="Training mode: add a simulated 7.1 PCIe jack card (green/black/orange/grey pairs) to rehearse discrete jack routing without hardware"
+                  className={`flex-1 h-7 rounded border font-mono text-[8.5px] font-bold flex items-center justify-center gap-1 cursor-pointer disabled:opacity-45 ${
+                    simulatedSurroundCard
+                      ? 'border-amber-400 bg-amber-950/45 text-amber-200'
+                      : 'border-[#293544] bg-[#0B1017] text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {simulatedSurroundCard ? 'SIM 7.1 CARD ON' : 'SIM 7.1 CARD'}
+                </button>
+              )}
+              {isDesktopApp() && (
+                <button
+                  type="button"
+                  onClick={() => void openWindowsSoundSettings()}
+                  title="Open Windows Sound settings — set the card's speaker configuration to 5.1/7.1 so every jack carries its own pair"
+                  className="h-7 px-1.5 rounded border border-[#293544] bg-[#0B1017] text-slate-400 hover:text-white font-mono text-[8.5px] font-bold cursor-pointer shrink-0"
+                >
+                  WIN SOUND
+                </button>
+              )}
+            </div>
+
             {outputDevices.length === 0 ? (
               <div className="p-3 rounded border border-dashed border-[#344355] bg-[#0B1015] text-center font-mono text-[10px] text-slate-500">
                 No audio output endpoints detected. Click refresh or plug in speakers/headphones.

@@ -242,6 +242,20 @@ class LiveAudioEngine {
     this.outputRouter.applySpeakerZones(zones);
   }
 
+  // ---- Discrete jack router (5.1/7.1 per-jack zone routing) ----
+
+  public setSimulatedJackDeviceId(id: string | null): void {
+    this.outputRouter.setSimulatedJackDeviceId(id);
+  }
+
+  public sampleJackLevels(): Array<{ slot: string; zoneId: string; rmsDb: number }> {
+    return this.outputRouter.sampleJackLevels();
+  }
+
+  public getJackRoutingStatus() {
+    return this.outputRouter.getJackRoutingStatus();
+  }
+
   public async setOutputDevice(deviceId?: string): Promise<boolean> {
     const ok = await this.outputRouter.setOutputDevice(deviceId, { allowFallbackToDefault: false });
     this.syncOutputsAndSafety();

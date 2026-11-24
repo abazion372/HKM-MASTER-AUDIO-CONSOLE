@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Discrete output jack routing — 5.1/7.1 sound cards treated as separate FRONT / REAR / CENTER-SUB / SIDE outputs (PCIe + onboard)**: multi-channel endpoints are exploded into per-jack stereo pairs following the WAVEFORMATEXTENSIBLE channel order and the industry HD Audio jack colour code (green FL/FR, orange FC/LFE, black BL/BR, grey SL/SR). A zone can be assigned to a specific physical jack so the console drives each port as its own independently aligned output — exactly like a matrixed zone-output card:
+  - `PROBE DISCRETE JACKS` probes every enumerated output endpoint (`AudioContext` `{sinkId}` → `destination.maxChannelCount`, 30-day label-matched cache) and exposes 5.1/7.1 devices as discrete jacks.
+  - **Discrete Jack Bay** on the Outputs tab: per-jack colour-coded rows with live level meters, zone assignment selects with **conflict-free auto-swap** (one zone per jack, enforced again by an engine first-wins interlock), church-install AUTO-ASSIGN (Main PA → green front, Sub → orange center/sub, Overflow/Rear-fill → black rear, Stage monitor → grey side) and a desktop "WIN SOUND" shortcut to set the Windows speaker configuration to 5.1/7.1.
+  - Engine: per-jack zone chains (independent trim/delay/polarity/mute) feed a `ChannelMerger` into the destination with `channelInterpretation: 'discrete'` for true 1:1 jack-conductor mapping; legacy stereo routing is restored automatically when the sink is stereo or no jacks are assigned; Main PA auto-lands on the green front jack when a surround card becomes the sink.
+  - **Simulated 7.1 PCIe Jack Card** training toggle (TOOLS popover): rehearse discrete jack routing without hardware — front pair stays audible on stereo devices while other jacks remain metered.
+  - Research + design reference: `docs/DISCRETE-JACK-ROUTING.md` (WASAPI shared/exclusive vs ASIO separation methods, conflict rules, native v2 roadmap incl. `dwChannelMask` parsing and per-jack ASIO streams).
 - **Real-world instrument input (guitar/bass) — MIC / LINE / INST input source switch**: every channel strip now carries the physical console input section exactly like an Allen & Heath ZED or interface Hi-Z "INST" engagement. Each strip's Row 0 is a 3-segment MIC/LINE/INST selector plus 48V / PAD / Ø hardware buttons with true interlock semantics:
   - **MIC** (+48V capable): mic preamp gain +0..+60 dB, phantom power available.
   - **LINE**: line trim −12..+12 dB around unity (jack domain, phantom locked out).
