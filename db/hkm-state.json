@@ -1044,6 +1044,96 @@
   "emergencyMuted": false,
   "findings": [
     {
+      "id": "fb-1795513590876",
+      "timestamp": "2026-11-24T09:46:30.876Z",
+      "severity": "critical",
+      "category": "feedback",
+      "title": "Sustained Narrow-Band Ringing Detected @ 2672 Hz",
+      "evidence": "+17.7 dB prominence for 1s",
+      "confidence": 93,
+      "explanation": "A persistent narrow-band peak at 2672 Hz has remained dominant above neighboring frequencies. Approve a surgical notch cut or reduce wedge/mic gain physically on Live Audio Device.",
+      "physicalChecks": [
+        "Verify pulpit/handheld mic is not pointed directly toward stage monitors or main PA.",
+        "Reduce channel preamp gain slightly if ringing returns after notching."
+      ],
+      "proposedPatch": {
+        "description": "Notch -9.5 dB (Q=7.5) @ 2672 Hz",
+        "eqBandUpdate": {
+          "index": 3,
+          "enabled": true,
+          "label": "Feedback Notch",
+          "frequency": 2672,
+          "gainDb": -9.5,
+          "q": 7.5
+        }
+      },
+      "status": "pending",
+      "beforeSnapshot": {
+        "rmsDb": -9.9,
+        "peakDb": -0.3
+      }
+    },
+    {
+      "id": "fb-1795513585803",
+      "timestamp": "2026-11-24T09:46:25.803Z",
+      "severity": "critical",
+      "category": "feedback",
+      "title": "Sustained Narrow-Band Ringing Detected @ 1992 Hz",
+      "evidence": "+17.6 dB prominence for 1s",
+      "confidence": 93,
+      "explanation": "A persistent narrow-band peak at 1992 Hz has remained dominant above neighboring frequencies. Approve a surgical notch cut or reduce wedge/mic gain physically on Live Audio Device.",
+      "physicalChecks": [
+        "Verify pulpit/handheld mic is not pointed directly toward stage monitors or main PA.",
+        "Reduce channel preamp gain slightly if ringing returns after notching."
+      ],
+      "proposedPatch": {
+        "description": "Notch -9.5 dB (Q=7.5) @ 1992 Hz",
+        "eqBandUpdate": {
+          "index": 3,
+          "enabled": true,
+          "label": "Feedback Notch",
+          "frequency": 1992,
+          "gainDb": -9.5,
+          "q": 7.5
+        }
+      },
+      "status": "pending",
+      "beforeSnapshot": {
+        "rmsDb": -9,
+        "peakDb": 0.5
+      }
+    },
+    {
+      "id": "fb-1795513581741",
+      "timestamp": "2026-11-24T09:46:21.741Z",
+      "severity": "critical",
+      "category": "feedback",
+      "title": "Sustained Narrow-Band Ringing Detected @ 2133 Hz",
+      "evidence": "+12.4 dB prominence for 1s",
+      "confidence": 85,
+      "explanation": "A persistent narrow-band peak at 2133 Hz has remained dominant above neighboring frequencies. Approve a surgical notch cut or reduce wedge/mic gain physically on Live Audio Device.",
+      "physicalChecks": [
+        "Verify pulpit/handheld mic is not pointed directly toward stage monitors or main PA.",
+        "Reduce channel preamp gain slightly if ringing returns after notching."
+      ],
+      "proposedPatch": {
+        "description": "Notch -9.5 dB (Q=7.5) @ 2133 Hz",
+        "eqBandUpdate": {
+          "index": 3,
+          "enabled": true,
+          "label": "Feedback Notch",
+          "frequency": 2133,
+          "gainDb": -9.5,
+          "q": 7.5
+        }
+      },
+      "status": "pending",
+      "beforeSnapshot": {
+        "rmsDb": -8.2,
+        "peakDb": 0.5
+      }
+    },
+    {
       "id": "fb-1795513575641",
       "timestamp": "2026-11-24T09:46:15.641Z",
       "severity": "critical",
