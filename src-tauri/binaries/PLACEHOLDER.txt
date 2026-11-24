@@ -1,0 +1,3 @@
+This folder holds hkm-server.exe (the bundled bun runtime for the console server).
+Run `bun run desktop:fetch-server` before `bun run desktop:build` for a fully
+self-contained installer. Without it, the app uses a system node/bun install.

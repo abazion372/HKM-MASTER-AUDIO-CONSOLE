@@ -52,3 +52,9 @@ prompt
 server.log
 # Skills directory
 /skills/
+# Tauri Windows desktop shell
+/src-tauri/target/
+/src-tauri/gen/
+/src-tauri/binaries/*.exe
+/release/
+/app-icon.png
