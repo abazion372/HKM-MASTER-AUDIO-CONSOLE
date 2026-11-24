@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Gauge, Sliders, Sparkles, X } from 'lucide-react';
 import type { HardwareDevice, InputChannel } from '../types/audio.ts';
+import { INPUT_MODES, clampGainForMode, getInputMode } from '../utils/inputMode.ts';
 
 interface GainStagingAssistantModalProps {
   open: boolean;
@@ -23,6 +24,7 @@ function dbToPct(db: number): number {
 }
 
 function evaluateGainStage(ch: InputChannel, targetRmsDb: number): StageVerdict {
+  const mode = getInputMode(ch);
   if (ch.mute || ch.levelDb <= -68) {
     return {
       label: 'IDLE',
@@ -36,14 +38,20 @@ function evaluateGainStage(ch: InputChannel, targetRmsDb: number): StageVerdict 
     return {
       label: 'CLIPPING',
       colorClass: 'text-rose-300 border-rose-500/60 bg-rose-500/15',
-      guidance: 'Peak hit 0 dBFS! Engage -20 dB Pad or lower Preamp Gain immediately.',
+      guidance:
+        mode === 'inst'
+          ? 'Peak hit 0 dBFS! Hot pedalboard/active pickup — engage -20 dB Pad or lower the INST gain immediately.'
+          : 'Peak hit 0 dBFS! Engage -20 dB Pad or lower Preamp Gain immediately.',
     };
   }
   if (ch.peakDb > -4.0 || ch.levelDb > targetRmsDb + 7.5) {
     return {
       label: 'HOT',
       colorClass: 'text-amber-300 border-amber-500/60 bg-amber-500/15',
-      guidance: 'Headroom under 4 dB. Trim down 3–6 dB to protect vocal transients.',
+      guidance:
+        mode === 'inst'
+          ? 'Headroom under 4 dB. Back off INST gain 3–6 dB — plucked transients need room.'
+          : 'Headroom under 4 dB. Trim down 3–6 dB to protect vocal transients.',
     };
   }
   if (ch.levelDb < targetRmsDb - 14) {
@@ -52,16 +60,28 @@ function evaluateGainStage(ch: InputChannel, targetRmsDb: number): StageVerdict 
       label: 'UNDER-GAINED',
       colorClass: 'text-sky-300 border-sky-500/50 bg-sky-500/15',
       guidance:
-        snr < 18
-          ? `Low SNR (${snr.toFixed(0)} dB above floor). Raise Preamp Gain toward ${targetRmsDb} dBFS.`
-          : `Signal below nominal sweet spot. Increase gain toward ${targetRmsDb} dBFS.`,
+        mode === 'inst'
+          ? snr < 18
+            ? `Quiet Hi-Z signal (${snr.toFixed(0)} dB above floor) — single-coil pickups sit low; raise INST gain toward ${targetRmsDb} dBFS and verify the interface INST switch is engaged.`
+            : `Instrument signal below nominal. Raise INST gain toward ${targetRmsDb} dBFS.`
+          : snr < 18
+            ? `Low SNR (${snr.toFixed(0)} dB above floor). Raise Preamp Gain toward ${targetRmsDb} dBFS.`
+            : `Signal below nominal sweet spot. Increase gain toward ${targetRmsDb} dBFS.`,
     };
   }
   return {
     label: 'OPTIMAL',
     colorClass: 'text-emerald-300 border-emerald-500/50 bg-emerald-500/15',
-    guidance: `Healthy ${targetRmsDb} dBFS nominal RMS with clean headroom above noise floor.`,
+    guidance:
+      mode === 'inst'
+        ? `Healthy ${targetRmsDb} dBFS instrument nominal with transient headroom — keep the loudest strum under −6 dBFS.`
+        : `Healthy ${targetRmsDb} dBFS nominal RMS with clean headroom above noise floor.`,
   };
+}
+
+/** Mode-aware effective target: INST channels stage to the instrument domain. */
+function effectiveTargetFor(ch: InputChannel, globalTargetDb: number): number {
+  return getInputMode(ch) === 'inst' ? INPUT_MODES.inst.stagingTargetRmsDb : globalTargetDb;
 }
 
 export const GainStagingAssistantModal: React.FC<GainStagingAssistantModalProps> = ({
@@ -86,8 +106,10 @@ export const GainStagingAssistantModal: React.FC<GainStagingAssistantModalProps>
   if (!open) return null;
 
   const autoStageChannel = (ch: InputChannel) => {
-    const delta = targetNominalRmsDb - ch.levelDb;
-    const nextGain = Math.max(0, Math.min(60, Math.round(ch.gainDb + delta)));
+    const mode = getInputMode(ch);
+    const target = effectiveTargetFor(ch, targetNominalRmsDb);
+    const delta = target - ch.levelDb;
+    const nextGain = clampGainForMode(Math.round(ch.gainDb + delta), mode);
     onUpdateChannel(ch.id, { gainDb: nextGain });
   };
 
@@ -101,7 +123,7 @@ export const GainStagingAssistantModal: React.FC<GainStagingAssistantModalProps>
 
   const clippingCount = channels.filter((c) => !c.mute && c.peakDb >= -0.5).length;
   const optimalCount = channels.filter(
-    (c) => evaluateGainStage(c, targetNominalRmsDb).label === 'OPTIMAL'
+    (c) => evaluateGainStage(c, effectiveTargetFor(c, targetNominalRmsDb)).label === 'OPTIMAL'
   ).length;
 
   return (
@@ -206,9 +228,12 @@ export const GainStagingAssistantModal: React.FC<GainStagingAssistantModalProps>
         {/* Channel Staging Rows */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {displayedChannels.map((ch) => {
-            const verdict = evaluateGainStage(ch, targetNominalRmsDb);
+            const mode = getInputMode(ch);
+            const modeSpec = INPUT_MODES[mode];
+            const chTarget = effectiveTargetFor(ch, targetNominalRmsDb);
+            const verdict = evaluateGainStage(ch, chTarget);
             const rmsPct = dbToPct(ch.levelDb);
-            const targetPct = dbToPct(targetNominalRmsDb);
+            const targetPct = dbToPct(chTarget);
             return (
               <div
                 key={ch.id}
@@ -220,6 +245,18 @@ export const GainStagingAssistantModal: React.FC<GainStagingAssistantModalProps>
                       CH {String(ch.index).padStart(2, '0')} · {ch.name}
                     </span>
                     <span className="font-mono text-[10px] text-slate-400">({ch.role})</span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded border font-mono text-[9px] font-bold ${
+                        mode === 'inst'
+                          ? 'bg-fuchsia-500/20 border-fuchsia-400/50 text-fuchsia-300'
+                          : mode === 'line'
+                            ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-300'
+                            : 'bg-cyan-500/20 border-cyan-400/50 text-cyan-300'
+                      }`}
+                      title={`${modeSpec.fullLabel} — ${modeSpec.domainNote}`}
+                    >
+                      {modeSpec.shortLabel}
+                    </span>
                     <span className={`px-2 py-0.5 rounded border font-mono text-[10px] font-bold ${verdict.colorClass}`}>
                       {verdict.label}
                     </span>
@@ -252,7 +289,7 @@ export const GainStagingAssistantModal: React.FC<GainStagingAssistantModalProps>
                     <div
                       className="absolute top-0 bottom-0 w-0.5 bg-white/90"
                       style={{ left: `${targetPct}%` }}
-                      title={`Target: ${targetNominalRmsDb} dBFS`}
+                      title={`Target: ${chTarget} dBFS${mode === 'inst' ? ' (instrument domain)' : ''}`}
                     />
                   </div>
 
@@ -262,8 +299,8 @@ export const GainStagingAssistantModal: React.FC<GainStagingAssistantModalProps>
                 {/* Controls */}
                 <div className="flex items-center gap-2 shrink-0 font-mono text-xs">
                   <div className="px-2.5 py-1 rounded bg-[#05080F] border border-slate-800 text-center">
-                    <div className="text-[9px] text-slate-500">PREAMP</div>
-                    <div className="font-bold text-amber-300">+{ch.gainDb} dB</div>
+                    <div className="text-[9px] text-slate-500">{mode === 'line' ? 'TRIM' : 'PREAMP'}</div>
+                    <div className="font-bold text-amber-300">{modeSpec.formatGain(ch.gainDb)} dB</div>
                   </div>
                   <button
                     type="button"

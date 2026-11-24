@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Real-world instrument input (guitar/bass) — MIC / LINE / INST input source switch**: every channel strip now carries the physical console input section exactly like an Allen & Heath ZED or interface Hi-Z "INST" engagement. Each strip's Row 0 is a 3-segment MIC/LINE/INST selector plus 48V / PAD / Ø hardware buttons with true interlock semantics:
+  - **MIC** (+48V capable): mic preamp gain +0..+60 dB, phantom power available.
+  - **LINE**: line trim −12..+12 dB around unity (jack domain, phantom locked out).
+  - **INST (Hi-Z ≥1MΩ)**: instrument gain +8..+55 dB for guitar/bass pickups — phantom **hard-locked and auto-disengaged** on switch (48V into an instrument or unprotected DI destroys it, exactly the interlock smart consoles implement).
+  - Switching modes auto-rescales the stored preamp gain into the new mode's silkscreen range; PAD (−20 dB) and polarity Ø apply to the real DSP chain in every mode.
+- **Instrument Rig Checklist**: when the focused channel runs INST, the Phase 1 · Stage Preamp deck shows the real-world guitar rig checklist (Hi-Z/INST jack or DI, phantom warning, −6 dBFS strum target, ground-lift hum discipline, PAD for hot pedalboards).
+- **Electric Guitar (Worship Rig) instrument profile** in the Band module: Hi-Z source type, amp-mud/fizz EQ hints, single-coil level expectations, and DI ground-lift diagnostics.
+
+### Changed
+
+- **Gain Staging Assistant is input-mode aware**: INST channels stage to the −16 dBFS instrument domain (others follow the console nominal target), verdict guidance speaks instrument language (single-coil quietness, transient headroom, pedalboard clipping), and Auto-Stage clamps into each mode's gain range.
+- **Phase 1 · Stage Preamp**: header now carries the input-mode domain chip (MIC · 48V READY / LINE · ±12 dB / INST · Hi-Z 1MΩ), the preamp knob re-labels and re-ranges per mode, and +48V is interlocked off non-mic domains.
+
 ## [0.2.37] - 2026-11-24
 
 ### Added

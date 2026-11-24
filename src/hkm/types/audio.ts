@@ -71,6 +71,18 @@ export interface HardwareDevice {
 
 export type ControlAuthority = 'hardware-linked' | 'software-dsp' | 'observational';
 
+/**
+ * Real-world console input source mode — mirrors the physical MIC / LINE / INST
+ * selector found on stage boxes and console input strips (e.g. Allen & Heath ZED
+ * jack/XLR routing, Focusrite-style Hi-Z "INST" engagement).
+ *
+ * - `mic`  : balanced XLR mic-level domain (−56..−29 dBu) — +48V phantom available
+ * - `line` : balanced TRS line-level domain (+4 dBu pro / −10 dBu consumer) — trim around unity
+ * - `inst` : unbalanced high-impedance instrument domain (guitar/bass pickups, −20..0 dBu)
+ *            — expects a Hi-Z (≥1MΩ) input on the audio interface or a DI box; phantom locked out
+ */
+export type ChannelInputMode = 'mic' | 'line' | 'inst';
+
 export type DcaGroupName =
   | 'None'
   | 'DCA 1 · Vox'
@@ -116,6 +128,8 @@ export interface InputChannel {
   subAssign?: boolean;
   hardwareInputId?: string;
   hardwareInputLabel?: string;
+  /** Console input source mode (physical MIC/LINE/INST switch). Older sessions default to 'mic'. */
+  inputMode?: ChannelInputMode;
 }
 
 export type EqFilterType = 'peaking' | 'lowshelf' | 'highshelf' | 'highpass' | 'lowpass';

@@ -1134,6 +1134,25 @@ export const INSTRUMENT_PROFILES: InstrumentProfile[] = [
     ],
   },
   {
+    id: 'inst-electric',
+    instrument: 'Electric Guitar (Worship Rig)',
+    sourceType: 'Hi-Z / INST Jack (≥1MΩ) or Active DI',
+    diRequired: false,
+    hpfHz: 85,
+    eqHints: [
+      { id: 'ie-1', label: 'Amp Mud', enabled: true, type: 'peaking', frequency: 240, gainDb: -3.0, q: 1.8 },
+      { id: 'ie-2', label: 'Fizz Cut', enabled: true, type: 'peaking', frequency: 3200, gainDb: -2.5, q: 1.4 },
+    ],
+    compThresholdDb: -16,
+    compRatio: 3.5,
+    diagnosticNotes: [
+      'Use the console INST (Hi-Z) input mode: loading a passive pickup with a low-Z line input audibly dulls the top end ("tone loading").',
+      'Single coils: expect ~10 dB less level than humbuckers and 50/60 Hz hum — raise gain, then notch the hum frequency rather than boosting highs.',
+      'Direct amp-sim / pedalboard feeds can run hot — engage the −20 dB pad before trimming gain.',
+      'Check for 100/120 Hz rectifier buzz vs 50/60 Hz ground hum: ground-lift the DI or swap the TS instrument cable first.',
+    ],
+  },
+  {
     id: 'inst-acoustic',
     instrument: 'Acoustic Guitar',
     sourceType: 'Active DI / Piezo Pickup',
@@ -1254,6 +1273,7 @@ export function buildChannelsForDevice(device: HardwareDevice): InputChannel[] {
       mainPaAssign: true,
       streamAssign: true,
       subAssign: false,
+      inputMode: 'mic' as const,
     };
   });
 }

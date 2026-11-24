@@ -17,11 +17,18 @@ import {
 } from 'lucide-react';
 import type {
   AudioSourceSimulation,
+  ChannelInputMode,
   InputChannel,
   SpeakerZone,
   SignalTelemetry,
 } from '../types/audio.ts';
 import { liveAudioEngine } from '../audio/liveAudioEngine.ts';
+import {
+  INPUT_MODES,
+  INPUT_MODE_ORDER,
+  clampGainForMode,
+  getInputMode,
+} from '../utils/inputMode.ts';
 import type {
   SpecializedDesktopInterface,
   SystemAudioBridgeState,
@@ -394,6 +401,20 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
               const isStreamAssigned = ch.streamAssign ?? true;
               const isSubAssigned = ch.subAssign ?? false;
 
+              // Real-world console input section: MIC / LINE / INST source switch
+              const chMode = getInputMode(ch);
+              const modeSpec = INPUT_MODES[chMode];
+
+              const switchInputMode = (next: ChannelInputMode) => {
+                const patch: Partial<InputChannel> = { inputMode: next };
+                // Hardware interlock: +48V only exists on the mic domain — auto-disengage
+                // exactly like smart consoles (sending phantom into a guitar/DI can destroy it).
+                if (next !== 'mic' && ch.phantom48v) patch.phantom48v = false;
+                // Re-scale stored preamp gain into the new mode's silkscreen range.
+                patch.gainDb = clampGainForMode(ch.gainDb, next);
+                onUpdateChannel(ch.id, patch);
+              };
+
               return (
                 <div
                   key={ch.id}
@@ -410,6 +431,108 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                           : 'border-[#4B5D72] bg-gradient-to-b from-[#1E2732] to-[#131921] shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] hover:border-[#687F99]'
                   }`}
                 >
+                  {/* Row 0: Input Source Mode (MIC / LINE / INST) + 48V · PAD · Ø — hardware input section */}
+                  <div
+                    className="flex items-center gap-1"
+                    onClick={(e) => e.stopPropagation()}
+                    role="radiogroup"
+                    aria-label={`Channel ${ch.index} input source mode`}
+                  >
+                    <div className="flex-1 grid grid-cols-3 gap-px rounded-[3px] border border-slate-700/90 overflow-hidden bg-[#0A0F16]">
+                      {INPUT_MODE_ORDER.map((m) => {
+                        const active = chMode === m;
+                        const spec = INPUT_MODES[m];
+                        return (
+                          <button
+                            key={m}
+                            type="button"
+                            role="radio"
+                            aria-checked={active}
+                            disabled={locked}
+                            onClick={() => switchInputMode(m)}
+                            title={`${spec.fullLabel} — ${spec.domainNote}${
+                              m === 'inst'
+                                ? ' · Guitar/bass via Hi-Z jack or DI. Phantom locked out.'
+                                : m === 'line'
+                                  ? ' · Keys/playback submixers. No phantom on jacks.'
+                                  : ' · Condenser mics. +48V available.'
+                            }`}
+                            className={`h-[18px] font-mono text-[7.5px] font-bold tracking-wider transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                              active
+                                ? m === 'mic'
+                                  ? 'bg-cyan-500/25 text-cyan-200 border-t border-cyan-300/60 shadow-[0_0_6px_rgba(34,211,238,0.35)]'
+                                  : m === 'line'
+                                    ? 'bg-emerald-500/25 text-emerald-200 border-t border-emerald-300/60 shadow-[0_0_6px_rgba(16,185,129,0.35)]'
+                                    : 'bg-fuchsia-500/25 text-fuchsia-200 border-t border-fuchsia-300/60 shadow-[0_0_6px_rgba(217,70,239,0.4)]'
+                                : 'bg-[#0A0F16] text-slate-500 hover:text-slate-300'
+                            } ${m === 'inst' ? 'italic' : ''}`}
+                          >
+                            {m === 'inst' ? 'INST' : spec.shortLabel}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex items-center gap-px shrink-0">
+                      <button
+                        type="button"
+                        disabled={stripDisabled || !modeSpec.phantomAllowed}
+                        onClick={() => onUpdateChannel(ch.id, { phantom48v: !ch.phantom48v })}
+                        title={
+                          !modeSpec.phantomAllowed
+                            ? chMode === 'inst'
+                              ? '+48V LOCKED — never send phantom power into an instrument or unprotected DI (auto-disengaged)'
+                              : '+48V unavailable on LINE jacks (mic domain only)'
+                            : ch.phantom48v
+                              ? '+48V Phantom ON — disengage'
+                              : '+48V Phantom Power (condenser mics)'
+                        }
+                        className={`w-6 h-[18px] rounded-[2px] border font-mono text-[7.5px] font-bold transition cursor-pointer disabled:cursor-not-allowed ${
+                          ch.phantom48v && modeSpec.phantomAllowed
+                            ? 'bg-rose-600 border-rose-300 text-white shadow-[0_0_6px_rgba(244,63,94,0.6)]'
+                            : modeSpec.phantomAllowed
+                              ? 'hw-top-btn text-slate-300'
+                              : 'bg-[#0A0E14] border-[#1F2937] text-slate-700'
+                        } ${stripDisabled ? 'opacity-45' : ''}`}
+                      >
+                        48V
+                      </button>
+                      <button
+                        type="button"
+                        disabled={stripDisabled}
+                        onClick={() => onUpdateChannel(ch.id, { padDb: !ch.padDb })}
+                        title={
+                          ch.padDb
+                            ? '−20 dB Pad IN — disengage'
+                            : '−20 dB Pad — protect preamp from hot active pickups / line sources'
+                        }
+                        className={`w-6 h-[18px] rounded-[2px] border font-mono text-[7.5px] font-bold transition cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
+                          ch.padDb
+                            ? 'bg-amber-500 border-amber-200 text-slate-950 shadow-[0_0_6px_rgba(245,158,11,0.55)]'
+                            : 'hw-top-btn text-slate-300'
+                        }`}
+                      >
+                        PAD
+                      </button>
+                      <button
+                        type="button"
+                        disabled={stripDisabled}
+                        onClick={() => onUpdateChannel(ch.id, { polarityInverted: !ch.polarityInverted })}
+                        title={
+                          ch.polarityInverted
+                            ? 'Polarity Ø INVERTED (180°) — restore'
+                            : 'Polarity Ø Invert (180°) — fix DI/cabinet phase issues'
+                        }
+                        className={`w-5 h-[18px] rounded-[2px] border font-mono text-[8px] font-bold transition cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
+                          ch.polarityInverted
+                            ? 'bg-sky-500 border-sky-300 text-slate-950 shadow-[0_0_6px_rgba(56,189,248,0.55)]'
+                            : 'hw-top-btn text-slate-300'
+                        }`}
+                      >
+                        Ø
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Row 1: Status LED + Channel Number + Name + Mute / Solo */}
                   <div className="flex items-center gap-1.5 min-w-0">
                     {!isAssigned ? (
@@ -572,27 +695,30 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                       </div>
                     </div>
 
-                    {/* Compact Preamp Gain Trim */}
+                    {/* Compact Preamp Gain Trim (mode-scaled: mic +0..60 / line ±12 / inst +8..55) */}
                     <div className="flex flex-col items-center gap-0.5 shrink-0 pb-0.5">
                       <RotaryKnob
                         label=""
-                        value={isAssigned ? ch.gainDb : 0}
-                        min={0}
-                        max={60}
+                        value={isAssigned ? clampGainForMode(ch.gainDb, chMode) : modeSpec.unityGainDb}
+                        min={modeSpec.gainMin}
+                        max={modeSpec.gainMax}
                         step={1}
-                        defaultValue={24}
+                        defaultValue={modeSpec.unityGainDb}
                         unit="dB"
                         size={38}
                         disabled={stripDisabled}
                         accent={!isAssigned ? 'slate' : isHot ? 'amber' : isSelected ? 'sky' : 'emerald'}
-                        formatValue={!isAssigned ? () => '--' : undefined}
+                        formatValue={isAssigned ? modeSpec.formatGain : () => '--'}
                         onChange={(next) => onUpdateChannel(ch.id, { gainDb: next })}
                       />
-                      <span className="font-mono text-[7px] text-slate-500 uppercase tracking-wider leading-none">
-                        GAIN
+                      <span
+                        className="font-mono text-[7px] text-slate-500 uppercase tracking-wider leading-none"
+                        title={`${modeSpec.shortLabel} preamp gain — ${modeSpec.domainNote}`}
+                      >
+                        {chMode === 'line' ? 'TRIM' : 'GAIN'}
                       </span>
                       <span className="font-mono text-[8px] tabular-nums text-slate-300 font-semibold leading-none">
-                        {isAssigned ? `+${ch.gainDb}` : '--'}
+                        {isAssigned ? modeSpec.formatGain(ch.gainDb) : '--'}
                       </span>
                     </div>
                   </div>

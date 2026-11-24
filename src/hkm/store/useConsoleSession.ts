@@ -952,6 +952,9 @@ export function useConsoleSession({
           auxSends: { stageMon1Db: -60, stageMon2Db: -60, streamBusDb: 0, subsDb: -60 },
           dcaGroup: 'None',
           stereoLinked: false,
+          // Standalone stereo strips are line-domain sources (playback keys, submixers);
+          // flip the strip's input switch to INST when patching a guitar via Hi-Z.
+          inputMode: 'line',
         };
         logAudit('Added Input Channel', `CH ${nextIdx} (${created.name})`, 'operator');
         return [...prev, created];

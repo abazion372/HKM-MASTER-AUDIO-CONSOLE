@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Zap, ShieldAlert, ArrowRight, RotateCcw } from 'lucide-react';
 import type {
   AudioSourceSimulation,
+  ChannelInputMode,
   DspConfig,
   InputChannel,
   ServicePreset,
@@ -12,6 +13,13 @@ import type {
 import { ConsolePushButton, RotaryKnob } from './StudioControls.tsx';
 import { StereoGraphicEqModule } from './StereoGraphicEqModule.tsx';
 import { ActiveCrossoverModule } from './ActiveCrossoverModule.tsx';
+import {
+  INSTRUMENT_RIG_CHECKLIST,
+  INPUT_MODES,
+  INPUT_MODE_ORDER,
+  clampGainForMode,
+  getInputMode,
+} from '../utils/inputMode.ts';
 
 export type ConsoleProcessingPhase =
   | 'phase-1-stage'
@@ -155,6 +163,16 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
   const isBridgeSlot = (ch: InputChannel) =>
     ch.index === 1 && (audioSource === 'desktop-audio' || audioSource === 'pink-noise');
   const selectedAssigned = Boolean(selectedChannel.hardwareInputId) || isBridgeSlot(selectedChannel);
+
+  // Real-world input source mode of the focused strip (MIC / LINE / INST)
+  const selMode = getInputMode(selectedChannel);
+  const selModeSpec = INPUT_MODES[selMode];
+  const switchSelectedInputMode = (next: ChannelInputMode) => {
+    const patch: Partial<InputChannel> = { inputMode: next };
+    if (next !== 'mic' && selectedChannel.phantom48v) patch.phantom48v = false;
+    patch.gainDb = clampGainForMode(selectedChannel.gainDb, next);
+    onUpdateChannel(selectedChannel.id, patch);
+  };
 
   // Real-time PEQ Curve Geometry for Phase 3
   const peqGeometry = useMemo(() => {
@@ -491,23 +509,39 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
                   ? `Input: ${selectedChannel.hardwareInputLabel || selectedChannel.name}`
                   : 'Open Slot — No Input Assigned'}
               </span>
+              <span
+                className={`font-mono text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${
+                  selMode === 'inst'
+                    ? 'bg-fuchsia-500/20 border-fuchsia-400/60 text-fuchsia-300'
+                    : selMode === 'line'
+                      ? 'bg-emerald-500/20 border-emerald-400/60 text-emerald-300'
+                      : 'bg-cyan-500/20 border-cyan-400/60 text-cyan-300'
+                }`}
+                title={`${selModeSpec.fullLabel} — ${selModeSpec.domainNote}`}
+              >
+                {selMode === 'inst' ? 'INST · Hi-Z 1MΩ' : selMode === 'line' ? 'LINE · ±12 dB' : 'MIC · 48V READY'}
+              </span>
             </div>
 
             <div className="flex-1 min-h-0 grid grid-cols-3 gap-3 py-2 items-center">
               {/* Group A: Analog Gain & Trim */}
               <div className="h-full rounded-lg border border-amber-500/25 bg-[#0C0906] p-3 flex items-center justify-around">
                 <RotaryKnob
-                  label="Preamp Gain"
-                  value={selectedAssigned ? selectedChannel.gainDb : 0}
-                  min={0}
-                  max={60}
+                  label={selMode === 'line' ? 'Line Trim' : 'Preamp Gain'}
+                  value={
+                    selectedAssigned ? clampGainForMode(selectedChannel.gainDb, selMode) : selModeSpec.unityGainDb
+                  }
+                  min={selModeSpec.gainMin}
+                  max={selModeSpec.gainMax}
                   step={1}
-                  defaultValue={24}
+                  defaultValue={selModeSpec.unityGainDb}
                   unit="dB"
                   size={64}
                   accent={selectedAssigned ? 'amber' : 'slate'}
                   disabled={locked || !selectedAssigned}
-                  formatValue={!selectedAssigned ? () => '--' : undefined}
+                  formatValue={
+                    !selectedAssigned ? () => '--' : (v) => selModeSpec.formatGain(v)
+                  }
                   onChange={(v) => onUpdateChannel(selectedChannel.id, { gainDb: v })}
                 />
                 <RotaryKnob
@@ -525,22 +559,61 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
                 />
               </div>
 
-              {/* Group B: Phantom, Pad & Polarity Switches */}
+              {/* Group B: Input Mode Selector + Phantom, Pad & Polarity Switches */}
               <div className="h-full rounded-lg border border-slate-700/70 bg-[#0D1017] p-3 flex flex-col justify-center gap-2 font-mono text-xs">
                 <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
-                  Stage Conditioning
+                  Input Stage &amp; Conditioning
                 </span>
+                <div
+                  className="grid grid-cols-3 gap-1"
+                  role="radiogroup"
+                  aria-label="Channel input source mode"
+                >
+                  {INPUT_MODE_ORDER.map((m) => {
+                    const active = selMode === m;
+                    const spec = INPUT_MODES[m];
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        disabled={locked}
+                        onClick={() => switchSelectedInputMode(m)}
+                        title={`${spec.fullLabel} — ${spec.domainNote}`}
+                        className={`py-1.5 rounded font-bold text-[10px] border transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                          active
+                            ? m === 'mic'
+                              ? 'bg-cyan-500 text-slate-950 border-cyan-300 shadow-[0_0_10px_rgba(34,211,238,0.45)]'
+                              : m === 'line'
+                                ? 'bg-emerald-500 text-slate-950 border-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.45)]'
+                                : 'bg-fuchsia-500 text-slate-950 border-fuchsia-300 shadow-[0_0_10px_rgba(217,70,239,0.5)]'
+                            : 'bg-[#141925] border-slate-700 text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        {spec.shortLabel}
+                      </button>
+                    );
+                  })}
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    disabled={locked || !selectedAssigned}
+                    disabled={locked || !selectedAssigned || !selModeSpec.phantomAllowed}
                     onClick={() =>
                       onUpdateChannel(selectedChannel.id, {
                         phantom48v: !selectedChannel.phantom48v,
                       })
                     }
+                    title={
+                      !selModeSpec.phantomAllowed
+                        ? selMode === 'inst'
+                          ? '+48V LOCKED — phantom power into an instrument or unprotected DI can destroy it (auto-disengaged)'
+                          : '+48V unavailable on LINE jacks (mic domain only)'
+                        : '+48V Phantom Power for condenser microphones'
+                    }
                     className={`py-2 rounded font-bold border transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1 text-[11px] ${
-                      selectedAssigned && selectedChannel.phantom48v
+                      selectedAssigned && selectedChannel.phantom48v && selModeSpec.phantomAllowed
                         ? 'bg-red-600 text-white border-red-400 shadow-[0_0_12px_rgba(239,68,68,0.7)]'
                         : 'bg-[#141925] border-slate-700 text-slate-400 hover:text-slate-200'
                     }`}
@@ -620,10 +693,32 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
               </div>
             </div>
 
-            <div className="px-3 py-1.5 rounded border border-slate-800 bg-[#050609] flex items-center justify-between font-mono text-[11px] text-slate-400 shrink-0">
-              <span>Subsonic DC Protection: 18 Hz Butterworth Active</span>
-              <span className="text-emerald-400 font-semibold">PFL Headroom: +18 dBFS</span>
-            </div>
+            {selMode === 'inst' ? (
+              <div
+                className="px-3 py-1.5 rounded border border-fuchsia-500/40 bg-[#0D0812] shrink-0"
+                title={INSTRUMENT_RIG_CHECKLIST.map((n, i) => `${i + 1}. ${n}`).join('\n')}
+              >
+                <div className="flex items-center justify-between font-mono text-[10px] font-bold tracking-wider uppercase">
+                  <span className="text-fuchsia-300">
+                    Instrument Rig Checklist — Guitar / Bass (Hi-Z · CH{selectedChannel.index})
+                  </span>
+                  <span className="text-emerald-400 font-semibold">48V LOCKED · PAD READY · NOTCH ARMED</span>
+                </div>
+                <div className="mt-1 grid grid-cols-3 gap-2 font-mono text-[9px] leading-snug text-slate-300">
+                  {INSTRUMENT_RIG_CHECKLIST.slice(0, 3).map((note, i) => (
+                    <span key={i} className="flex gap-1">
+                      <span className="text-fuchsia-400 font-bold shrink-0">{i + 1}.</span>
+                      <span className="min-w-0">{note}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="px-3 py-1.5 rounded border border-slate-800 bg-[#050609] flex items-center justify-between font-mono text-[11px] text-slate-400 shrink-0">
+                <span>Subsonic DC Protection: 18 Hz Butterworth Active</span>
+                <span className="text-emerald-400 font-semibold">PFL Headroom: +18 dBFS</span>
+              </div>
+            )}
           </div>
         )}
 
