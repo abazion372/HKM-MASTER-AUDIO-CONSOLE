@@ -66,7 +66,7 @@ async fn wait_healthy(client: &reqwest::Client, base: &str, timeout: Duration) -
     let deadline = Instant::now() + timeout;
     loop {
         let probe = format!("{}/api/health", base);
-        match client.get(&probe).timeout(Duration::from_secs(2)).send().await {
+        match client.get(&probe).timeout(Duration::from_secs(6)).send().await {
             Ok(resp) if resp.status().is_success() => return Ok(()),
             _ => {}
         }
@@ -100,13 +100,23 @@ fn spawn_server_process(app: &AppHandle, port: u16) -> Result<Child, String> {
         .app_data_dir()
         .map(|dir| dir.join("db"))
         .unwrap_or_else(|_| resources.join("next-server").join("db"));
+    let _ = std::fs::create_dir_all(&data_dir);
+    let log_path = data_dir.join("server-boot.log");
+    let stdout_file = std::fs::File::create(&log_path)
+        .map(Stdio::from)
+        .unwrap_or_else(|_| Stdio::null());
+    let stderr_file = std::fs::OpenOptions::new()
+        .append(true)
+        .open(&log_path)
+        .map(Stdio::from)
+        .unwrap_or_else(|_| Stdio::null());
 
     // Prefer the bundled bun runtime, then system node, then system bun.
     let bundled_bun = resources.join("binaries").join("hkm-server.exe");
     let (program, args): (String, Vec<String>) = if bundled_bun.exists() {
         (
             bundled_bun.to_string_lossy().to_string(),
-            vec![server_js.to_string_lossy().to_string()],
+            vec!["server.js".to_string()],
         )
     } else {
         let runner = ["node", "bun"]
@@ -119,7 +129,7 @@ fn spawn_server_process(app: &AppHandle, port: u16) -> Result<Child, String> {
             })?;
         (
             runner.to_string(),
-            vec![server_js.to_string_lossy().to_string()],
+            vec!["server.js".to_string()],
         )
     };
 
@@ -130,8 +140,8 @@ fn spawn_server_process(app: &AppHandle, port: u16) -> Result<Child, String> {
         .env("HOSTNAME", "127.0.0.1")
         .env("NODE_ENV", "production")
         .env("HKM_DATA_DIR", &data_dir)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+        .stdout(stdout_file)
+        .stderr(stderr_file);
 
     #[cfg(windows)]
     {
@@ -175,15 +185,24 @@ pub fn ensure_server(app: &AppHandle, manager: &ServerManager, http: &reqwest::C
         return Ok(existing);
     }
 
-    // Dev builds attach to the external dev server (the Tauri CLI already waits for devUrl).
+    // Dev builds attach to the external dev server only when HKM_USE_DEV_SERVER=1 is set
+    // or when the bundled next-server/server.js is not present alongside the binary.
     if cfg!(debug_assertions) {
-        let _ = tauri::async_runtime::block_on(wait_healthy(
-            http,
-            DEV_BASE,
-            Duration::from_secs(20),
-        ));
-        *manager.base.lock().map_err(|e| e.to_string())? = DEV_BASE.to_string();
-        return Ok(DEV_BASE.to_string());
+        let has_bundled = app
+            .path()
+            .resource_dir()
+            .ok()
+            .map(|r| r.join("next-server").join("server.js").exists())
+            .unwrap_or(false);
+        if !has_bundled || std::env::var("HKM_USE_DEV_SERVER").as_deref() == Ok("1") {
+            let _ = tauri::async_runtime::block_on(wait_healthy(
+                http,
+                DEV_BASE,
+                Duration::from_secs(20),
+            ));
+            *manager.base.lock().map_err(|e| e.to_string())? = DEV_BASE.to_string();
+            return Ok(DEV_BASE.to_string());
+        }
     }
 
     let port = pick_free_port()

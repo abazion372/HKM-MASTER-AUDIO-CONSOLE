@@ -51,5 +51,15 @@
       }
     }
   },
-  "plugins": {}
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDcxRENEQTQwOUYwMTFENzcKUldSM0hRR2ZRTnJjY1dzbG9RZWo2Q2RVOVJvcmUrS0w5a1J2STFEMFQrRzVTNi9uUkdwbXRLbXcK",
+      "endpoints": [
+        "https://github.com/abazion372/HKM-MASTER-AUDIO-CONSOLE/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
 }

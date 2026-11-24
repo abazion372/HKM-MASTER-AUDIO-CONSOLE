@@ -15,7 +15,7 @@
  *   --copy-only  Only copy static & public assets into .next/standalone (skip bun download)
  *   --skip-bun   Skip the bun runtime download
  */
-import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
@@ -49,6 +49,14 @@ function copyStandaloneAssets() {
   if (existsSync(PUBLIC_SRC)) {
     cpSync(PUBLIC_SRC, PUBLIC_DEST, { recursive: true, force: true });
     console.log('[desktop] copied public -> .next/standalone/public');
+  }
+
+  // Strip accidental nested build artifacts inside .next/standalone (e.g. src-tauri/target)
+  // so NSIS installer packaging stays fast and lean.
+  const nestedTauri = join(STANDALONE_DIR, 'src-tauri');
+  if (existsSync(nestedTauri)) {
+    rmSync(nestedTauri, { recursive: true, force: true });
+    console.log('[desktop] removed nested .next/standalone/src-tauri');
   }
 
   console.log('[desktop] standalone console server OK:', STANDALONE_SERVER);

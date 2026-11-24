@@ -279,14 +279,18 @@ pub fn run() {
             let url: tauri::Url = base
                 .parse()
                 .map_err(|err| format!("Invalid server URL '{}': {}", base, err))?;
-            WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
+            if let Err(e) = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
                 .title("HKM Audio System — Church Audio Console")
                 .inner_size(1680.0, 980.0)
                 .min_inner_size(1280.0, 800.0)
                 .resizable(true)
                 .center()
                 .build()
-                .map_err(|e| format!("Failed to create the main window: {}", e))?;
+            {
+                let msg = format!("Failed to create the main window: {}", e);
+                fatal_message(&handle, &msg);
+                return Err(Box::new(std::io::Error::other(msg)));
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
