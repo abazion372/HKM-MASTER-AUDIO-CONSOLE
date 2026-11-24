@@ -1,0 +1,67 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "HKM Audio System",
+  "version": "1.0.0",
+  "identifier": "church.hkm.audiosystem",
+  "build": {
+    "beforeDevCommand": "npm run dev:desktop",
+    "devUrl": "http://localhost:3000",
+    "beforeBuildCommand": "npm run build && node scripts/prepare-desktop.mjs",
+    "frontendDist": "../public"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [],
+    "security": {
+      "csp": null,
+      "capabilities": [
+        "default",
+        "local-server"
+      ]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
+    "resources": {
+      "../.next/standalone": "next-server",
+      "binaries": "binaries"
+    },
+    "shortDescription": "Church Audio Intelligence & DSP Console",
+    "longDescription": "HKM Audio System — a 16-channel virtual sound console with WASAPI process-exclusion loopback, feedback analysis, gain staging intelligence and remote companion control for church audio teams.",
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "English"
+        ],
+        "displayLanguageSelector": false,
+        "installerHooks": "./windows/installer-hooks.nsh"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDcxRENEQTQwOUYwMTFENzcKUldSM0hRR2ZRTnJjY1dzbG9RZWo2Q2RVOVJvcmUrS0w5a1J2STFEMFQrRzVTNi9uUkdwbXRLbXcK",
+      "endpoints": [
+        "https://github.com/abazion372/HKM-MASTER-AUDIO-CONSOLE/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}
