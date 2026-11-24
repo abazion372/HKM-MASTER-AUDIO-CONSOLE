@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.37] - 2026-11-24
+
+### Added
+
+- **Signed in-app silent updates**: `bundle.createUpdaterArtifacts` is now enabled, so every release ships `latest.json` plus minisign `.sig` signatures. Installed apps auto-detect new versions, download, cryptographically verify against the embedded public key, and update themselves in place — no browser download needed anymore.
+
 ### Changed
 
 - **Channel fader bay moved into the left input panel**: the center console deck no longer carries the full-width 285px motorized fader bank at the bottom — the phase processing rack (Preamp, HPF & Gate, PEQ, Comp, GEQ, Xover, Matrix) now owns the full center height. Each left-panel channel strip is now a complete console strip: calibrated dB scale, precision vertical fader (-48..+10 dB), 10-segment LED meter, preamp gain trim, Mute/Solo, and MAIN/STRM/SUB bus assign keys — selection, metering, level, gain and routing all in one place. Left panel widened 214px → 272px (300px at 2xl) to host the strips.

@@ -1,6 +1,6 @@
 {
   "name": "hkm-audio-system",
-  "version": "0.2.36",
+  "version": "0.2.37",
   "private": true,
   "description": "HKM Audio System — a 16-channel virtual sound console with WASAPI process-exclusion loopback, feedback analysis, gain staging intelligence and remote companion control for church audio teams.",
   "repository": {

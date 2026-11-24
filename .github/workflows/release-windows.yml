@@ -66,6 +66,8 @@ jobs:
 
             ### Highlights
             - **Self-Contained Windows x64 NSIS Installer** (`HKM Audio System_*_x64-setup.exe`) with embedded Next.js standalone control plane & bundled server runtime.
+            - **Signed In-App Silent Updates**: releases now ship `latest.json` + minisign signatures — the installed app auto-detects, downloads, verifies and updates itself (no browser needed).
+            - **Channel Fader Bay relocated into the left Input Panel** — the central processing deck now uses the full console width for signal-flow phase strips and DSP modules.
             - **Native Windows WASAPI Process-Exclusion Loopback** (`ActivateAudioInterfaceAsync`): zero-driver desktop audio capture without self-feedback.
             - **Per-Application Audio Capture & Source Isolation Firewall**.
             - **16-Channel Virtual Console, 31-Band GEQ, Active Crossover, Real-Time Feedback & Hum Analyzer, and Room Acoustics DSP**.
