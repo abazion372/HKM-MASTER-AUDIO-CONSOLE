@@ -35,6 +35,7 @@ import { MidiMappingModule } from './components/MidiMappingModule.tsx';
 import { HardwareDiagnosticsModule } from './components/HardwareDiagnosticsModule.tsx';
 import { VirtualDiBassModule } from './components/VirtualDiBassModule.tsx';
 import { RemoteCompanionView } from './components/RemoteCompanionView.tsx';
+import { CompanionPairingGate } from './components/CompanionPairingGate.tsx';
 import { KeyboardShortcutManager } from './components/KeyboardShortcutManager.tsx';
 import { UpdateNotificationModal } from './components/UpdateNotificationModal.tsx';
 import { AppMenuBar, APP_VERSION, type UpdateCheckBannerState } from './components/AppMenuBar.tsx';
@@ -46,6 +47,18 @@ import { UniversalRoutingModule } from './components/UniversalRoutingModule.tsx'
 import { validateDspConfig } from './utils/camillaDsp.ts';
 
 export default function App() {
+  // Phone-companion mode (`?mode=remote`) is tracked separately from the
+  // pairing token so a token-less phone lands on the pairing gate instead
+  // of falling through to the full desktop console.
+  const [remoteModeActive, setRemoteModeActive] = useState<boolean>(() => {
+    if (isDesktopApp()) return false;
+    try {
+      return new URLSearchParams(window.location.search).get('mode') === 'remote';
+    } catch {
+      // ignore URL parse error
+      return false;
+    }
+  });
   const [remoteCompanionToken, setRemoteCompanionToken] = useState<string | null>(() => {
     if (isDesktopApp()) return null;
     try {
@@ -59,6 +72,9 @@ export default function App() {
     }
     return null;
   });
+  // Set when the companion link dies from a fatal pairing rejection
+  // (invalid/rotated token, revoked session) — swaps in the pairing gate.
+  const [companionFatalError, setCompanionFatalError] = useState<string | null>(null);
 
   const [activeModule, setActiveModule] = useState<ModuleId>('dsp');
   const [selectedChannelId, setSelectedChannelId] = useState<string>('ch-1');
@@ -156,8 +172,11 @@ export default function App() {
   }, []);
 
   // 1. Console Session Store: holds mixer state, presets, configuration versions, and SQLite persistence
+  // (remoteCompanionToken is used as a truthy "companion surface is showing" flag — the
+  // pairing gate must also suppress desktop hydration, the desktop WS link and PUT syncs.)
   const session = useConsoleSession({
-    remoteCompanionToken,
+    remoteCompanionToken:
+      remoteModeActive && !remoteCompanionToken ? 'pairing-gate' : remoteCompanionToken,
     onMidiMappingsLoaded: handleMidiMappingsLoaded,
     onKeyboardShortcutsLoaded: handleKeyboardShortcutsLoaded,
   });
@@ -336,6 +355,8 @@ export default function App() {
 
   const handleExitRemoteCompanion = () => {
     setRemoteCompanionToken(null);
+    setRemoteModeActive(false);
+    setCompanionFatalError(null);
     try {
       const url = new URL(window.location.href);
       if (url.searchParams.has('mode') || url.searchParams.has('token')) {
@@ -347,6 +368,33 @@ export default function App() {
       // ignore URL mutation errors
     }
   };
+
+  const handleCompanionConnect = useCallback((tok: string) => {
+    setCompanionFatalError(null);
+    setRemoteCompanionToken(tok);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('mode', 'remote');
+      url.searchParams.set('token', tok);
+      window.history.replaceState({}, '', url.toString());
+    } catch {
+      // ignore URL mutation errors
+    }
+  }, []);
+
+  const handleOpenDesktopConsole = useCallback(() => {
+    setRemoteModeActive(false);
+    setRemoteCompanionToken(null);
+    setCompanionFatalError(null);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('mode');
+      url.searchParams.delete('token');
+      window.history.replaceState({}, '', url.toString());
+    } catch {
+      // ignore URL mutation errors
+    }
+  }, []);
 
   const handleApproveFinding = (id: string) => {
     const target = session.findings.find((f) => f.id === id);
@@ -682,11 +730,22 @@ export default function App() {
     syncDesktopSourceIsolation,
   ]);
 
-  if (remoteCompanionToken) {
+  if (remoteCompanionToken && !companionFatalError) {
     return (
       <RemoteCompanionView
         token={remoteCompanionToken}
         onExitRemote={handleExitRemoteCompanion}
+        onFatalAuthError={setCompanionFatalError}
+      />
+    );
+  }
+
+  if (remoteModeActive) {
+    return (
+      <CompanionPairingGate
+        onConnect={handleCompanionConnect}
+        onOpenDesktop={handleOpenDesktopConsole}
+        errorMessage={companionFatalError}
       />
     );
   }
@@ -1242,7 +1301,11 @@ export default function App() {
                     onUpdateRemoteAccess={session.handleUpdateRemoteAccess}
                     onRotateRemoteToken={session.handleRotateRemoteToken}
                     onDisconnectRemoteClient={session.handleDisconnectRemoteClient}
-                    onOpenRemoteCompanion={(tok) => setRemoteCompanionToken(tok)}
+                    onOpenRemoteCompanion={(tok) => {
+                      setRemoteModeActive(true);
+                      setCompanionFatalError(null);
+                      setRemoteCompanionToken(tok);
+                    }}
                     detectedEndpoints={hardware.detectedEndpoints}
                     scanningHardware={hardware.scanningHardware}
                     onScanHardware={(reqPerm) => void hardware.runHardwareScan(Boolean(reqPerm), false)}

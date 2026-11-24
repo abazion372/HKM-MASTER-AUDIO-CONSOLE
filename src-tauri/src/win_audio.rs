@@ -122,6 +122,12 @@ impl CaptureRegistry {
 
 // ---------------------------------------------------------------------------
 // Raw output engine (post-DSP render tap)
+//
+// v1.1: honours the console-selected render endpoint (falls back to the default
+// device on hot-unplug) and supports N-channel WAVEFORMATEXTENSIBLE streams so
+// a 5.1/7.1/pro card can be addressed per discrete jack pair (see
+// docs/DISCRETE-JACK-ROUTING.md). The bundled web worklet currently pushes
+// stereo blocks; >2 channels are armed for the v2 multichannel worklet.
 // ---------------------------------------------------------------------------
 
 struct RawOutputWorker {
@@ -140,7 +146,7 @@ impl RawOutputEngine {
         Self::default()
     }
 
-    pub fn start(&self) -> Result<(), String> {
+    pub fn start(&self, endpoint_id: Option<String>, channels: u16) -> Result<(), String> {
         let mut guard = self.worker.lock().map_err(|e| e.to_string())?;
         stop_worker(&mut guard);
         let stop = std::sync::Arc::new(AtomicBool::new(false));
@@ -149,7 +155,7 @@ impl RawOutputEngine {
         let join = thread::Builder::new()
             .name("hkm-raw-output".to_string())
             .spawn(move || {
-                if let Err(err) = raw_output_pump(&thread_stop, rx) {
+                if let Err(err) = raw_output_pump(&thread_stop, rx, endpoint_id, channels) {
                     eprintln!("[hkm-audio] raw output stream failed: {}", err);
                 }
             })
@@ -349,12 +355,14 @@ struct FormatInfo {
 mod windows_impl {
     use super::*;
 
-    use windows::core::{GUID, PCSTR, PCWSTR};
+    use windows::core::{GUID, Interface, PCSTR, PCWSTR};
     use windows::Win32::Media::Audio::{
         AUDCLNT_BUFFERFLAGS_SILENT, AUDCLNT_SHAREMODE, AUDCLNT_SHAREMODE_SHARED,
         AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY,
-        IAudioCaptureClient, IAudioClient, IAudioRenderClient, IMMDevice, IMMDeviceEnumerator,
-        MMDeviceEnumerator, WAVEFORMATEX, WAVEFORMATEXTENSIBLE, eConsole, eRender,
+        DEVICE_STATE_ACTIVE, IAudioCaptureClient, IAudioClient, IAudioRenderClient, IConnector,
+        IDeviceTopology, IKsJackDescription, IMMDevice, IMMDeviceCollection,
+        IMMDeviceEnumerator, IPart, KSJACK_DESCRIPTION, MMDeviceEnumerator, WAVEFORMATEX,
+        WAVEFORMATEXTENSIBLE, eConsole, eRender,
     };
     use windows::Win32::Media::Multimedia::WAVE_FORMAT_IEEE_FLOAT;
     use windows::Win32::System::Com::{
@@ -701,6 +709,206 @@ mod windows_impl {
         }
     }
 
+    /// N-channel variant of [`target_wave_format`]: >2 channels request a
+    /// WAVEFORMATEXTENSIBLE stream with the standard speaker channel mask so a
+    /// 5.1/7.1/pro card is addressed jack-pair by jack-pair (1:1 channel
+    /// mapping, no OS down-mix — see docs/DISCRETE-JACK-ROUTING.md).
+    pub(super) fn target_wave_format_channels(channels: u16) -> WAVEFORMATEXTENSIBLE {
+        let block_align = channels.saturating_mul(4);
+        WAVEFORMATEXTENSIBLE {
+            Format: WAVEFORMATEX {
+                wFormatTag: WAVE_FORMAT_EXTENSIBLE as u16,
+                nChannels: channels,
+                nSamplesPerSec: 48_000,
+                wBitsPerSample: 32,
+                nBlockAlign: block_align,
+                nAvgBytesPerSec: 48_000 * block_align as u32,
+                cbSize: 22,
+            },
+            wValidBitsPerSample: 32,
+            dwChannelMask: channel_mask_for(channels),
+            SubFormat: SUBTYPE_IEEE_FLOAT,
+        }
+    }
+
+    /// Standard WAVEFORMATEXTENSIBLE speaker masks (0 = driver default layout).
+    pub(super) fn channel_mask_for(channels: u16) -> u32 {
+        match channels {
+            4 => 0x0000_0033, // quad: FL|FR|BL|BR
+            6 => 0x0000_003F, // 5.1: FL|FR|FC|LFE|BL|BR
+            8 => 0x0000_063F, // 7.1: 5.1 + SL|SR
+            _ => 0,
+        }
+    }
+
+    // ------------------------- Jack descriptions ----------------------------
+
+    /// Friendly name of a render endpoint from the MMDevices registry key
+    /// (PKEY_Device_FriendlyName) — mirrors the apo.rs reader and avoids an
+    /// IPropertyStore dependency.
+    fn render_endpoint_friendly_name(endpoint_id: &str) -> String {
+        use winreg::enums::{HKEY_LOCAL_MACHINE, KEY_READ};
+        use winreg::RegKey;
+        let path = format!(
+            r"SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Render\{}\Properties",
+            endpoint_id
+        );
+        RegKey::predef(HKEY_LOCAL_MACHINE)
+            .open_subkey_with_flags(&path, KEY_READ)
+            .ok()
+            .and_then(|props| {
+                props
+                    .get_value::<String, _>(r"{a45c254e-df1c-4efd-8020-67d146a850e0},2")
+                    .ok()
+            })
+            .unwrap_or_else(|| "Audio Endpoint".to_string())
+    }
+
+    /// First WAVEFORMATEXTENSIBLE channel position carried by the jack (lowest
+    /// set SPEAKER_* bit); -1 when the driver reports no channel mapping.
+    fn first_speaker_bit(mask: u32) -> i32 {
+        if mask == 0 {
+            -1
+        } else {
+            mask.trailing_zeros() as i32
+        }
+    }
+
+    /// Human-readable EPcxConnectionType hint (devicetopology.h enum values).
+    fn connector_type_name(code: i32) -> String {
+        match code {
+            0 => "unknown",
+            1 => "analog-jack-3.5mm",
+            2 => "integrated-device",
+            3 => "integrated-and-jack",
+            0x100 => "unknown-digital",
+            0x101 => "hdmi",
+            0x102 => "optical",
+            0x103 => "digital-other",
+            _ => "other",
+        }
+        .to_string()
+    }
+
+    /// Human-readable EGeoLocation hint (devicetopology.h enum values).
+    fn geo_location_name(code: i32) -> String {
+        match code {
+            1 => "rear",
+            2 => "front",
+            3 => "left",
+            4 => "right",
+            5 => "top",
+            6 => "bottom",
+            7 => "rear-panel",
+            8 => "rear-mobile",
+            9 => "front-mobile",
+            10 => "bottom-mobile",
+            _ => "other",
+        }
+        .to_string()
+    }
+
+    /// Physical jack metadata for every active render endpoint, read through
+    /// the Windows Device Topology API (IKsJackDescription). This is the OS
+    /// truth behind the HDA colour-code silkscreen: real colour, connector
+    /// type, chassis location, channel mapping and plug-presence state. The web
+    /// layer merges these hints onto the probed discrete jack endpoints
+    /// (`src/hkm/store/useHardwareManager.ts`).
+    pub(super) fn list_jack_descriptions() -> Vec<crate::DesktopJackDescription> {
+        let mut out = Vec::new();
+        if init_com_mta().is_err() {
+            return out;
+        }
+
+        let enumerator: IMMDeviceEnumerator =
+            match unsafe { CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL) } {
+                Ok(e) => e,
+                Err(_) => return out,
+            };
+        let collection: IMMDeviceCollection =
+            match unsafe { enumerator.EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE) } {
+                Ok(c) => c,
+                Err(_) => return out,
+            };
+
+        let count = unsafe { collection.GetCount() }.unwrap_or(0);
+        for i in 0..count {
+            let device: IMMDevice = match unsafe { collection.Item(i) } {
+                Ok(d) => d,
+                Err(_) => continue,
+            };
+
+            // Owned MMDevice ID string — copy then CoTaskMemFree (same pattern
+            // as default_render_endpoint_id above).
+            let endpoint_id = match unsafe { device.GetId() } {
+                Ok(pw) => {
+                    let text = String::from_utf16_lossy(unsafe { pw.as_wide() });
+                    unsafe { CoTaskMemFree(Some(pw.as_ptr() as *const std::ffi::c_void)) };
+                    text
+                }
+                Err(_) => continue,
+            };
+            if endpoint_id.is_empty() {
+                continue;
+            }
+            let friendly_name = render_endpoint_friendly_name(&endpoint_id);
+
+            // Activate the device-topology view and walk its connectors: the
+            // jack description lives on the internal-side (connected-to)
+            // connector/part of each device-top pin.
+            let topology: IDeviceTopology =
+                match unsafe { device.Activate(CLSCTX_ALL, None) } {
+                    Ok(t) => t,
+                    Err(_) => continue,
+                };
+
+            let connector_count = unsafe { topology.GetConnectorCount() }.unwrap_or(0);
+            for c in 0..connector_count {
+                let connected = match unsafe { topology.GetConnector(c) }.and_then(|conn| unsafe { conn.GetConnectedTo() }) {
+                    Ok(inner) => inner,
+                    Err(_) => continue,
+                };
+
+                // Try the connected connector first, then its IPart facet —
+                // both are plain QueryInterfaces and may expose jacks.
+                let jacks: Option<IKsJackDescription> = connected
+                    .cast::<IKsJackDescription>()
+                    .ok()
+                    .or_else(|| {
+                        connected
+                            .cast::<IPart>()
+                            .ok()
+                            .and_then(|part| part.cast::<IKsJackDescription>().ok())
+                    });
+                let jacks = match jacks {
+                    Some(j) => j,
+                    None => continue,
+                };
+
+                let jack_count = unsafe { jacks.GetJackCount() }.unwrap_or(0);
+                for j in 0..jack_count {
+                    // SAFETY: KSJACK_DESCRIPTION is a plain C struct of integer
+                    // fields; zero-initialization is the documented empty state.
+                    let mut desc: KSJACK_DESCRIPTION = unsafe { std::mem::zeroed() };
+                    if unsafe { jacks.GetJackDescription(j, &mut desc) }.is_err() {
+                        continue;
+                    }
+                    out.push(crate::DesktopJackDescription {
+                        endpoint_id: endpoint_id.clone(),
+                        friendly_name: friendly_name.clone(),
+                        jack_index: j,
+                        color_rgb: desc.Color & 0x00FF_FFFF,
+                        channel: first_speaker_bit(desc.ChannelMapping),
+                        is_connected: desc.IsConnected.as_bool(),
+                        connector_type: connector_type_name(desc.ConnectionType.0),
+                        location: geo_location_name(desc.GeoLocation.0),
+                    });
+                }
+            }
+        }
+        out
+    }
+
     pub(super) fn zero_stream_flags() -> u32 {
         0
     }
@@ -771,6 +979,19 @@ pub fn default_render_endpoint_id() -> Result<String, String> {
         windows::Win32::System::Com::CoTaskMemFree(Some(id.as_ptr() as *const std::ffi::c_void))
     };
     Ok(text)
+}
+
+/// Physical jack metadata for every active render endpoint (Windows Device
+/// Topology API — IKsJackDescription). Empty on non-Windows / when the
+/// topology API exposes no jacks (virtual endpoints, HDMI-in-driver-boards).
+#[cfg(windows)]
+pub fn list_jack_descriptions() -> Vec<crate::DesktopJackDescription> {
+    sys::list_jack_descriptions()
+}
+
+#[cfg(not(windows))]
+pub fn list_jack_descriptions() -> Vec<crate::DesktopJackDescription> {
+    Vec::new()
 }
 
 fn capture_pump(
@@ -890,18 +1111,45 @@ fn capture_pump(
 // Raw output pump
 // ---------------------------------------------------------------------------
 
-fn raw_output_pump(stop: &AtomicBool, queue: mpsc::Receiver<Vec<u8>>) -> Result<(), String> {
+fn raw_output_pump(
+    stop: &AtomicBool,
+    queue: mpsc::Receiver<Vec<u8>>,
+    endpoint_id: Option<String>,
+    channels: u16,
+) -> Result<(), String> {
     #[cfg(windows)]
     {
         sys::init_com_mta()?;
 
         let audio_client: sys::AudioClientT = {
-            let device = sys::get_default_render_device()?;
+            // Honour the console-selected render endpoint; fall back to the
+            // default device when it disappeared (hot-unplug) so the show
+            // keeps running.
+            let device = match endpoint_id.as_deref() {
+                Some(id) if !id.is_empty() => sys::get_render_device_by_id(id).or_else(|err| {
+                    eprintln!(
+                        "[hkm-audio] selected render endpoint '{}' unavailable ({}); falling back to the default device.",
+                        id, err
+                    );
+                    sys::get_default_render_device()
+                }),
+                _ => sys::get_default_render_device(),
+            }?;
             unsafe { device.Activate(sys::clsctx_all(), None) }
                 .map_err(|e| format!("IAudioClient activation failed: {}", e))?
         };
 
-        let format = sys::target_wave_format();
+        // Stereo keeps the plain float format (the current worklet contract);
+        // 3..=32 channels request a WAVEFORMATEXTENSIBLE stream with the
+        // standard speaker mask so discrete jack pairs are addressed 1:1.
+        let stereo_format = sys::target_wave_format();
+        let multi_format = sys::target_wave_format_channels(channels);
+        let format_ptr: *const WAVEFORMATEX = if channels > 2 {
+            &multi_format as *const WAVEFORMATEXTENSIBLE as *const WAVEFORMATEX
+        } else {
+            &stereo_format
+        };
+        let frame_bytes = channels as usize * 4;
         let buffer_duration_100ns: i64 = 2_000_000; // 200 ms
         unsafe {
             audio_client.Initialize(
@@ -909,7 +1157,7 @@ fn raw_output_pump(stop: &AtomicBool, queue: mpsc::Receiver<Vec<u8>>) -> Result<
                 sys::render_stream_flags(),
                 buffer_duration_100ns,
                 0,
-                &format,
+                format_ptr,
                 None,
             )
         }
@@ -925,7 +1173,7 @@ fn raw_output_pump(stop: &AtomicBool, queue: mpsc::Receiver<Vec<u8>>) -> Result<
         if let Ok(ptr) = unsafe { render_client.GetBuffer(buffer_frames) } {
             if !ptr.is_null() {
                 unsafe {
-                    std::ptr::write_bytes(ptr, 0, buffer_frames as usize * 8);
+                    std::ptr::write_bytes(ptr, 0, buffer_frames as usize * frame_bytes);
                     let _ = render_client.ReleaseBuffer(buffer_frames, sys::zero_buffer_flags());
                 }
             }
@@ -942,8 +1190,8 @@ fn raw_output_pump(stop: &AtomicBool, queue: mpsc::Receiver<Vec<u8>>) -> Result<
             while let Ok(block) = queue.try_recv() {
                 pending.extend_from_slice(&block);
                 // Bound the backlog defensively (≈1 s of audio).
-                if pending.len() > 48_000 * 8 {
-                    pending.drain(..pending.len() - 48_000 * 8);
+                if pending.len() > 48_000 * frame_bytes {
+                    pending.drain(..pending.len() - 48_000 * frame_bytes);
                 }
             }
 
@@ -955,7 +1203,7 @@ fn raw_output_pump(stop: &AtomicBool, queue: mpsc::Receiver<Vec<u8>>) -> Result<
             if available >= 960 {
                 if let Ok(ptr) = unsafe { render_client.GetBuffer(available) } {
                     if !ptr.is_null() {
-                        let needed = available as usize * 8;
+                        let needed = available as usize * frame_bytes;
                         if pending.len() >= needed {
                             unsafe {
                                 std::ptr::copy_nonoverlapping(pending.as_ptr(), ptr, needed);
@@ -986,7 +1234,7 @@ fn raw_output_pump(stop: &AtomicBool, queue: mpsc::Receiver<Vec<u8>>) -> Result<
     }
     #[cfg(not(windows))]
     {
-        let _ = (stop, queue);
+        let _ = (stop, queue, endpoint_id, channels);
         Err("Raw WASAPI output requires Windows.".to_string())
     }
 }

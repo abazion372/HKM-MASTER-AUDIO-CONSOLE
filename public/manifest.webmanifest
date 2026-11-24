@@ -1,0 +1,16 @@
+{
+  "name": "HKM FOH Companion",
+  "short_name": "HKM Remote",
+  "description": "Remote FOH audio control companion for the HKM Audio System — channel faders, zones and master control from your phone.",
+  "id": "/?mode=remote",
+  "start_url": "/?mode=remote",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#080B10",
+  "theme_color": "#080B10",
+  "icons": [
+    { "src": "/companion-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/companion-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

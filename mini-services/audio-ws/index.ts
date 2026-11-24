@@ -106,7 +106,7 @@ let clientIdCounter = 0;
 
 const server = Bun.serve<WsSocketData>({
   port: PORT,
-  fetch(req, srv) {
+  async fetch(req, srv) {
     const url = new URL(req.url);
 
     if (url.pathname === '/ws') {
@@ -151,7 +151,11 @@ const server = Bun.serve<WsSocketData>({
         return Response.json({ ok: false, error: 'Method not allowed' }, { status: 405 });
       }
 
-      const body = (req.json().catch(() => ({}))) as Record<string, unknown>;
+      // NOTE: must be awaited — this handler previously read `body.payload` off
+      // an un-awaited Promise, silently no-op-ing every /internal/broadcast
+      // and /internal/kick-client call (desktop → mobile state:sync relays never
+      // fired). Awaited here so the Next.js relay path actually delivers.
+      const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
 
       switch (action) {
         case 'broadcast': {
@@ -370,6 +374,53 @@ const server = Bun.serve<WsSocketData>({
             type: 'channel:patch',
             channelId,
             patch: sanitizedPatch,
+            sourceRole: record.role,
+          },
+          record.clientId
+        );
+        return;
+      }
+
+      if (msg.type === 'zone:patch') {
+        const zoneId = String(msg.zoneId ?? '');
+        const rawZonePatch = (msg.patch && typeof msg.patch === 'object' ? msg.patch : {}) as Record<
+          string,
+          unknown
+        >;
+        if (!zoneId) return;
+
+        // Enforce remote companion permissions (mirrors channel:patch
+        // sanitization): mute requires allowMuteControl; level / delay /
+        // polarity / jack routing are master-trim grade controls.
+        const sanitizedZonePatch: Record<string, unknown> = { ...rawZonePatch };
+        if (record.role === 'mobile') {
+          if (!current.remoteAccess.allowMuteControl) {
+            delete sanitizedZonePatch.mute;
+          }
+          if (!current.remoteAccess.allowMasterTrim) {
+            delete sanitizedZonePatch.levelDb;
+            delete sanitizedZonePatch.delayMs;
+            delete sanitizedZonePatch.polarityInverted;
+            delete sanitizedZonePatch.outputJackId;
+          }
+        }
+        if (Object.keys(sanitizedZonePatch).length === 0) return;
+
+        const zoneExists = current.zones.some((z) => z.id === zoneId);
+        if (!zoneExists) return;
+
+        // Store mutation follows the open() auditEvents pattern:
+        // ensureStore() → mutate → saveStore().
+        current.zones = current.zones.map((z) =>
+          z.id === zoneId ? { ...z, ...sanitizedZonePatch } : z
+        );
+        audioStore.saveStore(current);
+
+        broadcast(
+          {
+            type: 'zone:patch',
+            zoneId,
+            patch: sanitizedZonePatch,
             sourceRole: record.role,
           },
           record.clientId

@@ -41,7 +41,6 @@ import {
 import { deriveAutoChannelNameAndRole } from '../utils/audioNaming.ts';
 import {
   buildAutoJackAssignments,
-  OUTPUT_JACK_SLOT_ORDER,
   type OutputJackEndpoint,
   type OutputJackSlot,
 } from '../utils/jackTopology.ts';
@@ -1271,9 +1270,13 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                   byDevice.set(jack.parentDeviceId, list);
                 }
                 return Array.from(byDevice.entries()).map(([deviceId, deviceJacks]) => {
-                  const ordered = OUTPUT_JACK_SLOT_ORDER.map((slot) =>
-                    deviceJacks.find((j) => j.slot === slot)
-                  ).filter((j): j is OutputJackEndpoint => Boolean(j));
+                  // Physical card order = ascending first channel index (front
+                  // pair first, generated aux pairs after the named slots) —
+                  // derives from the device's own endpoints so any channel
+                  // count orders itself correctly.
+                  const ordered = [...deviceJacks].sort(
+                    (a, b) => a.channelIndices[0] - b.channelIndices[0]
+                  );
                   const first = ordered[0];
                   const isSink = preferredOutputDeviceId === deviceId;
                   const autoPatches = onUpdateZone ? buildAutoJackAssignments(zones, ordered) : [];
@@ -1294,9 +1297,9 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                           </span>
                           <span
                             className={`px-1 py-0.5 rounded border font-mono text-[7.5px] font-bold shrink-0 ${
-                              first.layout === '7.1'
-                                ? 'text-fuchsia-300 border-fuchsia-500/40 bg-fuchsia-950/40'
-                                : 'text-cyan-300 border-cyan-500/40 bg-cyan-950/40'
+                              first.layout === '5.1'
+                                ? 'text-cyan-300 border-cyan-500/40 bg-cyan-950/40'
+                                : 'text-fuchsia-300 border-fuchsia-500/40 bg-fuchsia-950/40'
                             }`}
                             title={`${first.channelCount}-channel endpoint — discrete per-jack routing available`}
                           >
@@ -1412,7 +1415,7 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                             onClick={() => {
                               for (const p of autoPatches) onUpdateZone(p.zoneId, p.patch);
                             }}
-                            title="Church-install auto patch: Main PA → FRONT (green), Sub → CENTER/SUB (orange), Overflow/Rear-fill → REAR (black), Stage monitor → SIDE (grey)"
+                            title="Church-install auto patch: Main PA → FRONT (green), Sub → CENTER/SUB (orange), Overflow/Rear-fill → REAR (black), Stage monitor → SIDE (grey). Aux jacks are manual-assign only."
                             className="flex-1 h-6 rounded border border-teal-500/45 bg-teal-950/35 hover:bg-teal-900/50 text-teal-200 font-mono text-[8px] font-bold cursor-pointer disabled:opacity-45"
                           >
                             AUTO-ASSIGN ZONES
@@ -1431,8 +1434,19 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                         )}
                       </div>
                       <p className="font-mono text-[7px] leading-relaxed text-slate-500 px-0.5">
-                        {jackRouterStatus} · Windows speaker configuration for this device must be set to{' '}
-                        {first.layout} (Sound Control Panel) for 1:1 per-jack routing.
+                        {jackRouterStatus} ·{' '}
+                        {first.layout === '5.1' || first.layout === '7.1' ? (
+                          <>
+                            Windows speaker configuration for this device must be set to {first.layout} (Sound
+                            Control Panel) for 1:1 per-jack routing.
+                          </>
+                        ) : (
+                          <>
+                            Windows speaker configuration for this device must be configured for{' '}
+                            {first.channelCount} discrete channels (Sound Control Panel or vendor control
+                            panel) for 1:1 per-jack routing.
+                          </>
+                        )}
                       </p>
                     </div>
                   );

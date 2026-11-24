@@ -14,13 +14,19 @@ export const metadata: Metadata = {
     "FOH console",
     "audio engineering",
   ],
+  manifest: "/manifest.webmanifest",
   icons: {
     icon: [
       { type: "image/svg+xml", url: "/favicon.svg" },
       { type: "image/png", sizes: "192x192", url: "/icon-192.png" },
       { type: "image/png", sizes: "512x512", url: "/icon-512.png" },
     ],
-    apple: [{ type: "image/png", sizes: "192x192", url: "/icon-192.png" }],
+    apple: [{ type: "image/png", sizes: "192x192", url: "/companion-icon-192.png" }],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "HKM FOH Companion",
   },
   openGraph: {
     title: "HKM Audio System — Church Audio Intelligence & DSP Platform",
@@ -33,7 +39,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0c1015",
+  themeColor: "#080B10",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

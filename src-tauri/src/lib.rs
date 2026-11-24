@@ -41,6 +41,30 @@ struct DesktopAudioStatus {
     reason: Option<String>,
 }
 
+/// Physical jack metadata for a render endpoint, read through the Windows
+/// Device Topology API (IKsJackDescription). Contract:
+/// `src/hkm/utils/nativeDesktopAudio.ts` → `DesktopJackDescription`.
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DesktopJackDescription {
+    /// MMDevice endpoint ID (registry key name under MMDevices\Audio\Render).
+    pub endpoint_id: String,
+    /// Endpoint friendly name, e.g. "Speakers (Realtek(R) Audio)".
+    pub friendly_name: String,
+    /// Jack index within the endpoint's IKsJackDescription.
+    pub jack_index: u32,
+    /// Silkscreen colour, 0x00RRGGBB (0 = unknown).
+    pub color_rgb: u32,
+    /// First WAVEFORMATEXTENSIBLE channel position this jack feeds (-1 unknown).
+    pub channel: i32,
+    /// Whether a plug is physically detected in the jack.
+    pub is_connected: bool,
+    /// Connector type hint (e.g. "analog-jack-3.5mm", "optical", "hdmi").
+    pub connector_type: String,
+    /// Chassis location hint (e.g. "rear", "front").
+    pub location: String,
+}
+
 // ---------------------------------------------------------------------------
 // Commands (contract: src/hkm/utils/nativeDesktopAudio.ts & appApi.ts)
 // ---------------------------------------------------------------------------
@@ -138,15 +162,22 @@ fn uninstall_system_apo(endpoint_id: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn list_jack_descriptions() -> Vec<DesktopJackDescription> {
+    win_audio::list_jack_descriptions()
+}
+
+#[tauri::command]
 async fn start_raw_output(
     state: tauri::State<'_, DesktopState>,
     endpoint_id: Option<String>,
+    channels: Option<u16>,
 ) -> Result<(), String> {
-    // The raw render engine always targets the default render device in v1;
-    // the endpoint_id is recorded for the APO status panel.
-    let _ = endpoint_id;
     apo::set_raw_output_active(true);
-    state.raw_output.start()
+    // Stereo is the current web-worklet contract; 3..=32 arms the discrete
+    // multichannel path (WAVEFORMATEXTENSIBLE speaker-mask stream) for
+    // per-jack rendering on 5.1/7.1/pro cards.
+    let ch = channels.unwrap_or(2).clamp(2, 32);
+    state.raw_output.start(endpoint_id, ch)
 }
 
 /// Receives raw 48 kHz interleaved Float32 stereo blocks (10 ms / 3840 bytes)
@@ -327,6 +358,7 @@ pub fn run() {
             set_apo_dry_suppression,
             install_system_apo,
             uninstall_system_apo,
+            list_jack_descriptions,
             start_raw_output,
             push_raw_output_pcm,
             stop_raw_output,

@@ -56,6 +56,25 @@ export interface DesktopSourceIsolationStatus {
   message: string | null;
 }
 
+/**
+ * One physical jack of a native audio endpoint, as reported by the Windows
+ * Device Topology API (IKsJackDescription) via the Rust shell.
+ */
+export interface DesktopJackDescription {
+  endpointId: string;
+  friendlyName: string;
+  jackIndex: number;
+  /** 0x00RRGGBB, 0 when unknown. */
+  colorRgb: number;
+  /** Channel position this jack feeds, -1 unknown. */
+  channel: number;
+  isConnected: boolean;
+  /** e.g. 'eJackConnType3Point5mm'. */
+  connectorType: string;
+  /** e.g. 'eGeoLocRear'. */
+  location: string;
+}
+
 interface TauriRuntimeCore {
   invoke<T>(command: string, args?: unknown): Promise<T>;
   Channel?: new <T = unknown>(onmessage?: (msg: T) => void) => {
@@ -100,6 +119,22 @@ export async function listDesktopAudioSessions(): Promise<DesktopAudioSession[]>
   if (!core?.invoke) return [];
   try {
     return await core.invoke<DesktopAudioSession[]>('list_desktop_audio_sessions');
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Native IKsJackDescription jack metadata (colour, connector, panel location)
+ * for every output endpoint. Desktop shell only — on web or on failure it
+ * returns [] and never throws, so callers can treat it as a pure hint.
+ */
+export async function listDesktopJackDescriptions(): Promise<DesktopJackDescription[]> {
+  if (!isDesktopApp()) return [];
+  const core = getTauriCore();
+  if (!core?.invoke) return [];
+  try {
+    return await core.invoke<DesktopJackDescription[]>('list_jack_descriptions');
   } catch {
     return [];
   }

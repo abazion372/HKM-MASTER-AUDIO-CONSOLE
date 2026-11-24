@@ -33,6 +33,7 @@ export async function PUT(req: NextRequest) {
     dsp: state.dsp,
     venue: state.venue,
     emergencyMuted: state.emergencyMuted,
+    zones: state.zones,
   });
   return NextResponse.json({ ok: true });
 }

@@ -8,6 +8,7 @@ import type {
 } from '../types/audio.ts';
 import {
   buildJackEndpoints,
+  nativeColorToHda,
   SIM_PIE_8OUT_DEVICE_ID,
   SIM_PIE_8OUT_LABEL,
   type OutputJackEndpoint,
@@ -31,11 +32,12 @@ import {
 } from '../audio/systemAudioBridge.ts';
 import { appFetch, isDesktopApp } from '../utils/appApi.ts';
 import {
+  listDesktopAudioSessions,
+  listDesktopJackDescriptions,
   NATIVE_DESKTOP_AUDIO_ID,
   getApoStatus,
   getDesktopAudioStatus,
   installSystemApo,
-  listDesktopAudioSessions,
   setApoDrySuppression,
   uninstallSystemApo,
   type ApoSystemStatus,
@@ -268,10 +270,12 @@ export function useHardwareManager({
   );
 
   // =========================================================================
-  //   DISCRETE JACK ROUTER — 5.1/7.1 output channel layout probing
+  //   DISCRETE JACK ROUTER — 5.1/7.1/N-channel output channel layout probing
   //   (Realtek/ASUS/Creative/SB PCIe + onboard surround cards expose ONE
   //   endpoint whose stream carries 6/8 channels; each physical jack pair is
-  //   a fixed channel position inside that stream. See utils/jackTopology.ts.)
+  //   a fixed channel position inside that stream. Pro cards (RME, M-Audio
+  //   Delta 1010, Dante virtual soundcards) expose 10-32 channels and gain
+  //   generated AUX pairs beyond channel 7. See utils/jackTopology.ts.)
   // =========================================================================
 
   const JACK_LAYOUT_CACHE_KEY = 'church_audio_jack_layout_cache';
@@ -303,7 +307,7 @@ export function useHardwareManager({
       const probeCtx = new Ctor({ sinkId: device.deviceId } as unknown as AudioContextOptions);
       const max = probeCtx.destination?.maxChannelCount || 2;
       void probeCtx.close().catch(() => {});
-      return Math.max(2, Math.min(max, 8));
+      return Math.max(2, Math.min(max, 32));
     } catch {
       return 2;
     }
@@ -346,13 +350,57 @@ export function useHardwareManager({
           }
         }
         saveJackLayoutCache(cache);
+
+        // Desktop app: refine jack colours with real IKsJackDescription
+        // metadata from the Rust shell (list_jack_descriptions) so the bay
+        // honours the card's actual silkscreen colours. Best-effort — the
+        // browser deviceId may differ from the native endpointId, so match
+        // on exact endpointId first, then a case-insensitive friendly-name /
+        // label substring fallback; any mismatch keeps the probed values.
+        if (isDesktopApp() && endpoints.length > 0) {
+          try {
+            const nativeJacks = await listDesktopJackDescriptions();
+            for (const jack of endpoints) {
+              const deviceJacks = nativeJacks.filter((nj) => {
+                if (nj.endpointId === jack.parentDeviceId) return true;
+                const nativeName = nj.friendlyName.toLowerCase();
+                const label = jack.parentDeviceLabel.toLowerCase();
+                return Boolean(
+                  nativeName && label && (nativeName.includes(label) || label.includes(nativeName))
+                );
+              });
+              const pairJack = deviceJacks.find((nj) => nj.channel === jack.channelIndices[0]);
+              if (pairJack && pairJack.colorRgb !== 0) {
+                const hda = nativeColorToHda(pairJack.colorRgb);
+                jack.jackColorName = hda.colorName;
+                jack.jackColorHex = hda.colorHex;
+              }
+            }
+          } catch {
+            // Native jack hints unavailable — keep the probed colours.
+          }
+        }
+
         setProbedOutputJackEndpoints(endpoints);
         if (explicit) {
+          // Count multi-channel CARDS, not jack endpoints: group the exploded
+          // jacks by parent device (a 7.1 card yields 4 jacks, a 16-CH pro
+          // card yields 8 — endpoint counts are not card counts).
+          const cardsByDevice = new Map<string, OutputJackEndpoint[]>();
+          for (const ep of endpoints) {
+            const list = cardsByDevice.get(ep.parentDeviceId) ?? [];
+            list.push(ep);
+            cardsByDevice.set(ep.parentDeviceId, list);
+          }
+          let multiChannelCards = 0;
+          for (const group of cardsByDevice.values()) {
+            if (group.length > 0 && group[0].channelCount >= 4) multiChannelCards += 1;
+          }
           const multi = endpoints.length > 0;
           logAudit(
             'Discrete Jack Probe',
             multi
-              ? `Probed ${candidates.length} outputs — ${endpoints.length / (endpoints[0].channelCount >= 8 ? 4 : 3)} multi-channel card(s) with discrete jack topology found`
+              ? `Probed ${candidates.length} outputs — ${multiChannelCards} multi-channel card(s) with discrete jack topology found`
               : `Probed ${candidates.length} outputs — no 5.1/7.1 jack topology detected (stereo endpoints only)`,
             'operator'
           );

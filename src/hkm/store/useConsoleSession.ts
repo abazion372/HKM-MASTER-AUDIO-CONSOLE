@@ -411,6 +411,18 @@ export function useConsoleSession({
             );
             return;
           }
+          if (
+            msg.type === 'zone:patch' &&
+            msg.sourceRole !== 'desktop' &&
+            msg.zoneId &&
+            msg.patch
+          ) {
+            suppressSyncCountRef.current += 1;
+            setZones((prev) =>
+              prev.map((z) => (z.id === msg.zoneId ? { ...z, ...msg.patch } : z))
+            );
+            return;
+          }
           if (msg.type === 'master:patch' && msg.sourceRole !== 'desktop') {
             suppressSyncCountRef.current += 1;
             if (typeof msg.inputTrimDb === 'number') {

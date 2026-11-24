@@ -2,9 +2,10 @@ import type { AudioSourceSimulation, SpeakerZone } from '../types/audio.ts';
 import { isDesktopApp } from '../utils/appApi.ts';
 import { pushRawOutputPcm, startRawOutput, stopRawOutput } from '../utils/nativeDesktopAudio.ts';
 import {
-  OUTPUT_JACK_SLOT_ORDER,
   SIM_PIE_8OUT_DEVICE_ID,
+  orderedJackSlots,
   parseJackId,
+  slotChannelIndices,
   type OutputJackSlot,
 } from '../utils/jackTopology.ts';
 import { clamp, dbToLinear } from './audioUtils.ts';
@@ -20,10 +21,12 @@ import {
  * Manages all Console Outputs + Desktop Audio Self-Loopback Firewall:
  *   1. Main Monitor / PA Output (`monitorGain -> paZoneDelayNode -> paZoneGainNode -> ctx.destination`)
  *      — upgraded with the DISCRETE JACK ROUTER: when the active sink is a
- *      5.1/7.1 device (probed via destination.maxChannelCount, or the training
- *      simulated card), each zone renders onto its own physical jack channel
- *      pair through a ChannelMerger with 'discrete' interpretation
- *      (FL/FR green, BL/BR black, FC/LFE orange, SL/SR grey).
+ *      5.1/7.1 device or a >8-channel pro card (probed via
+ *      destination.maxChannelCount, or the training simulated card), each
+ *      zone renders onto its own physical jack channel pair through a
+ *      ChannelMerger with 'discrete' interpretation (FL/FR green, BL/BR
+ *      black, FC/LFE orange, SL/SR grey, plus generated AUX pairs for
+ *      channels 8+).
  *   2. Dedicated Stream / OBS Output (`streamOutputGain -> MediaStreamDestination -> Audio.setSinkId`)
  *   3. Native Windows WASAPI RAW / MFX Output Tap (`rawTapNode -> pushRawOutputPcm`)
  */
@@ -40,13 +43,13 @@ export class OutputRouter {
   private streamMediaDest: MediaStreamAudioDestinationNode | null = null;
   private streamAudioEl: HTMLAudioElement | null = null;
 
-  // ---- Discrete jack router (5.1/7.1 channel-pair zone routing) ----
+  // ---- Discrete jack router (5.1/7.1/N-channel channel-pair zone routing) ----
   private jackMerger: ChannelMergerNode | null = null;
   private jackZoneChains = new Map<
     OutputJackSlot,
     { gain: GainNode; delay: DelayNode; splitter: ChannelSplitterNode; analyser: AnalyserNode; buf: Float32Array<ArrayBuffer> }
   >();
-  private jackLayoutChannels = 0; // 0 = legacy stereo path, else 6/8
+  private jackLayoutChannels = 0; // 0 = legacy stereo path, else 6/8/10..32
   private jackSlotZones = new Map<OutputJackSlot, string>(); // slot -> zoneId (active patch)
   private jackSinkDeviceId: string | null = null;
   private jackSimulated = false;
@@ -161,9 +164,10 @@ export class OutputRouter {
   }
 
   // =========================================================================
-  //   DISCRETE JACK ROUTER — 5.1/7.1 channel-pair zone routing
+  //   DISCRETE JACK ROUTER — 5.1/7.1/N-channel channel-pair zone routing
   //   One physical jack pair per zone: FL/FR (green), BL/BR (black),
-  //   FC/LFE (orange), SL/SR (grey). One-zone-per-jack interlock included.
+  //   FC/LFE (orange), SL/SR (grey), plus generated AUX n pairs (channels
+  //   8+) on pro cards. One-zone-per-jack interlock included.
   // =========================================================================
 
   /** Training-mode simulated 7.1 card id (see utils/jackTopology.ts). */
@@ -174,8 +178,9 @@ export class OutputRouter {
   }
 
   /**
-   * Channel count of the ACTIVE sink as the router understands it:
-   * real device → destination.maxChannelCount; simulated card → 8.
+   * Channel count of the ACTIVE sink as the router understands it: real
+   * device → destination.maxChannelCount (capped at 32 for pro cards);
+   * simulated card → 8.
    */
   private detectSinkChannelCount(): number {
     if (!this.ctx) return 2;
@@ -184,7 +189,7 @@ export class OutputRouter {
     }
     try {
       const max = this.ctx.destination.maxChannelCount || 2;
-      return max >= 4 ? Math.min(max, 8) : 2;
+      return max >= 4 ? Math.min(max, 32) : 2;
     } catch {
       return 2;
     }
@@ -250,16 +255,13 @@ export class OutputRouter {
     if (channels < 4 || this.jackSlotZones.size === 0) return;
 
     const merger = ctx.createChannelMerger(channels);
-    const layoutIndices: Record<OutputJackSlot, [number, number] | null> = {
-      'front-lr': [0, 1],
-      'center-lfe': [2, 3],
-      'rear-lr': [4, 5],
-      'side-lr': channels >= 8 ? [6, 7] : null,
-    };
 
-    for (const slot of OUTPUT_JACK_SLOT_ORDER) {
+    // Iterate every slot of the CURRENT patch in physical order — includes
+    // generated aux pairs on >8-channel sinks (the static named-slot order
+    // would skip them).
+    for (const slot of orderedJackSlots(channels)) {
       if (!this.jackSlotZones.has(slot)) continue;
-      const indices = layoutIndices[slot];
+      const indices = slotChannelIndices(slot, channels);
       if (!indices || indices[1] >= channels) continue;
 
       const zoneGain = ctx.createGain();
@@ -400,12 +402,6 @@ export class OutputRouter {
     slots: Array<{ slot: OutputJackSlot; zoneId: string; channelIndices: [number, number] | null }>;
   } {
     const channels = this.jackLayoutChannels;
-    const layoutIndices: Record<OutputJackSlot, [number, number] | null> = {
-      'front-lr': [0, 1],
-      'center-lfe': [2, 3],
-      'rear-lr': [4, 5],
-      'side-lr': channels >= 8 ? [6, 7] : null,
-    };
     return {
       active: this.jackMerger !== null,
       simulated: this.jackSimulated,
@@ -414,7 +410,7 @@ export class OutputRouter {
       slots: Array.from(this.jackSlotZones.entries()).map(([slot, zoneId]) => ({
         slot,
         zoneId,
-        channelIndices: layoutIndices[slot],
+        channelIndices: slotChannelIndices(slot, channels),
       })),
     };
   }

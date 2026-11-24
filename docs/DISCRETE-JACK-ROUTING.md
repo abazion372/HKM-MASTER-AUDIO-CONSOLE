@@ -35,7 +35,7 @@ installed-church DSPs (Behringer X32 matrix outs, Biamp, QSC Core) do.
 | **WASAPI shared, discrete channel pairs** | One 6/8-ch stream; app writes each pair | Windows mixes concurrent apps silently; in-app one-zone-per-jack interlock needed | **Implemented** (browser engine) |
 | **WASAPI exclusive** | App owns the device at a fixed format | One app at a time; blocks system sounds | Reserved for native v2 (`win_audio.rs`) |
 | **ASIO (pro PCIe cards: RME, Focusrite, M-Audio Delta)** | Every jack pair is an individual ASIO output stream | Zero OS mixing — the true pro path | Reserved for native v2 (cpal/ASIO) |
-| **Device Topology API (`IKsJackDescription`)** | Jack metadata: colour, connector, front/rear panel | Read-only metadata | Label hints via colour code |
+| **Device Topology API (`IKsJackDescription`)** | Jack metadata: colour, connector, front/rear panel | Read-only metadata | **Implemented** — label/colour hints via the Rust shell (`list_jack_descriptions` command) |
 
 ## 3. Requirements for conflict-free separation
 
@@ -85,9 +85,16 @@ Main PA lands on the green front jack automatically.
 
 Each enumerated output endpoint is probed by opening a throwaway
 `AudioContext` on it (`{ sinkId }`) and reading
-`destination.maxChannelCount`. Devices reporting ≥ 4 channels are exploded
-into jack endpoints (5.1 → 3 jacks, 7.1 → 4 jacks). Results are cached per
-device (label-matched, 30-day TTL); the probe button forces a refresh.
+`destination.maxChannelCount` (capped at 32 channels). Devices reporting
+≥ 4 channels are exploded into jack endpoints: 5.1 → 3 jacks, 7.1 → 4
+jacks, and >8-channel pro cards (RME, M-Audio Delta 1010, Dante 16-ch
+virtual soundcards) keep the four named slots at their 7.1 positions plus
+one generated `AUX n L/R` pair per complete channel pair from channel 8 up
+(aux-1 = 8/9, aux-2 = 10/11, …; a trailing odd channel is skipped). Odd
+aux jacks are teal, even aux jacks violet. Results are cached per device
+(label-matched, 30-day TTL); the probe button forces a refresh. On the
+desktop app the probe also folds in native `IKsJackDescription` colour
+hints (`list_jack_descriptions`) to refine the bay's silkscreen colours.
 
 ### Training mode: Simulated 7.1 PCIe Jack Card
 
@@ -102,8 +109,17 @@ where unpatched jacks simply carry nothing.
 The bundled Rust shell already speaks WASAPI (`src-tauri/src/win_audio.rs`).
 The reserved next steps for pro PCIe cards:
 
-- Extend `target_wave_format()` beyond stereo and honour the selected
-  endpoint in `raw_output_pump` (v1 is default-device stereo-locked).
-- Parse `WAVEFORMATEXTENSIBLE.dwChannelMask` for exact jack layout.
+- ~~Extend `target_wave_format()` beyond stereo and honour the selected
+  endpoint in `raw_output_pump`~~ — **implemented**: `target_wave_format_channels()`
+  requests a WAVEFORMATEXTENSIBLE speaker-mask stream for 3..=32 channels and
+  the raw render pump honours the console-selected endpoint (default-device
+  fallback on hot-unplug). The bundled web worklet still pushes stereo blocks;
+  >2 channels are armed for the v2 multichannel worklet.
+- Parse `WAVEFORMATEXTENSIBLE.dwChannelMask` for exact jack layout —
+  **in progress** (multichannel WAVEFORMATEXTENSIBLE output for
+  >8-channel pro cards).
+- `IKsJackDescription` jack hints (colour, connector, panel location) —
+  **implemented**: the `list_jack_descriptions` Rust command feeds real
+  silkscreen colours/labels into the Discrete Jack Bay.
 - Optional ASIO path (cpal `asio` feature) for per-jack exclusive streams —
   the zero-conflict professional route for RME/Focusrite-class cards.
