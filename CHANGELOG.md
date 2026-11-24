@@ -5,6 +5,12 @@ All notable changes to HKM Audio System are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Channel fader bay moved into the left input panel**: the center console deck no longer carries the full-width 285px motorized fader bank at the bottom — the phase processing rack (Preamp, HPF & Gate, PEQ, Comp, GEQ, Xover, Matrix) now owns the full center height. Each left-panel channel strip is now a complete console strip: calibrated dB scale, precision vertical fader (-48..+10 dB), 10-segment LED meter, preamp gain trim, Mute/Solo, and MAIN/STRM/SUB bus assign keys — selection, metering, level, gain and routing all in one place. Left panel widened 214px → 272px (300px at 2xl) to host the strips.
+
 ## [0.2.36] - 2026-11-24
 
 ### Fixed

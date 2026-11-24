@@ -1002,10 +1002,8 @@ export default function App() {
                 zones={session.zones}
                 initialPhase="phase-1-stage"
                 selectedChannelId={selectedChannel?.id ?? 'ch-1'}
-                onSelectChannel={setSelectedChannelId}
                 locked={consoleLocked}
                 audioSource={audio.audioSource}
-                onAddChannel={guardedAddChannel}
                 onAddEqBand={guardedAddEqBand}
                 onRemoveEqBand={session.handleRemoveEqBand}
               />

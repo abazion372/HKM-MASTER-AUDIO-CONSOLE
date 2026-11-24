@@ -33,6 +33,7 @@ import {
 } from '../utils/nativeDesktopAudio.ts';
 import { deriveAutoChannelNameAndRole } from '../utils/audioNaming.ts';
 import { RotaryKnob } from './StudioControls.tsx';
+import { PrecisionVerticalFader } from './PrecisionVerticalFader.tsx';
 
 interface ConsoleLeftPanelProps {
   inputDevices: MediaDeviceInfo[];
@@ -281,7 +282,7 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
   return (
     <aside
       aria-label="Live Console Inputs & Outputs Rack"
-      className="w-[214px] 2xl:w-[248px] shrink-0 h-full hw-panel rounded-lg flex flex-col overflow-hidden select-none"
+      className="w-[272px] 2xl:w-[300px] shrink-0 h-full hw-panel rounded-lg flex flex-col overflow-hidden select-none"
     >
       {/* Top Interchangeable Tab Header */}
       <div className="h-8 shrink-0 px-1 2xl:px-1.5 hw-card-header flex items-center justify-between gap-1">
@@ -365,7 +366,8 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
             </div>
           )}
 
-          {/* Stacked 8 Machined Input Channel Cards */}
+          {/* Stacked Machined Input Channel Strips — Full Console Bay
+              (vertical fader + calibrated scale + LED meter + preamp gain + bus keys) */}
           <div className="flex-1 min-h-0 overflow-y-auto p-1.5 flex flex-col gap-1.5">
             {bankChannels.map((ch, idx) => {
               const globalIdx = bankStart + idx;
@@ -387,13 +389,16 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                 isAssigned && engineRunning && !ch.mute ? Math.max(0, Math.min(1, (rmsDb + 54) / 54)) : 0;
               const litSegments =
                 isAssigned && engineRunning && !ch.mute && rmsDb > -53 ? Math.max(1, Math.round(normMeter * 10)) : 0;
-              const faderPct = isAssigned ? Math.max(0, Math.min(100, ((ch.faderDb + 48) / 58) * 100)) : 0;
+              const stripDisabled = Boolean(locked || !isAssigned);
+              const isMainPaAssigned = ch.mainPaAssign ?? true;
+              const isStreamAssigned = ch.streamAssign ?? true;
+              const isSubAssigned = ch.subAssign ?? false;
 
               return (
                 <div
                   key={ch.id}
                   onClick={() => onSelectChannel(ch.id)}
-                  className={`rounded-md border px-1.5 py-1 flex items-center gap-1.5 cursor-pointer transition-all shrink-0 ${
+                  className={`rounded-md border p-1.5 flex flex-col gap-1 cursor-pointer transition-all shrink-0 ${
                     !isAssigned
                       ? isSelected
                         ? 'border-dashed border-[#4B5D72] bg-[#121922] opacity-85'
@@ -405,22 +410,15 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                           : 'border-[#4B5D72] bg-gradient-to-b from-[#1E2732] to-[#131921] shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] hover:border-[#687F99]'
                   }`}
                 >
-                  {/* Column 1: Channel Number & Peak/Limit Indicator */}
-                  <div className="w-4 shrink-0 flex flex-col items-center justify-between self-stretch py-0.5 font-mono">
-                    <span
-                      className={`text-[10px] font-bold ${
-                        !isAssigned ? 'text-slate-600' : isSelected ? 'text-[#5EEAD4]' : 'text-slate-300'
-                      }`}
-                    >
-                      {ch.index}
-                    </span>
+                  {/* Row 1: Status LED + Channel Number + Name + Mute / Solo */}
+                  <div className="flex items-center gap-1.5 min-w-0">
                     {!isAssigned ? (
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#1B232E]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#1B232E] shrink-0" />
                     ) : isHot ? (
-                      <AlertTriangle className="w-3 h-3 text-amber-400 animate-pulse" />
+                      <AlertTriangle className="w-3 h-3 text-amber-400 animate-pulse shrink-0" />
                     ) : (
                       <span
-                        className={`w-1.5 h-1.5 rounded-full ${
+                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                           ch.mute
                             ? 'bg-rose-500'
                             : engineRunning && rmsDb > -52
@@ -429,178 +427,223 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                         }`}
                       />
                     )}
-                  </div>
-
-                  {/* Column 2: Vertical 10-Segment Live LED Meter */}
-                  <div
-                    className={`w-2 h-11 rounded-[2px] bg-[#080C10] border p-[1px] flex flex-col justify-between shrink-0 ${
-                      !isAssigned ? 'border-[#1F2937]' : 'border-[#2F3E4F]'
-                    }`}
-                    aria-label={`Channel ${ch.index} Level`}
-                  >
-                    {SEGMENTS_10.slice()
-                      .reverse()
-                      .map((segIdx) => {
-                        if (!isAssigned) {
-                          return <div key={segIdx} className="w-full h-[3px] rounded-[0.5px] bg-[#0E131A]" />;
-                        }
-                        const lit = segIdx < litSegments;
-                        const color =
-                          segIdx >= 8
-                            ? lit
-                              ? isHot
-                                ? 'bg-amber-400 shadow-[0_0_4px_rgba(251,191,36,0.9)]'
-                                : 'bg-rose-500 shadow-[0_0_4px_rgba(244,63,94,0.85)]'
-                              : 'bg-[#1D161A]'
-                            : segIdx >= 6
-                              ? lit
-                                ? 'bg-amber-400'
-                                : 'bg-[#1C1E1B]'
-                              : lit
-                                ? 'bg-[#4ADE80] shadow-[0_0_4px_rgba(74,222,128,0.65)]'
-                                : 'bg-[#101C18]';
-                        return <div key={segIdx} className={`w-full h-[3px] rounded-[0.5px] ${color}`} />;
-                      })}
-                  </div>
-
-                  {/* Column 3: Channel Label, Micro Controls & Horizontal Level Slider */}
-                  <div className="flex-1 min-w-0 flex flex-col justify-between gap-1 py-0.5">
-                    <div className="flex items-center justify-between gap-1">
-                      <span
-                        className={`text-[11px] truncate leading-none ${
-                          isAssigned ? 'font-semibold text-slate-100' : 'font-medium text-slate-500'
-                        }`}
-                        title={
-                          isAssigned
-                            ? `${ch.name} (${ch.hardwareInputLabel || ch.role})`
-                            : `${ch.name} — Open Slot (Unassigned)`
-                        }
-                      >
-                        {ch.name}
-                      </span>
-                      <div
-                        className="flex items-center gap-0.5 shrink-0 font-mono text-[8px]"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          type="button"
-                          disabled={locked || !isAssigned}
-                          onClick={() => onUpdateChannel(ch.id, { mute: !ch.mute })}
-                          title={
-                            !isAssigned ? 'Open Slot — Unassigned' : ch.mute ? 'Unmute Channel' : 'Mute Channel'
-                          }
-                          className={`w-3.5 h-3.5 rounded-[2px] border font-bold leading-none flex items-center justify-center ${
-                            !isAssigned
-                              ? 'bg-[#0A0E14] border-[#1F2937] text-slate-600 opacity-45 cursor-not-allowed'
-                              : ch.mute
-                                ? 'bg-rose-600 border-rose-300 text-white cursor-pointer disabled:opacity-50'
-                                : 'hw-top-btn text-slate-200 cursor-pointer disabled:opacity-50'
-                          }`}
-                        >
-                          M
-                        </button>
-                        <button
-                          type="button"
-                          disabled={locked || !isAssigned}
-                          onClick={() => onUpdateChannel(ch.id, { solo: !ch.solo })}
-                          title={
-                            !isAssigned ? 'Open Slot — Unassigned' : ch.solo ? 'Clear Solo' : 'Solo Channel'
-                          }
-                          className={`w-3.5 h-3.5 rounded-[2px] border font-bold leading-none flex items-center justify-center ${
-                            !isAssigned
-                              ? 'bg-[#0A0E14] border-[#1F2937] text-slate-600 opacity-45 cursor-not-allowed'
-                              : ch.solo
-                                ? 'bg-amber-400 border-amber-200 text-slate-950 cursor-pointer disabled:opacity-50'
-                                : 'hw-top-btn text-slate-200 cursor-pointer disabled:opacity-50'
-                          }`}
-                        >
-                          S
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Sleek Horizontal Fader Bar Matching Reference Image */}
-                    <div
-                      className="relative h-2.5 flex items-center"
-                      onClick={(e) => e.stopPropagation()}
+                    <span
+                      className={`font-mono text-[10px] font-bold shrink-0 ${
+                        !isAssigned ? 'text-slate-600' : isSelected ? 'text-[#5EEAD4]' : 'text-slate-300'
+                      }`}
+                    >
+                      {ch.index}
+                    </span>
+                    <span
+                      className={`text-[11px] truncate flex-1 min-w-0 leading-none ${
+                        isAssigned ? 'font-semibold text-slate-100' : 'font-medium text-slate-500'
+                      }`}
                       title={
-                        !isAssigned
-                          ? `Channel ${ch.index}: Open Slot (Unassigned)`
-                          : `Channel ${ch.index} Fader: ${ch.faderDb > 0 ? `+${ch.faderDb.toFixed(1)}` : ch.faderDb.toFixed(1)} dB`
+                        isAssigned
+                          ? `${ch.name} (${ch.hardwareInputLabel || ch.role})`
+                          : `${ch.name} — Open Slot (Unassigned)`
                       }
                     >
-                      <div
-                        className={`w-full h-1.5 rounded-full overflow-hidden relative border ${
+                      {ch.name}
+                    </span>
+                    <div
+                      className="flex items-center gap-0.5 shrink-0 font-mono text-[8px]"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        disabled={stripDisabled}
+                        onClick={() => onUpdateChannel(ch.id, { mute: !ch.mute })}
+                        title={
+                          !isAssigned ? 'Open Slot — Unassigned' : ch.mute ? 'Unmute Channel' : 'Mute Channel'
+                        }
+                        className={`w-3.5 h-3.5 rounded-[2px] border font-bold leading-none flex items-center justify-center cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
                           !isAssigned
-                            ? 'bg-[#070A0E] border-[#1F2937]'
-                            : 'bg-[#090D12] border-[#2C394A]'
+                            ? 'bg-[#0A0E14] border-[#1F2937] text-slate-600'
+                            : ch.mute
+                              ? 'bg-rose-600 border-rose-300 text-white'
+                              : 'hw-top-btn text-slate-200'
                         }`}
                       >
-                        <div
-                          className={`h-full transition-all duration-75 ${
-                            !isAssigned
-                              ? 'bg-transparent'
-                              : ch.mute
-                                ? 'bg-slate-600'
-                                : isHot
-                                  ? 'bg-amber-400'
-                                  : isSelected
-                                    ? 'bg-[#2DD4BF]'
-                                    : 'bg-[#4ADE80]'
-                          }`}
-                          style={{ width: `${faderPct}%` }}
-                        />
-                      </div>
-                      <input
-                        type="range"
-                        aria-label={`Channel ${ch.index} Fader Level`}
-                        min={-48}
-                        max={10}
-                        step={0.5}
-                        disabled={locked || !isAssigned}
-                        value={isAssigned ? ch.faderDb : -48}
-                        onChange={(e) => onUpdateChannel(ch.id, { faderDb: parseFloat(e.target.value) })}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize disabled:cursor-not-allowed"
-                      />
-                    </div>
-
-                    {/* Subline: LIMIT badge or standalone stereo + dB */}
-                    <div className="flex items-center justify-between font-mono text-[8.5px] leading-none">
-                      {!isAssigned ? (
-                        <span className="text-slate-500 italic truncate max-w-[78px]">Open Slot</span>
-                      ) : isHot ? (
-                        <span className="text-amber-400 font-bold tracking-wider">LIMIT</span>
-                      ) : (
-                        <span className="text-slate-400 truncate max-w-[78px]">
-                          {ch.hardwareInputLabel ? ch.role : ch.role}
-                        </span>
-                      )}
-                      {!isAssigned ? (
-                        <span className="text-slate-600 tabular-nums">--</span>
-                      ) : (
-                        <span className="text-slate-200 tabular-nums font-semibold">
-                          {ch.faderDb > 0 ? `+${ch.faderDb.toFixed(1)}` : ch.faderDb.toFixed(1)} dB
-                        </span>
-                      )}
+                        M
+                      </button>
+                      <button
+                        type="button"
+                        disabled={stripDisabled}
+                        onClick={() => onUpdateChannel(ch.id, { solo: !ch.solo })}
+                        title={
+                          !isAssigned ? 'Open Slot — Unassigned' : ch.solo ? 'Clear Solo' : 'Solo Channel'
+                        }
+                        className={`w-3.5 h-3.5 rounded-[2px] border font-bold leading-none flex items-center justify-center cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
+                          !isAssigned
+                            ? 'bg-[#0A0E14] border-[#1F2937] text-slate-600'
+                            : ch.solo
+                              ? 'bg-amber-400 border-amber-200 text-slate-950'
+                              : 'hw-top-btn text-slate-200'
+                        }`}
+                      >
+                        S
+                      </button>
                     </div>
                   </div>
 
-                  {/* Column 4: Compact Brushed-Metal Gain Knob */}
-                  <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <RotaryKnob
-                      label=""
-                      value={isAssigned ? ch.gainDb : 0}
-                      min={0}
-                      max={60}
-                      step={1}
-                      defaultValue={24}
-                      unit="dB"
-                      size={32}
-                      disabled={locked || !isAssigned}
-                      accent={!isAssigned ? 'slate' : isHot ? 'amber' : isSelected ? 'sky' : 'emerald'}
-                      formatValue={!isAssigned ? () => '--' : undefined}
-                      onChange={(next) => onUpdateChannel(ch.id, { gainDb: next })}
-                    />
+                  {/* Row 2: Role / Limit + Live Fader dB Readout */}
+                  <div className="flex items-center justify-between font-mono text-[8.5px] leading-none">
+                    {!isAssigned ? (
+                      <span className="text-slate-500 italic truncate max-w-[110px]">Open Slot</span>
+                    ) : isHot ? (
+                      <span className="text-amber-400 font-bold tracking-wider">LIMIT</span>
+                    ) : (
+                      <span className="text-slate-400 truncate max-w-[110px]" title={ch.role}>
+                        {ch.role}
+                      </span>
+                    )}
+                    {!isAssigned ? (
+                      <span className="text-slate-600 tabular-nums">--</span>
+                    ) : (
+                      <span
+                        className={`tabular-nums font-semibold ${
+                          ch.faderDb > 0 ? 'text-sky-300' : ch.faderDb < 0 ? 'text-amber-400' : 'text-slate-200'
+                        }`}
+                      >
+                        {ch.faderDb > 0 ? `+${ch.faderDb.toFixed(1)}` : ch.faderDb.toFixed(1)} dB
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Row 3: Calibrated dB Scale + Studio Fader Throw + LED Meter + Preamp Gain */}
+                  <div
+                    className="flex items-end justify-between gap-1.5 px-0.5"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-end gap-1">
+                      {/* Calibrated Decibel Ticks */}
+                      <div className="h-24 flex flex-col justify-between items-end font-mono text-[7px] text-slate-500 tabular-nums shrink-0 select-none pr-0.5">
+                        <span className={isAssigned ? 'text-rose-400 font-semibold' : 'text-slate-600'}>+10</span>
+                        <span className={isAssigned ? 'text-slate-300 font-bold' : 'text-slate-600'}>0</span>
+                        <span>-20</span>
+                        <span>-40</span>
+                        <span className="text-slate-600">-∞</span>
+                      </div>
+
+                      {/* Precision Studio Fader Throw (moved from centre fader bank) */}
+                      <div className="flex justify-center w-8 shrink-0">
+                        <PrecisionVerticalFader
+                          value={isAssigned ? ch.faderDb : -48}
+                          min={-48}
+                          max={10}
+                          step={0.5}
+                          compact
+                          disabled={stripDisabled}
+                          trackHeightClass="h-24"
+                          accent={!isAssigned ? 'slate' : ch.mute ? 'amber' : isSelected ? 'sky' : 'cyan'}
+                          onChange={(next) => onUpdateChannel(ch.id, { faderDb: next })}
+                        />
+                      </div>
+
+                      {/* 10-Segment Console Peak PPM Tower */}
+                      <div
+                        className="h-24 w-2.5 rounded-[2px] bg-[#080C10] border p-[1px] flex flex-col justify-between shrink-0 overflow-hidden"
+                        aria-label={`Channel ${ch.index} Level`}
+                      >
+                        {SEGMENTS_10.slice()
+                          .reverse()
+                          .map((segIdx) => {
+                            if (!isAssigned) {
+                              return <div key={segIdx} className="w-full h-[5px] rounded-[0.5px] bg-[#0E131A]" />;
+                            }
+                            const lit = segIdx < litSegments;
+                            const color =
+                              segIdx >= 8
+                                ? lit
+                                  ? isHot
+                                    ? 'bg-amber-400 shadow-[0_0_4px_rgba(251,191,36,0.9)]'
+                                    : 'bg-rose-500 shadow-[0_0_4px_rgba(244,63,94,0.85)]'
+                                  : 'bg-[#1D161A]'
+                                : segIdx >= 6
+                                  ? lit
+                                    ? 'bg-amber-400'
+                                    : 'bg-[#1C1E1B]'
+                                  : lit
+                                    ? 'bg-[#4ADE80] shadow-[0_0_4px_rgba(74,222,128,0.65)]'
+                                    : 'bg-[#101C18]';
+                            return <div key={segIdx} className={`w-full h-[5px] rounded-[0.5px] ${color}`} />;
+                          })}
+                      </div>
+                    </div>
+
+                    {/* Compact Preamp Gain Trim */}
+                    <div className="flex flex-col items-center gap-0.5 shrink-0 pb-0.5">
+                      <RotaryKnob
+                        label=""
+                        value={isAssigned ? ch.gainDb : 0}
+                        min={0}
+                        max={60}
+                        step={1}
+                        defaultValue={24}
+                        unit="dB"
+                        size={38}
+                        disabled={stripDisabled}
+                        accent={!isAssigned ? 'slate' : isHot ? 'amber' : isSelected ? 'sky' : 'emerald'}
+                        formatValue={!isAssigned ? () => '--' : undefined}
+                        onChange={(next) => onUpdateChannel(ch.id, { gainDb: next })}
+                      />
+                      <span className="font-mono text-[7px] text-slate-500 uppercase tracking-wider leading-none">
+                        GAIN
+                      </span>
+                      <span className="font-mono text-[8px] tabular-nums text-slate-300 font-semibold leading-none">
+                        {isAssigned ? `+${ch.gainDb}` : '--'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Row 4: Bus Assign Keys — MAIN / STREAM / SUB */}
+                  <div className="grid grid-cols-3 gap-1" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      disabled={stripDisabled}
+                      title={!isAssigned ? 'Open Slot — Unassigned' : 'Assign to Main PA Mix'}
+                      onClick={() => onUpdateChannel(ch.id, { mainPaAssign: !isMainPaAssigned })}
+                      className={`h-5 rounded border font-mono text-[8px] font-bold tracking-wider transition cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
+                        !isAssigned
+                          ? 'bg-[#070A10] border-slate-800/80 text-slate-600'
+                          : isMainPaAssigned
+                            ? 'bg-emerald-500/25 border-emerald-400 text-emerald-200'
+                            : 'bg-[#0A0F1A] border-slate-700/80 text-slate-500 hover:text-slate-300'
+                      }`}
+                    >
+                      MAIN
+                    </button>
+                    <button
+                      type="button"
+                      disabled={stripDisabled}
+                      title={!isAssigned ? 'Open Slot — Unassigned' : 'Assign to Live Stream / OBS Mix'}
+                      onClick={() => onUpdateChannel(ch.id, { streamAssign: !isStreamAssigned })}
+                      className={`h-5 rounded border font-mono text-[8px] font-bold tracking-wider transition cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
+                        !isAssigned
+                          ? 'bg-[#070A10] border-slate-800/80 text-slate-600'
+                          : isStreamAssigned
+                            ? 'bg-emerald-500/25 border-emerald-400 text-emerald-200'
+                            : 'bg-[#0A0F1A] border-slate-700/80 text-slate-500 hover:text-slate-300'
+                      }`}
+                    >
+                      STRM
+                    </button>
+                    <button
+                      type="button"
+                      disabled={stripDisabled}
+                      title={!isAssigned ? 'Open Slot — Unassigned' : 'Assign to Subwoofer Bus'}
+                      onClick={() => onUpdateChannel(ch.id, { subAssign: !isSubAssigned })}
+                      className={`h-5 rounded border font-mono text-[8px] font-bold tracking-wider transition cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
+                        !isAssigned
+                          ? 'bg-[#070A10] border-slate-800/80 text-slate-600'
+                          : isSubAssigned
+                            ? 'bg-fuchsia-500/25 border-fuchsia-400 text-fuchsia-200'
+                            : 'bg-[#0A0F1A] border-slate-700/80 text-slate-500 hover:text-slate-300'
+                      }`}
+                    >
+                      SUB
+                    </button>
                   </div>
                 </div>
               );
