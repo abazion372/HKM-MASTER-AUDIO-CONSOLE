@@ -22,7 +22,8 @@ export async function POST() {
     },
     ...state.auditEvents,
   ].slice(0, 100);
-  audioStore.saveStore(state);
+  // Token rotation is security-critical — persist immediately, no write dedup.
+  audioStore.saveStoreNow(state);
   await wsKickAllMobile();
   await wsRefreshClientList();
   return NextResponse.json({ ok: true, remoteAccess: state.remoteAccess });

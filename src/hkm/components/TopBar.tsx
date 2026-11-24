@@ -104,7 +104,7 @@ const THEME_OPTIONS: { id: ConsoleThemeId; label: string }[] = [
   { id: 'warm-daylight', label: 'Warm Daylight (Sand)' },
 ];
 
-export const TopBar: React.FC<TopBarProps> = ({
+const TopBarInner: React.FC<TopBarProps> = ({
   venueName,
   roomName,
   driver,
@@ -761,3 +761,9 @@ export const TopBar: React.FC<TopBarProps> = ({
     </header>
   );
 };
+
+// Memoized shell component: every prop is a scalar or a stable callback
+// reference, and the parent App re-renders at 5Hz while the audio engine is
+// live. Without memo the entire 764-line top bar JSX re-rendered for every
+// telemetry tick even though nothing it consumes had changed.
+export const TopBar = React.memo(TopBarInner);

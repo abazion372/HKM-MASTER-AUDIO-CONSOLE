@@ -446,7 +446,14 @@ export function useConsoleSession({
     };
   }, [remoteCompanionToken]);
 
-  // Debounced sync to SQLite backend
+  // Debounced sync to the backend JSON store.
+  //
+  // The PUT body is compared (as a serialized string) against the last
+  // payload actually sent: React state identity churn (new object refs with
+  // equal contents, OBS service updates, etc.) must not translate into a
+  // ~250KB full-state upload + server-side file rewrite. Only real content
+  // changes reach the disk.
+  const lastSyncBodyRef = useRef<string | null>(null);
   useEffect(() => {
     if (remoteCompanionToken || !hydratedRef.current) return;
     if (suppressSyncCountRef.current > 0) {
@@ -455,10 +462,7 @@ export function useConsoleSession({
     }
 
     const timer = window.setTimeout(() => {
-      appFetch('/api/state/sync', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const body = JSON.stringify({
           venue: {
             organization: venueName,
             venueName,
@@ -479,7 +483,13 @@ export function useConsoleSession({
           bassDi,
           emergencyMuted,
           findings,
-        }),
+        });
+      if (body === lastSyncBodyRef.current) return;
+      lastSyncBodyRef.current = body;
+      appFetch('/api/state/sync', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body,
       }).catch(() => {});
     }, 220);
 
@@ -667,7 +677,10 @@ export function useConsoleSession({
         broadcastDsp: broadcastDspRef.current,
         zones: zonesRef.current,
       };
-      setVersions((prev) => [snapshot, ...prev]);
+      // Cap in-memory snapshots so months of 24/7 use cannot grow the
+      // session state (and the hydration payload) without bound. The server
+      // /api/versions route independently caps at 40.
+      setVersions((prev) => [snapshot, ...prev].slice(0, 30));
       appFetch('/api/versions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

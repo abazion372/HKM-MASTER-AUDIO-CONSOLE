@@ -293,9 +293,12 @@ export function useAudioEngine({
       if (!silentSig || silentSig !== lastSilentSigRef.current) {
         lastSilentSigRef.current = silentSig;
         setTelemetry(snap.telemetry);
-      }
-      if (needsSpectrumState) {
-        setSpectrum(snap.spectrum);
+        // While the input stays silent the spectrum is a flat noise floor:
+        // repeatedly committing new Float32Array objects at 5Hz only burns
+        // CPU/GC and re-renders spectrum consumers for zero visual change.
+        if (needsSpectrumState) {
+          setSpectrum(snap.spectrum);
+        }
       }
 
       const nowTs = performance.now();

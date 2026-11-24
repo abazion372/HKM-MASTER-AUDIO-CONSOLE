@@ -70,9 +70,15 @@ function safeSend(ws: import('bun').ServerWebSocket<WsSocketData>, text: string)
 }
 
 function broadcast(payload: Record<string, unknown>, excludeClientId?: string): void {
+  // `state:sync` mirrors a PUT /api/state/sync that originated from the
+  // desktop console itself — desktop clients ignore it (their React state is
+  // the freshest copy), so forwarding the full channels/dsp payload to them
+  // is pure serialization + parse waste. Only mobile companions consume it.
+  const desktopsIgnore = payload.type === 'state:sync';
   const serialized = JSON.stringify(payload);
   for (const [id, client] of clients.entries()) {
     if (excludeClientId && id === excludeClientId) continue;
+    if (desktopsIgnore && client.role === 'desktop') continue;
     if (client.role === 'mobile' && !client.pinVerified) continue;
     safeSend(client.ws, serialized);
   }
@@ -226,14 +232,28 @@ const server = Bun.serve<WsSocketData>({
       clients.set(data.clientId, record);
 
       if (record.pinVerified) {
-        safeSend(
-          ws,
-          JSON.stringify({
-            type: 'state:full',
-            state: audioStore.ensureStore(),
-            clientId: data.clientId,
-          })
-        );
+        if (data.role === 'desktop') {
+          // Desktop consoles only read remoteAccess from state:full (channel
+          // state lives in their own React store). Sending the whole ~250KB
+          // state on every (re)connect is wasted serialization + JSON.parse.
+          safeSend(
+            ws,
+            JSON.stringify({
+              type: 'state:full',
+              state: { remoteAccess: state.remoteAccess },
+              clientId: data.clientId,
+            })
+          );
+        } else {
+          safeSend(
+            ws,
+            JSON.stringify({
+              type: 'state:full',
+              state,
+              clientId: data.clientId,
+            })
+          );
+        }
       } else {
         safeSend(ws, JSON.stringify({ type: 'auth:pin-required', clientId: data.clientId }));
       }
@@ -348,6 +368,19 @@ const server = Bun.serve<WsSocketData>({
       }
 
       if (msg.type === 'telemetry:frame' && record.role === 'desktop') {
+        // With no verified mobile companion attached there is nothing to
+        // forward — skip the JSON.stringify entirely. This keeps a 24/7
+        // console-with-engine-running at zero serialization cost when no
+        // companion is viewing.
+        let hasVerifiedMobile = false;
+        for (const client of clients.values()) {
+          if (client.role === 'mobile' && client.pinVerified) {
+            hasVerifiedMobile = true;
+            break;
+          }
+        }
+        if (!hasVerifiedMobile) return;
+
         const serialized = JSON.stringify({
           type: 'telemetry:frame',
           telemetry: msg.telemetry,

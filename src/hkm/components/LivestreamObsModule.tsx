@@ -83,25 +83,41 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
 
   const onUpdateObsRef = useRef(onUpdateObs);
   onUpdateObsRef.current = onUpdateObs;
+  const lastObsPersistSigRef = useRef<string>('');
   const processedAudioSource = obsState.audioInputs.find(
     (input) => input.inputName.trim().toLocaleLowerCase() === 'hkm processed audio'
   );
 
-  // Subscribe to live OBS WebSocket service
+  // Subscribe to live OBS WebSocket service.
+  //
+  // Volatile telemetry (bitrate, dropped frames, CPU %, timecode) updates
+  // roughly every 1.8s while OBS is connected and is kept ONLY in local
+  // component state. The session-level obsStatus (which feeds the debounced
+  // /api/state/sync persistence loop) is updated only when a persistable
+  // field actually changes — otherwise a 24/7-connected OBS causes a full
+  // ~250KB state PUT + JSON store rewrite every ~2 seconds around the clock.
   useEffect(() => {
     const unsub = obsWsService.subscribe((next) => {
       setObsState(next);
-      onUpdateObsRef.current({
-        connected: next.connected,
-        streaming: next.telemetry.streaming,
-        recording: next.telemetry.recording,
-        bitrateKbps: next.telemetry.bitrateKbps,
-        droppedFrames: next.telemetry.droppedFrames,
-        cpuUsagePct: next.telemetry.cpuUsagePct,
-        activeScene: next.activeScene,
-        scenes: next.scenes,
-        websocketUrl: wsUrl,
-      });
+      const persistSig = [
+        next.connected,
+        next.telemetry.streaming,
+        next.telemetry.recording,
+        next.activeScene,
+        next.scenes.length,
+        wsUrl,
+      ].join('|');
+      if (persistSig !== lastObsPersistSigRef.current) {
+        lastObsPersistSigRef.current = persistSig;
+        onUpdateObsRef.current({
+          connected: next.connected,
+          streaming: next.telemetry.streaming,
+          recording: next.telemetry.recording,
+          activeScene: next.activeScene,
+          scenes: next.scenes,
+          websocketUrl: wsUrl,
+        });
+      }
     });
     return unsub;
   }, [wsUrl]);

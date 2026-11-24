@@ -192,26 +192,51 @@ export function hydrateWithDefaults(raw: Partial<PersistedState>): PersistedStat
 interface StoreCache {
   state: PersistedState | null;
   mtimeMs: number;
+  /** Digest of the last payload actually written to disk (write dedup). */
+  lastWrittenHash: string | null;
 }
 
 const globalStore = globalThis as unknown as { __hkmStoreCache?: StoreCache };
-const cache: StoreCache = globalStore.__hkmStoreCache ?? { state: null, mtimeMs: 0 };
+const cache: StoreCache = globalStore.__hkmStoreCache ?? {
+  state: null,
+  mtimeMs: 0,
+  lastWrittenHash: null,
+};
 globalStore.__hkmStoreCache = cache;
 
-function writeAtomic(state: PersistedState): void {
+function digestJson(json: string): string {
+  return crypto.createHash('sha1').update(json).digest('hex');
+}
+
+function writeAtomic(state: PersistedState, force = false): void {
+  // Compact serialization: the state file is machine-managed runtime data
+  // (never hand-edited), so skipping pretty-printing cuts ~35% of the bytes
+  // written per save — significant for 24/7 disk-wear and IO churn.
+  const json = JSON.stringify(state);
+
+  // Skip the write entirely when the serialized payload is byte-identical to
+  // what is already on disk. Several call paths (hydration re-syncs, repeated
+  // patches that land on identical values) would otherwise rewrite the full
+  // ~250KB file with unchanged content.
+  if (!force && cache.lastWrittenHash !== null && digestJson(json) === cache.lastWrittenHash) {
+    cache.state = state;
+    return;
+  }
+
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
   const tmpFile = `${STATE_FILE}.tmp-${process.pid}-${Date.now()}`;
-  fs.writeFileSync(tmpFile, JSON.stringify(state, null, 2), 'utf8');
+  fs.writeFileSync(tmpFile, json, 'utf8');
   try {
     fs.renameSync(tmpFile, STATE_FILE);
   } catch {
     fs.rmSync(tmpFile, { force: true });
     // Cross-device rename fallback: direct write
-    fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
+    fs.writeFileSync(STATE_FILE, json, 'utf8');
   }
   cache.state = state;
+  cache.lastWrittenHash = digestJson(json);
   try {
     cache.mtimeMs = fs.statSync(STATE_FILE).mtimeMs;
   } catch {
@@ -239,6 +264,10 @@ class LocalAudioStore {
         const hydrated = hydrateWithDefaults(raw);
         cache.state = hydrated;
         cache.mtimeMs = stat.mtimeMs;
+        // Another process (audio-ws mini-service) may have rewritten the file;
+        // reset our write-dedup digest so the next save is not incorrectly
+        // considered identical to our own previous payload.
+        cache.lastWrittenHash = null;
         return hydrated;
       } catch {
         // Corrupt file → fall through to reseed
@@ -252,6 +281,11 @@ class LocalAudioStore {
 
   public saveStore(state: PersistedState): void {
     writeAtomic(state);
+  }
+
+  /** Immediate, non-deduplicated write for security-critical updates. */
+  public saveStoreNow(state: PersistedState): void {
+    writeAtomic(state, true);
   }
 
   public patchChannel(channelId: string, patch: Record<string, unknown>): PersistedState {

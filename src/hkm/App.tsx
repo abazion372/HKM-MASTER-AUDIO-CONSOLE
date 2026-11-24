@@ -436,6 +436,26 @@ export default function App() {
     [setObsStatus]
   );
 
+  // Stable shell callbacks for the memoized TopBar (inline arrows would
+  // recreate per render and defeat React.memo).
+  const handleToggleConsoleLock = useCallback(() => {
+    setConsoleLocked((v) => !v);
+  }, []);
+  const handleOpenDiagnostics = useCallback(() => setActiveModule('hardware'), []);
+  const handleTapTempoShortcut = useCallback(
+    () => shortcutsRef.current?.executeShortcutAction('tap-tempo', 'CLICK'),
+    []
+  );
+  const handleOpenShortcuts = useCallback(
+    () => shortcutsRef.current?.setShowShortcutsModal(true),
+    []
+  );
+  const handleOpenGainStaging = useCallback(() => setShowGainStaging(true), []);
+  const handleOpenSignalJourney = useCallback(
+    () => setSignalJourneyChannelId(selectedChannel?.id ?? 'ch-1'),
+    [selectedChannel?.id]
+  );
+
   const dspValidation = useMemo(
     () => validateDspConfig(session.dsp, session.sampleRate, session.zones),
     [session.dsp, session.sampleRate, session.zones]
@@ -708,7 +728,7 @@ export default function App() {
         presets={session.presets}
         onSelectPreset={guardedSelectPreset}
         consoleLocked={consoleLocked}
-        onToggleLock={() => setConsoleLocked((v) => !v)}
+        onToggleLock={handleToggleConsoleLock}
         engineRunning={audio.engineRunning}
         onToggleEngine={audio.handleToggleEngine}
         monitorAudible={audio.monitorAudible}
@@ -723,10 +743,10 @@ export default function App() {
         onSourceChange={audio.handleSourceChange}
         systemCpuPercent={audio.systemCpuPercent}
         schedulingRisk={audio.schedulingRisk}
-        onOpenDiagnostics={() => setActiveModule('hardware')}
+        onOpenDiagnostics={handleOpenDiagnostics}
         tapTempo={shortcuts.tapTempo}
-        onTapTempo={() => shortcuts.executeShortcutAction('tap-tempo', 'CLICK')}
-        onOpenShortcuts={() => shortcuts.setShowShortcutsModal(true)}
+        onTapTempo={handleTapTempoShortcut}
+        onOpenShortcuts={handleOpenShortcuts}
         shortcutsArmed={shortcuts.shortcutsGlobalEnabled}
         inputDevices={hardware.inputDevices}
         outputDevices={hardware.outputDevices}
@@ -738,9 +758,9 @@ export default function App() {
         qualityScorePct={audio.telemetry.qualityScorePct ?? 100}
         qualityGateEngaged={audio.telemetry.qualityGateEngaged ?? false}
         qualityGateReason={audio.telemetry.qualityGateReason ?? null}
-        activeSurgicalFilters={audio.telemetry.activeSurgicalFilters ?? []}
-        onOpenGainStaging={() => setShowGainStaging(true)}
-        onOpenSignalJourney={() => setSignalJourneyChannelId(selectedChannel?.id ?? 'ch-1')}
+        activeSurgicalFilters={audio.telemetry.activeSurgicalFilters}
+        onOpenGainStaging={handleOpenGainStaging}
+        onOpenSignalJourney={handleOpenSignalJourney}
         desktopBridgeState={audio.desktopBridgeState}
         specializedDesktopInputs={hardware.specializedDesktopInputs}
         onSelectDesktopCaptureMethod={audio.setDesktopCaptureMethod}

@@ -37,7 +37,8 @@ export async function PATCH(req: NextRequest) {
     ...patch,
     sessionToken: state.remoteAccess.sessionToken,
   };
-  audioStore.saveStore(state);
+  // Permission changes must survive a crash immediately — never deduped/delayed.
+  audioStore.saveStoreNow(state);
   await wsBroadcast({ type: 'remote:config', remoteAccess: state.remoteAccess });
   return NextResponse.json({ ok: true, remoteAccess: state.remoteAccess });
 }
