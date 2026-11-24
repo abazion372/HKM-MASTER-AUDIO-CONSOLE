@@ -1,0 +1,1068 @@
+{
+  "venue": {
+    "organization": "Grace Community Fellowship",
+    "venueName": "Grace Community Fellowship",
+    "roomName": "Main Sanctuary",
+    "targetPlatform": "windows",
+    "driver": "ASIO",
+    "sampleRate": 48000,
+    "bufferSize": 256,
+    "activeDeviceId": "system-live-io"
+  },
+  "channels": [
+    {
+      "id": "ch-1",
+      "index": 1,
+      "name": "Input 1",
+      "role": "Open Slot",
+      "authority": "software-dsp",
+      "levelDb": -96,
+      "peakDb": -96,
+      "gainDb": 0,
+      "faderDb": -48,
+      "mute": false,
+      "solo": false,
+      "phantom48v": false,
+      "padDb": false,
+      "polarityInverted": false,
+      "hpfHz": 80,
+      "pan": 0,
+      "noiseFloorDb": -96,
+      "gateThresholdDb": -48,
+      "compThresholdDb": -18,
+      "compRatio": 3,
+      "eqLowDb": 0,
+      "eqMidDb": 0,
+      "eqMidFreqHz": 1200,
+      "eqHighDb": 0,
+      "auxSends": {
+        "stageMon1Db": -12,
+        "stageMon2Db": -12,
+        "streamBusDb": 0,
+        "subsDb": -48
+      },
+      "dcaGroup": "None",
+      "stereoLinked": false,
+      "mainPaAssign": true,
+      "streamAssign": true,
+      "subAssign": false
+    },
+    {
+      "id": "ch-2",
+      "index": 2,
+      "name": "Input 2",
+      "role": "Open Slot",
+      "authority": "software-dsp",
+      "levelDb": -96,
+      "peakDb": -96,
+      "gainDb": 0,
+      "faderDb": -48,
+      "mute": false,
+      "solo": false,
+      "phantom48v": false,
+      "padDb": false,
+      "polarityInverted": false,
+      "hpfHz": 80,
+      "pan": 0,
+      "noiseFloorDb": -96,
+      "gateThresholdDb": -48,
+      "compThresholdDb": -18,
+      "compRatio": 3,
+      "eqLowDb": 0,
+      "eqMidDb": 0,
+      "eqMidFreqHz": 1200,
+      "eqHighDb": 0,
+      "auxSends": {
+        "stageMon1Db": -12,
+        "stageMon2Db": -12,
+        "streamBusDb": 0,
+        "subsDb": -48
+      },
+      "dcaGroup": "None",
+      "stereoLinked": false,
+      "mainPaAssign": true,
+      "streamAssign": true,
+      "subAssign": false
+    },
+    {
+      "id": "ch-3",
+      "index": 3,
+      "name": "Input 3",
+      "role": "Open Slot",
+      "authority": "software-dsp",
+      "levelDb": -96,
+      "peakDb": -96,
+      "gainDb": 0,
+      "faderDb": -48,
+      "mute": false,
+      "solo": false,
+      "phantom48v": false,
+      "padDb": false,
+      "polarityInverted": false,
+      "hpfHz": 80,
+      "pan": 0,
+      "noiseFloorDb": -96,
+      "gateThresholdDb": -48,
+      "compThresholdDb": -18,
+      "compRatio": 3,
+      "eqLowDb": 0,
+      "eqMidDb": 0,
+      "eqMidFreqHz": 1200,
+      "eqHighDb": 0,
+      "auxSends": {
+        "stageMon1Db": -12,
+        "stageMon2Db": -12,
+        "streamBusDb": 0,
+        "subsDb": -48
+      },
+      "dcaGroup": "None",
+      "stereoLinked": false,
+      "mainPaAssign": true,
+      "streamAssign": true,
+      "subAssign": false
+    },
+    {
+      "id": "ch-4",
+      "index": 4,
+      "name": "Input 4",
+      "role": "Open Slot",
+      "authority": "software-dsp",
+      "levelDb": -96,
+      "peakDb": -96,
+      "gainDb": 0,
+      "faderDb": -48,
+      "mute": false,
+      "solo": false,
+      "phantom48v": false,
+      "padDb": false,
+      "polarityInverted": false,
+      "hpfHz": 80,
+      "pan": 0,
+      "noiseFloorDb": -96,
+      "gateThresholdDb": -48,
+      "compThresholdDb": -18,
+      "compRatio": 3,
+      "eqLowDb": 0,
+      "eqMidDb": 0,
+      "eqMidFreqHz": 1200,
+      "eqHighDb": 0,
+      "auxSends": {
+        "stageMon1Db": -12,
+        "stageMon2Db": -12,
+        "streamBusDb": 0,
+        "subsDb": -48
+      },
+      "dcaGroup": "None",
+      "stereoLinked": false,
+      "mainPaAssign": true,
+      "streamAssign": true,
+      "subAssign": false
+    },
+    {
+      "id": "ch-5",
+      "index": 5,
+      "name": "Input 5",
+      "role": "Open Slot",
+      "authority": "software-dsp",
+      "levelDb": -96,
+      "peakDb": -96,
+      "gainDb": 0,
+      "faderDb": -48,
+      "mute": false,
+      "solo": false,
+      "phantom48v": false,
+      "padDb": false,
+      "polarityInverted": false,
+      "hpfHz": 80,
+      "pan": 0,
+      "noiseFloorDb": -96,
+      "gateThresholdDb": -48,
+      "compThresholdDb": -18,
+      "compRatio": 3,
+      "eqLowDb": 0,
+      "eqMidDb": 0,
+      "eqMidFreqHz": 1200,
+      "eqHighDb": 0,
+      "auxSends": {
+        "stageMon1Db": -12,
+        "stageMon2Db": -12,
+        "streamBusDb": 0,
+        "subsDb": -48
+      },
+      "dcaGroup": "None",
+      "stereoLinked": false,
+      "mainPaAssign": true,
+      "streamAssign": true,
+      "subAssign": false
+    },
+    {
+      "id": "ch-6",
+      "index": 6,
+      "name": "Input 6",
+      "role": "Open Slot",
+      "authority": "software-dsp",
+      "levelDb": -96,
+      "peakDb": -96,
+      "gainDb": 0,
+      "faderDb": -48,
+      "mute": false,
+      "solo": false,
+      "phantom48v": false,
+      "padDb": false,
+      "polarityInverted": false,
+      "hpfHz": 80,
+      "pan": 0,
+      "noiseFloorDb": -96,
+      "gateThresholdDb": -48,
+      "compThresholdDb": -18,
+      "compRatio": 3,
+      "eqLowDb": 0,
+      "eqMidDb": 0,
+      "eqMidFreqHz": 1200,
+      "eqHighDb": 0,
+      "auxSends": {
+        "stageMon1Db": -12,
+        "stageMon2Db": -12,
+        "streamBusDb": 0,
+        "subsDb": -48
+      },
+      "dcaGroup": "None",
+      "stereoLinked": false,
+      "mainPaAssign": true,
+      "streamAssign": true,
+      "subAssign": false
+    },
+    {
+      "id": "ch-7",
+      "index": 7,
+      "name": "Input 7",
+      "role": "Open Slot",
+      "authority": "software-dsp",
+      "levelDb": -96,
+      "peakDb": -96,
+      "gainDb": 0,
+      "faderDb": -48,
+      "mute": false,
+      "solo": false,
+      "phantom48v": false,
+      "padDb": false,
+      "polarityInverted": false,
+      "hpfHz": 80,
+      "pan": 0,
+      "noiseFloorDb": -96,
+      "gateThresholdDb": -48,
+      "compThresholdDb": -18,
+      "compRatio": 3,
+      "eqLowDb": 0,
+      "eqMidDb": 0,
+      "eqMidFreqHz": 1200,
+      "eqHighDb": 0,
+      "auxSends": {
+        "stageMon1Db": -12,
+        "stageMon2Db": -12,
+        "streamBusDb": 0,
+        "subsDb": -48
+      },
+      "dcaGroup": "None",
+      "stereoLinked": false,
+      "mainPaAssign": true,
+      "streamAssign": true,
+      "subAssign": false
+    },
+    {
+      "id": "ch-8",
+      "index": 8,
+      "name": "Input 8",
+      "role": "Open Slot",
+      "authority": "software-dsp",
+      "levelDb": -96,
+      "peakDb": -96,
+      "gainDb": 0,
+      "faderDb": -48,
+      "mute": false,
+      "solo": false,
+      "phantom48v": false,
+      "padDb": false,
+      "polarityInverted": false,
+      "hpfHz": 80,
+      "pan": 0,
+      "noiseFloorDb": -96,
+      "gateThresholdDb": -48,
+      "compThresholdDb": -18,
+      "compRatio": 3,
+      "eqLowDb": 0,
+      "eqMidDb": 0,
+      "eqMidFreqHz": 1200,
+      "eqHighDb": 0,
+      "auxSends": {
+        "stageMon1Db": -12,
+        "stageMon2Db": -12,
+        "streamBusDb": 0,
+        "subsDb": -48
+      },
+      "dcaGroup": "None",
+      "stereoLinked": false,
+      "mainPaAssign": true,
+      "streamAssign": true,
+      "subAssign": false
+    }
+  ],
+  "dsp": {
+    "bypassed": false,
+    "inputTrimDb": 0,
+    "hpfEnabled": true,
+    "hpfHz": 95,
+    "lpfEnabled": false,
+    "lpfHz": 18500,
+    "eqBands": [
+      {
+        "id": "eq-1",
+        "label": "Sub Trim",
+        "enabled": true,
+        "type": "lowshelf",
+        "frequency": 80,
+        "gainDb": -1.5,
+        "q": 0.7
+      },
+      {
+        "id": "eq-2",
+        "label": "Mud Cut",
+        "enabled": true,
+        "type": "peaking",
+        "frequency": 220,
+        "gainDb": -3,
+        "q": 2.2
+      },
+      {
+        "id": "eq-3",
+        "label": "Boxiness",
+        "enabled": true,
+        "type": "peaking",
+        "frequency": 480,
+        "gainDb": -1.5,
+        "q": 2.5
+      },
+      {
+        "id": "eq-4",
+        "label": "Clarity",
+        "enabled": true,
+        "type": "peaking",
+        "frequency": 2800,
+        "gainDb": 2,
+        "q": 1.4
+      },
+      {
+        "id": "eq-5",
+        "label": "Presence",
+        "enabled": true,
+        "type": "peaking",
+        "frequency": 4800,
+        "gainDb": 1.5,
+        "q": 1.8
+      },
+      {
+        "id": "eq-6",
+        "label": "Air Shelf",
+        "enabled": true,
+        "type": "highshelf",
+        "frequency": 10500,
+        "gainDb": 1,
+        "q": 0.7
+      }
+    ],
+    "compressor": {
+      "enabled": true,
+      "thresholdDb": -18,
+      "ratio": 3.2,
+      "attackMs": 12,
+      "releaseMs": 140,
+      "makeupDb": 2.5
+    },
+    "limiter": {
+      "enabled": true,
+      "ceilingDb": -1,
+      "releaseMs": 50
+    },
+    "gate": {
+      "enabled": false,
+      "thresholdDb": -48,
+      "rangeDb": -24
+    },
+    "deEsser": {
+      "enabled": true,
+      "frequencyHz": 6200,
+      "thresholdDb": -22
+    },
+    "polarityInverted": false,
+    "stereoWidth": 1,
+    "masterDelayMs": 0,
+    "masterOutputGainDb": 0,
+    "smartAgc": {
+      "enabled": true,
+      "targetRmsDb": -18,
+      "maxBoostDb": 14,
+      "maxCutDb": 18,
+      "gateFloorDb": -52
+    },
+    "qualityGate": {
+      "enabled": true,
+      "minQualityScorePct": 80,
+      "autoProtectOnFeedback": true,
+      "autoProtectOnClip": true
+    },
+    "graphicEq31": {
+      "enabled": true,
+      "rangeDb": 12,
+      "stereoLinked": true,
+      "activeChannel": "L",
+      "bands": [
+        {
+          "hz": 20,
+          "gainDb": 0
+        },
+        {
+          "hz": 25,
+          "gainDb": 0
+        },
+        {
+          "hz": 31.5,
+          "gainDb": 0
+        },
+        {
+          "hz": 40,
+          "gainDb": 0
+        },
+        {
+          "hz": 50,
+          "gainDb": 0
+        },
+        {
+          "hz": 63,
+          "gainDb": 0
+        },
+        {
+          "hz": 80,
+          "gainDb": 0
+        },
+        {
+          "hz": 100,
+          "gainDb": 0
+        },
+        {
+          "hz": 125,
+          "gainDb": 0
+        },
+        {
+          "hz": 160,
+          "gainDb": 0
+        },
+        {
+          "hz": 200,
+          "gainDb": 0
+        },
+        {
+          "hz": 250,
+          "gainDb": 0
+        },
+        {
+          "hz": 315,
+          "gainDb": 0
+        },
+        {
+          "hz": 400,
+          "gainDb": 0
+        },
+        {
+          "hz": 500,
+          "gainDb": 0
+        },
+        {
+          "hz": 630,
+          "gainDb": 0
+        },
+        {
+          "hz": 800,
+          "gainDb": 0
+        },
+        {
+          "hz": 1000,
+          "gainDb": 0
+        },
+        {
+          "hz": 1250,
+          "gainDb": 0
+        },
+        {
+          "hz": 1600,
+          "gainDb": 0
+        },
+        {
+          "hz": 2000,
+          "gainDb": 0
+        },
+        {
+          "hz": 2500,
+          "gainDb": 0
+        },
+        {
+          "hz": 3150,
+          "gainDb": 0
+        },
+        {
+          "hz": 4000,
+          "gainDb": 0
+        },
+        {
+          "hz": 5000,
+          "gainDb": 0
+        },
+        {
+          "hz": 6300,
+          "gainDb": 0
+        },
+        {
+          "hz": 8000,
+          "gainDb": 0
+        },
+        {
+          "hz": 10000,
+          "gainDb": 0
+        },
+        {
+          "hz": 12500,
+          "gainDb": 0
+        },
+        {
+          "hz": 16000,
+          "gainDb": 0
+        },
+        {
+          "hz": 20000,
+          "gainDb": 0
+        }
+      ],
+      "bandsRight": [
+        {
+          "hz": 20,
+          "gainDb": 0
+        },
+        {
+          "hz": 25,
+          "gainDb": 0
+        },
+        {
+          "hz": 31.5,
+          "gainDb": 0
+        },
+        {
+          "hz": 40,
+          "gainDb": 0
+        },
+        {
+          "hz": 50,
+          "gainDb": 0
+        },
+        {
+          "hz": 63,
+          "gainDb": 0
+        },
+        {
+          "hz": 80,
+          "gainDb": 0
+        },
+        {
+          "hz": 100,
+          "gainDb": 0
+        },
+        {
+          "hz": 125,
+          "gainDb": 0
+        },
+        {
+          "hz": 160,
+          "gainDb": 0
+        },
+        {
+          "hz": 200,
+          "gainDb": 0
+        },
+        {
+          "hz": 250,
+          "gainDb": 0
+        },
+        {
+          "hz": 315,
+          "gainDb": 0
+        },
+        {
+          "hz": 400,
+          "gainDb": 0
+        },
+        {
+          "hz": 500,
+          "gainDb": 0
+        },
+        {
+          "hz": 630,
+          "gainDb": 0
+        },
+        {
+          "hz": 800,
+          "gainDb": 0
+        },
+        {
+          "hz": 1000,
+          "gainDb": 0
+        },
+        {
+          "hz": 1250,
+          "gainDb": 0
+        },
+        {
+          "hz": 1600,
+          "gainDb": 0
+        },
+        {
+          "hz": 2000,
+          "gainDb": 0
+        },
+        {
+          "hz": 2500,
+          "gainDb": 0
+        },
+        {
+          "hz": 3150,
+          "gainDb": 0
+        },
+        {
+          "hz": 4000,
+          "gainDb": 0
+        },
+        {
+          "hz": 5000,
+          "gainDb": 0
+        },
+        {
+          "hz": 6300,
+          "gainDb": 0
+        },
+        {
+          "hz": 8000,
+          "gainDb": 0
+        },
+        {
+          "hz": 10000,
+          "gainDb": 0
+        },
+        {
+          "hz": 12500,
+          "gainDb": 0
+        },
+        {
+          "hz": 16000,
+          "gainDb": 0
+        },
+        {
+          "hz": 20000,
+          "gainDb": 0
+        }
+      ],
+      "outputAssignment": "main-lr"
+    },
+    "crossover": {
+      "enabled": true,
+      "stereoLinked": true,
+      "activeChannel": "L",
+      "subToMidHz": 80,
+      "midToHighHz": 2500,
+      "slope": "LR24",
+      "sub": {
+        "name": "Subwoofer",
+        "enabled": true,
+        "gainDb": 0,
+        "mute": false,
+        "solo": false,
+        "polarityInverted": false,
+        "delayMs": 4.5,
+        "outputAssignment": "sub-out"
+      },
+      "mid": {
+        "name": "Mid / Main Vocals",
+        "enabled": true,
+        "gainDb": 0,
+        "mute": false,
+        "solo": false,
+        "polarityInverted": false,
+        "delayMs": 0,
+        "outputAssignment": "main-lr"
+      },
+      "high": {
+        "name": "High / Horns",
+        "enabled": true,
+        "gainDb": 0,
+        "mute": false,
+        "solo": false,
+        "polarityInverted": false,
+        "delayMs": 0.8,
+        "outputAssignment": "horn-out"
+      },
+      "subRight": {
+        "name": "Subwoofer R",
+        "enabled": true,
+        "gainDb": 0,
+        "mute": false,
+        "solo": false,
+        "polarityInverted": false,
+        "delayMs": 4.5,
+        "outputAssignment": "sub-out"
+      },
+      "midRight": {
+        "name": "Mid / Main Vocals R",
+        "enabled": true,
+        "gainDb": 0,
+        "mute": false,
+        "solo": false,
+        "polarityInverted": false,
+        "delayMs": 0,
+        "outputAssignment": "main-lr"
+      },
+      "highRight": {
+        "name": "High / Horns R",
+        "enabled": true,
+        "gainDb": 0,
+        "mute": false,
+        "solo": false,
+        "polarityInverted": false,
+        "delayMs": 0.8,
+        "outputAssignment": "horn-out"
+      },
+      "superBass": {
+        "enabled": false,
+        "mode": "deep-sub",
+        "boostDb": 6,
+        "subHarmonics": true,
+        "subInfrasoundHpfHz": 28
+      },
+      "outputAssignment": "main-lr"
+    },
+    "cleanStandby": {
+      "dcBlockerEnabled": true,
+      "mainsHumNotch": "60hz",
+      "adaptiveStandbyGate": true,
+      "standbyGateThresholdDb": -64
+    }
+  },
+  "activePresetId": "preset-sunday",
+  "broadcastDsp": {
+    "enabled": true,
+    "targetLufs": -14,
+    "speechCompThresholdDb": -20,
+    "speechCompRatio": 3.5,
+    "limiterCeilingDb": -1,
+    "lowCutHz": 85,
+    "presenceBoostDb": 1.8,
+    "monoSum": false,
+    "avSyncOffsetMs": 42
+  },
+  "zones": [
+    {
+      "id": "zone-front-main",
+      "name": "Front Speakers (Main PA)",
+      "role": "main-lr",
+      "x": 50,
+      "y": 20,
+      "rotationDeg": 180,
+      "dispersionDeg": 100,
+      "distanceMeters": 0,
+      "delayMs": 0,
+      "levelDb": 0,
+      "mute": false,
+      "polarityInverted": false,
+      "crossoverHz": 90,
+      "crossoverSlope": "LR24",
+      "limiterDb": -1,
+      "hardwareOutput": "System Default Output"
+    },
+    {
+      "id": "zone-sub",
+      "name": "Center Sub Array",
+      "role": "sub",
+      "x": 50,
+      "y": 16,
+      "rotationDeg": 180,
+      "dispersionDeg": 140,
+      "distanceMeters": 0.4,
+      "delayMs": 1.2,
+      "levelDb": -1.5,
+      "mute": false,
+      "polarityInverted": false,
+      "crossoverHz": 90,
+      "crossoverSlope": "LR24",
+      "limiterDb": -1.5,
+      "hardwareOutput": "System Default Output"
+    },
+    {
+      "id": "zone-rear",
+      "name": "Rear Balcony Delay",
+      "role": "rear-fill",
+      "x": 50,
+      "y": 68,
+      "rotationDeg": 180,
+      "dispersionDeg": 90,
+      "distanceMeters": 16.5,
+      "delayMs": 48.1,
+      "levelDb": -4.5,
+      "mute": false,
+      "polarityInverted": false,
+      "crossoverHz": 100,
+      "crossoverSlope": "LR24",
+      "limiterDb": -2,
+      "hardwareOutput": "System Default Output"
+    },
+    {
+      "id": "zone-monitor",
+      "name": "Platform Stage Monitors",
+      "role": "stage-monitor",
+      "x": 40,
+      "y": 12,
+      "rotationDeg": 15,
+      "dispersionDeg": 65,
+      "distanceMeters": 0,
+      "delayMs": 0,
+      "levelDb": -3,
+      "mute": false,
+      "polarityInverted": false,
+      "crossoverHz": 110,
+      "crossoverSlope": "BW18",
+      "limiterDb": -3,
+      "hardwareOutput": "System Default Output"
+    },
+    {
+      "id": "zone-overflow",
+      "name": "Foyer / Cry Room",
+      "role": "overflow",
+      "x": 86,
+      "y": 86,
+      "rotationDeg": 210,
+      "dispersionDeg": 100,
+      "distanceMeters": 22,
+      "delayMs": 64.1,
+      "levelDb": -8,
+      "mute": false,
+      "polarityInverted": false,
+      "crossoverHz": 120,
+      "crossoverSlope": "None",
+      "limiterDb": -3,
+      "hardwareOutput": "System Default Output"
+    }
+  ],
+  "obsStatus": {
+    "connected": false,
+    "websocketUrl": "ws://127.0.0.1:4455",
+    "activeScene": "Sanctuary Wide + Preacher",
+    "scenes": [
+      "Pre-Service Countdown",
+      "Worship Full Band",
+      "Sanctuary Wide + Preacher",
+      "Pulpit Close-Up"
+    ],
+    "streaming": false,
+    "recording": false,
+    "bitrateKbps": 0,
+    "droppedFrames": 0,
+    "cpuUsagePct": 0,
+    "audioMonitorMode": "Monitor Off",
+    "syncWarning": false
+  },
+  "measurement": {
+    "id": "meas-sanctuary-2026-11",
+    "name": "Main Sanctuary Center-Aisle Sweep",
+    "position": "Row 6 Center · 11.2m from Stage",
+    "calibratedMic": true,
+    "micModel": "miniDSP UMIK-1 (Calibrated 90° File Loaded)",
+    "splC": 81.4,
+    "rt60AvgSec": 1.42,
+    "octaveRt60": [
+      {
+        "bandHz": 63,
+        "seconds": 2.18
+      },
+      {
+        "bandHz": 125,
+        "seconds": 1.76
+      },
+      {
+        "bandHz": 250,
+        "seconds": 1.54
+      },
+      {
+        "bandHz": 500,
+        "seconds": 1.38
+      },
+      {
+        "bandHz": 1000,
+        "seconds": 1.29
+      },
+      {
+        "bandHz": 2000,
+        "seconds": 1.18
+      },
+      {
+        "bandHz": 4000,
+        "seconds": 1.04
+      },
+      {
+        "bandHz": 8000,
+        "seconds": 0.86
+      }
+    ],
+    "frequencyResponse": [
+      {
+        "freqHz": 31.5,
+        "db": -4.2,
+        "targetDb": 0
+      },
+      {
+        "freqHz": 40,
+        "db": -1.5,
+        "targetDb": 0
+      },
+      {
+        "freqHz": 50,
+        "db": 2.1,
+        "targetDb": 0
+      },
+      {
+        "freqHz": 63,
+        "db": 6.4,
+        "targetDb": 0
+      },
+      {
+        "freqHz": 80,
+        "db": 5.8,
+        "targetDb": 0
+      },
+      {
+        "freqHz": 100,
+        "db": 1.9,
+        "targetDb": 0
+      },
+      {
+        "freqHz": 125,
+        "db": -0.6,
+        "targetDb": 0
+      },
+      {
+        "freqHz": 160,
+        "db": 1.4,
+        "targetDb": 0
+      },
+      {
+        "freqHz": 220,
+        "db": 3.8,
+        "targetDb": 0
+      },
+      {
+        "freqHz": 315,
+        "db": 0.5,
+        "targetDb": 0
+      },
+      {
+        "freqHz": 500,
+        "db": -1.1,
+        "targetDb": 0
+      },
+      {
+        "freqHz": 800,
+        "db": 0.3,
+        "targetDb": 0
+      },
+      {
+        "freqHz": 1000,
+        "db": 0.8,
+        "targetDb": 0
+      },
+      {
+        "freqHz": 1600,
+        "db": -0.9,
+        "targetDb": 0
+      },
+      {
+        "freqHz": 2500,
+        "db": 2.4,
+        "targetDb": 0
+      },
+      {
+        "freqHz": 4000,
+        "db": -0.4,
+        "targetDb": 0
+      },
+      {
+        "freqHz": 6300,
+        "db": -1.6,
+        "targetDb": 0
+      },
+      {
+        "freqHz": 10000,
+        "db": -2.8,
+        "targetDb": -1.5
+      },
+      {
+        "freqHz": 16000,
+        "db": -4.5,
+        "targetDb": -3
+      }
+    ],
+    "notes": "Measured axial room mode buildup centered at 63–80 Hz (+6.4 dB) and low-mid reflection cluster around 220 Hz. RT60 at 1 kHz is 1.29s (good for worship, borderline long for unassisted speech)."
+  },
+  "bassDi": {
+    "bypassed": false,
+    "inputPadDb": false,
+    "groundLift": true,
+    "polarityInverted": false,
+    "inputTrimDb": 2,
+    "subsonicHpfHz": 38,
+    "humNotch50Hz": true,
+    "humNotch60Hz": false,
+    "crossoverHz": 210,
+    "lowBandComp": {
+      "enabled": true,
+      "thresholdDb": -18,
+      "ratio": 4.5
+    },
+    "highBandDrive": {
+      "enabled": true,
+      "drivePct": 24,
+      "presenceDb": 2.5,
+      "cabinetVoicing": "Ampeg SVT 8x10"
+    },
+    "blendPct": 62,
+    "outputLevelDb": 0,
+    "tunerRefHz": 440
+  },
+  "emergencyMuted": false,
+  "findings": [],
+  "remoteAccess": {
+    "sessionToken": "HwSRoLclnhWjkLu-",
+    "pinEnabled": false,
+    "pinCode": "2026",
+    "allowGainAdjustment": true,
+    "allowMuteControl": true,
+    "allowMasterTrim": true,
+    "lanHostOverride": "",
+    "createdAt": "2026-11-24T08:38:04.575Z"
+  },
+  "versions": [],
+  "diagnostics": [],
+  "auditEvents": [
+    {
+      "id": "evt-init-1",
+      "timestamp": "2026-11-24T08:38:04.575Z",
+      "actor": "System Watchdog",
+      "action": "Local Store Initialized",
+      "detail": "JSON store, WebSocket sync engine, and remote companion subsystem active.",
+      "authority": "system"
+    }
+  ],
+  "automationSnapshots": []
+}
