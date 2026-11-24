@@ -83,6 +83,44 @@ export type ControlAuthority = 'hardware-linked' | 'software-dsp' | 'observation
  */
 export type ChannelInputMode = 'mic' | 'line' | 'inst';
 
+// ---------------------------------------------------------------------------
+// Per-channel Guitar FX Rack (real-world stompbox canon)
+// ---------------------------------------------------------------------------
+
+/**
+ * Pedal slots in canonical real-world chain order (JHS/worship-board order):
+ * Gate → Wah → Octaver → Comp → Overdrive → Distortion → Phaser → Chorus →
+ * Flanger → Tremolo → Delay → Reverb.
+ */
+export type FxSlotId =
+  | 'noiseGate'
+  | 'wah'
+  | 'octaver'
+  | 'compressor'
+  | 'overdrive'
+  | 'distortion'
+  | 'phaser'
+  | 'chorus'
+  | 'flanger'
+  | 'tremolo'
+  | 'delay'
+  | 'reverb';
+
+/**
+ * Per-slot state: `engaged` is the pedal footswitch; `params` holds the knob
+ * values (numeric — enum-style knobs store the option index).
+ */
+export interface FxSlotState {
+  engaged: boolean;
+  params: Record<string, number>;
+}
+
+/** Channel FX rack state — `enabled` is the master rack bypass. */
+export interface ChannelFxRackState {
+  enabled: boolean;
+  slots: Record<FxSlotId, FxSlotState>;
+}
+
 export type DcaGroupName =
   | 'None'
   | 'DCA 1 · Vox'
@@ -130,6 +168,11 @@ export interface InputChannel {
   hardwareInputLabel?: string;
   /** Console input source mode (physical MIC/LINE/INST switch). Older sessions default to 'mic'. */
   inputMode?: ChannelInputMode;
+  /**
+   * Per-channel guitar/instrument FX rack (pedalboard). Absent on older
+   * sessions — normalized to the default (all bypassed) state on hydration.
+   */
+  fxRack?: ChannelFxRackState;
 }
 
 export type EqFilterType = 'peaking' | 'lowshelf' | 'highshelf' | 'highpass' | 'lowpass';

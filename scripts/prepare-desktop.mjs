@@ -75,31 +75,34 @@ function main() {
     );
   }
 
-  if (
+  const target = join(BIN_DIR, 'hkm-server.exe');
+
+  const skipBun =
     process.argv.includes('--copy-only') ||
     process.argv.includes('--skip-bun') ||
-    process.env.HKM_SKIP_BUN === '1'
-  ) {
-    if (process.argv.includes('--skip-bun') || process.env.HKM_SKIP_BUN === '1') {
-      console.log('[desktop] skipping bun runtime download (--skip-bun).');
+    process.env.HKM_SKIP_BUN === '1';
+  if (skipBun) {
+    console.log('[desktop] skipping bun runtime download (--copy-only/--skip-bun).');
+  } else if (!existsSync(target)) {
+    try {
+      execFileSync(process.execPath, [join(ROOT, 'scripts', 'fetch-bun-server.mjs')], {
+        stdio: 'inherit',
+      });
+    } catch {
+      console.warn(
+        '[desktop] bun runtime download failed — the desktop app will require a system node/bun install.'
+      );
     }
-    return;
-  }
-
-  const target = join(BIN_DIR, 'hkm-server.exe');
-  if (existsSync(target)) {
+  } else {
     console.log('[desktop] bundled server runtime already present.');
-    return;
   }
 
-  try {
-    execFileSync(process.execPath, [join(ROOT, 'scripts', 'fetch-bun-server.mjs')], {
-      stdio: 'inherit',
-    });
-  } catch {
-    console.warn(
-      '[desktop] bun runtime download failed — the desktop app will require a system node/bun install.'
-    );
+  // The NSIS installer extracts EVERYTHING inside binaries/. Once the real
+  // hkm-server.exe is bundled, the repo placeholder only pollutes the install
+  // log ("Extract: binaries\PLACEHOLDER.txt") — remove it before packaging.
+  if (existsSync(target) && existsSync(PLACEHOLDER)) {
+    rmSync(PLACEHOLDER, { force: true });
+    console.log('[desktop] removed PLACEHOLDER.txt (hkm-server.exe is bundled).');
   }
 }
 

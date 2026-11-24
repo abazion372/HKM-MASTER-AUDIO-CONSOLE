@@ -59,6 +59,8 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
 
   useEffect(() => {
     let closedByUser = false;
+    // Exponential backoff (2s → 10s cap) for reconnect attempts.
+    let reconnectAttempts = 0;
 
     const connect = () => {
       setWsStatus('connecting');
@@ -77,6 +79,7 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
       wsRef.current = socket;
 
       socket.onopen = () => {
+        reconnectAttempts = 0;
         setWsStatus('connected');
       };
 
@@ -168,7 +171,9 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
         }
         setWsStatus('disconnected');
         if (!closedByUser) {
-          reconnectTimerRef.current = window.setTimeout(connect, 2000);
+          const delay = Math.min(10000, 2000 * Math.pow(2, reconnectAttempts));
+          reconnectAttempts = Math.min(reconnectAttempts + 1, 10);
+          reconnectTimerRef.current = window.setTimeout(connect, delay);
         }
       };
 

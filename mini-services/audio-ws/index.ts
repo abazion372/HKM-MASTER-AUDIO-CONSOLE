@@ -288,6 +288,37 @@ const server = Bun.serve<WsSocketData>({
       }
 
       record.lastSeenAt = new Date().toISOString();
+
+      if (msg.type === 'telemetry:frame' && record.role === 'desktop') {
+        // Hot path (5Hz, never touches the JSON store): handled BEFORE the
+        // ensureStore() disk touch so a running console performs zero
+        // fs.statSync/reads per telemetry frame.
+        //
+        // With no verified mobile companion attached there is nothing to
+        // forward — skip the JSON.stringify entirely. This keeps a 24/7
+        // console-with-engine-running at zero serialization cost when no
+        // companion is viewing.
+        let hasVerifiedMobile = false;
+        for (const client of clients.values()) {
+          if (client.role === 'mobile' && client.pinVerified) {
+            hasVerifiedMobile = true;
+            break;
+          }
+        }
+        if (hasVerifiedMobile) {
+          const serialized = JSON.stringify({
+            type: 'telemetry:frame',
+            telemetry: msg.telemetry,
+          });
+          for (const client of clients.values()) {
+            if (client.role === 'mobile' && client.pinVerified) {
+              safeSend(client.ws, serialized);
+            }
+          }
+        }
+        return;
+      }
+
       const current = audioStore.ensureStore();
 
       if (msg.type === 'auth:verify-pin') {
@@ -365,31 +396,6 @@ const server = Bun.serve<WsSocketData>({
           record.clientId
         );
         return;
-      }
-
-      if (msg.type === 'telemetry:frame' && record.role === 'desktop') {
-        // With no verified mobile companion attached there is nothing to
-        // forward — skip the JSON.stringify entirely. This keeps a 24/7
-        // console-with-engine-running at zero serialization cost when no
-        // companion is viewing.
-        let hasVerifiedMobile = false;
-        for (const client of clients.values()) {
-          if (client.role === 'mobile' && client.pinVerified) {
-            hasVerifiedMobile = true;
-            break;
-          }
-        }
-        if (!hasVerifiedMobile) return;
-
-        const serialized = JSON.stringify({
-          type: 'telemetry:frame',
-          telemetry: msg.telemetry,
-        });
-        for (const client of clients.values()) {
-          if (client.role === 'mobile' && client.pinVerified) {
-            safeSend(client.ws, serialized);
-          }
-        }
       }
     },
 

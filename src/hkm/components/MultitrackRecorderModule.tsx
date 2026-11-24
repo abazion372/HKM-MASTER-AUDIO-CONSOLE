@@ -53,24 +53,44 @@ export const MultitrackRecorderModule: React.FC<MultitrackRecorderModuleProps> =
   const recordedChunksRef = useRef<Blob[]>([]);
   const elapsedRef = useRef(0);
   const liveSlicesRef = useRef<Record<string, WaveformSlice[]>>({});
+  const telemetryRef = useRef(telemetry);
+  telemetryRef.current = telemetry;
+
+  // Hard-stop any live capture when the module unmounts mid-recording so the
+  // OS mic-in-use indicator never stays lit and the device is released.
+  useEffect(() => {
+    return () => {
+      const rec = mediaRecorderRef.current;
+      if (rec && rec.state !== 'inactive') {
+        try {
+          rec.stop();
+        } catch {
+          // ignore already stopped
+        }
+      }
+      mediaRecorderRef.current = null;
+    };
+  }, []);
 
   const toggleArm = (id: string) => {
     setArmedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
-  // Sample live channel levels at 10Hz while recording
+  // Sample live channel levels at 10Hz while recording (telemetry read via ref
+  // so the interval is NOT torn down and recreated on every 5Hz telemetry commit)
   useEffect(() => {
     if (!recording) return;
     const timer = window.setInterval(() => {
       elapsedRef.current = Number((elapsedRef.current + 0.1).toFixed(1));
       setElapsedSec(elapsedRef.current);
 
+      const liveTelemetry = telemetryRef.current;
       const next: Record<string, WaveformSlice[]> = { ...liveSlicesRef.current };
       armedIds.forEach((chId, idx) => {
-        const chLvl = telemetry.channelLevels[idx];
-        const db = chLvl ? chLvl.rmsDb : telemetry.postRmsDb;
+        const chLvl = liveTelemetry.channelLevels[idx];
+        const db = chLvl ? chLvl.rmsDb : liveTelemetry.postRmsDb;
         const linear = Math.max(0.03, Math.min(1, Math.pow(10, db / 40)));
-        const clipped = (chLvl ? chLvl.peakDb : telemetry.postPeakDb) >= -0.3;
+        const clipped = (chLvl ? chLvl.peakDb : liveTelemetry.postPeakDb) >= -0.3;
         const arr = next[chId] ? [...next[chId]] : [];
         arr.push({ timeSec: elapsedRef.current, peak: linear, clipped });
         if (arr.length > 240) arr.shift();
@@ -80,7 +100,7 @@ export const MultitrackRecorderModule: React.FC<MultitrackRecorderModuleProps> =
       setLiveSlices(next);
     }, 100);
     return () => window.clearInterval(timer);
-  }, [recording, armedIds, telemetry]);
+  }, [recording, armedIds]);
 
   const handleStartRecord = async () => {
     if (armedIds.length === 0) return;
@@ -131,7 +151,18 @@ export const MultitrackRecorderModule: React.FC<MultitrackRecorderModuleProps> =
         sizeBytes,
         slicesByChannel: liveSlicesRef.current,
       };
-      setTakes((prev) => [take, ...prev]);
+      setTakes((prev) => {
+        const next = [take, ...prev];
+        // Cap retained takes so long 24/7 sessions cannot grow unbounded blob
+        // memory; the oldest evicted take's blob URL is revoked immediately.
+        if (next.length > 20) {
+          const evicted = next.splice(20);
+          evicted.forEach((old) => {
+            if (old.blobUrl) URL.revokeObjectURL(old.blobUrl);
+          });
+        }
+        return next;
+      });
       setSelectedTakeId(take.id);
     };
 
@@ -332,6 +363,7 @@ export const MultitrackRecorderModule: React.FC<MultitrackRecorderModuleProps> =
                     onClick={(e) => {
                       e.stopPropagation();
                       setTakes((prev) => prev.filter((x) => x.id !== t.id));
+                      if (t.blobUrl) URL.revokeObjectURL(t.blobUrl);
                     }}
                     className="p-1.5 rounded border border-slate-700 text-slate-400 hover:text-rose-400 cursor-pointer"
                   >

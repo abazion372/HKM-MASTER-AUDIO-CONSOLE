@@ -49,6 +49,8 @@ import { isDesktopApp } from '../utils/appApi.ts';
 import { openWindowsSoundSettings } from '../utils/nativeDesktopAudio.ts';
 import { RotaryKnob } from './StudioControls.tsx';
 import { PrecisionVerticalFader } from './PrecisionVerticalFader.tsx';
+import { ChannelFxRackPanel } from './ChannelFxRack.tsx';
+import type { ChannelFxRackState } from '../types/audio.ts';
 
 interface ConsoleLeftPanelProps {
   inputDevices: MediaDeviceInfo[];
@@ -67,6 +69,8 @@ interface ConsoleLeftPanelProps {
   onEnableBrowserDspSpeakers?: () => void;
   onSelectChannel: (id: string) => void;
   onUpdateChannel: (id: string, patch: Partial<InputChannel>) => void;
+  /** Guitar FX rack (pedalboard) updates for the selected channel. */
+  onUpdateChannelFx?: (id: string, updater: (rack: ChannelFxRackState) => ChannelFxRackState) => void;
   onAddChannel?: (name?: string, role?: string) => void;
   onSelectOutputDevice: (deviceId: string) => void;
   onSelectStreamOutputDevice: (deviceId: string) => void;
@@ -105,6 +109,7 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
   onEnableBrowserDspSpeakers,
   onSelectChannel,
   onUpdateChannel,
+  onUpdateChannelFx,
   onAddChannel,
   onSelectOutputDevice,
   onSelectStreamOutputDevice,
@@ -269,6 +274,7 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
   useEffect(() => {
     if (activeTab !== 'outputs') return;
     const t = window.setInterval(() => {
+      if (document.hidden) return;
       const st = liveAudioEngine.getJackRoutingStatus();
       setJackRouterStatus(
         st.active
@@ -892,6 +898,16 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                         </div>
                       </div>
                     </div>
+
+                    {/* ==== Section 4.5: GUITAR FX RACK — the real-world
+                          pedalboard the user can engage on this input ==== */}
+                    {onUpdateChannelFx && (
+                      <ChannelFxRackPanel
+                        channel={ch}
+                        engineRunning={engineRunning}
+                        onUpdateChannelFx={onUpdateChannelFx}
+                      />
+                    )}
 
                     {/* ==== Section 5: MUTE / SOLO — full-width finger-size keys ==== */}
                     <div className="grid grid-cols-2 gap-1.5 shrink-0">

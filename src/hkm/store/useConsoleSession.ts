@@ -5,6 +5,7 @@ import type {
   AuditEvent,
   BassDiConfig,
   BroadcastDspConfig,
+  ChannelFxRackState,
   ConfigurationVersion,
   ConsoleThemeId,
   DiagnosticFinding,
@@ -22,6 +23,7 @@ import type {
   AutomationSnapshot,
   DspConfig,
 } from '../types/audio.ts';
+import { defaultFxRackState, normalizeFxRackState } from '../audio/fx/fxDefinition.ts';
 import {
   DEFAULT_BASS_DI_CONFIG,
   DEFAULT_DSP_CONFIG,
@@ -371,6 +373,9 @@ export function useConsoleSession({
     if (isDesktopApp() || remoteCompanionToken) return;
     let closedByEffect = false;
     let reconnectTimer: number | null = null;
+    // Exponential backoff (2s → 10s cap) so a down server no longer causes
+    // unbounded fixed-interval connection churn in 24/7 sessions.
+    let reconnectAttempts = 0;
 
     const connectWs = () => {
       const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -426,10 +431,16 @@ export function useConsoleSession({
         }
       };
 
+      ws.onopen = () => {
+        reconnectAttempts = 0;
+      };
+
       ws.onclose = () => {
         if (desktopWsRef.current === ws) desktopWsRef.current = null;
         if (!closedByEffect) {
-          reconnectTimer = window.setTimeout(connectWs, 2000);
+          const delay = Math.min(10000, 2000 * Math.pow(2, reconnectAttempts));
+          reconnectAttempts = Math.min(reconnectAttempts + 1, 10);
+          reconnectTimer = window.setTimeout(connectWs, delay);
         }
       };
     };
@@ -858,6 +869,23 @@ export function useConsoleSession({
     }
   }, []);
 
+  /**
+   * Guitar FX rack updates: `fxRack` is only persisted once the user actually
+   * touches a pedal (older sessions simply stay `undefined` = all defaults).
+   */
+  const handleUpdateChannelFx = useCallback(
+    (id: string, updater: (rack: ChannelFxRackState) => ChannelFxRackState) => {
+      setChannels((prev) =>
+        prev.map((c) =>
+          c.id === id
+            ? { ...c, fxRack: normalizeFxRackState(updater(c.fxRack ?? defaultFxRackState())) }
+            : c
+        )
+      );
+    },
+    []
+  );
+
   const handleBatchMute = useCallback((category: 'band' | 'vocals' | 'all', muted: boolean) => {
     setChannels((prev) =>
       prev.map((c) => {
@@ -1272,6 +1300,7 @@ export function useConsoleSession({
     handleResetDsp,
     handleUndoLastDsp,
     handleUpdateChannel,
+    handleUpdateChannelFx,
     handleReconcileLiveInputs,
     handleAddChannel,
     hydrated,

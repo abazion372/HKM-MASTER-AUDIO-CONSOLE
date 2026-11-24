@@ -166,6 +166,7 @@ export default function App() {
     desktopWsRef,
     setFindings,
     handleUpdateChannel,
+    handleUpdateChannelFx,
     handleUpdateDsp,
     handleSelectPreset,
     handleAddChannel,
@@ -392,6 +393,14 @@ export default function App() {
       handleUpdateChannel(id, patch);
     },
     [consoleLocked, handleUpdateChannel]
+  );
+
+  const guardedUpdateChannelFx = useCallback(
+    (id: string, updater: Parameters<typeof handleUpdateChannelFx>[1]) => {
+      if (consoleLocked) return;
+      handleUpdateChannelFx(id, updater);
+    },
+    [consoleLocked, handleUpdateChannelFx]
   );
 
   const guardedUpdateDsp = useCallback(
@@ -935,6 +944,7 @@ export default function App() {
             onEnableBrowserDspSpeakers={() => void handleBrowserDspToSpeakers()}
             onSelectChannel={setSelectedChannelId}
             onUpdateChannel={guardedUpdateChannel}
+            onUpdateChannelFx={guardedUpdateChannelFx}
             onAddChannel={guardedAddChannel}
             onSelectOutputDevice={(devId) => {
               if (!consoleLocked) void hardware.handleSelectOutputDevice(devId);

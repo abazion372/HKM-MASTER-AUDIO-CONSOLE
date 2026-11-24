@@ -7,6 +7,7 @@
  */
 
 import type { InputChannel } from '../types/audio.ts';
+import { normalizeFxRackState } from '../audio/fx/fxDefinition.ts';
 
 export const NATIVE_DESKTOP_AUDIO_ID = 'native-desktop-audio';
 export const NATIVE_APP_AUDIO_PREFIX = 'native-app-audio:';
@@ -341,6 +342,8 @@ export function sanitizeAndAutoNameChannels(
     const rawDevId = ch.hardwareInputId;
     const rawLabel = normalizeDeviceLabel(ch.hardwareInputLabel);
     const labelKey = rawLabel.toLowerCase();
+    // Validate the persisted guitar FX rack (older sessions have none).
+    const cleanFxRack = ch.fxRack ? normalizeFxRackState(ch.fxRack) : undefined;
 
     const invalidOrDuplicate =
       !rawDevId ||
@@ -369,6 +372,7 @@ export function sanitizeAndAutoNameChannels(
         pan: 0,
         hardwareInputId: undefined,
         hardwareInputLabel: undefined,
+        fxRack: cleanFxRack,
       };
     }
 
@@ -385,6 +389,7 @@ export function sanitizeAndAutoNameChannels(
         role: hasMockName || !ch.role || ch.role === 'Open Slot' ? derived.role : ch.role,
         hardwareInputLabel: rawLabel,
         stereoLinked: false,
+        fxRack: cleanFxRack,
       };
     }
 
@@ -393,6 +398,7 @@ export function sanitizeAndAutoNameChannels(
       index: chNum,
       name: hasMockName || !ch.name ? `Input ${chNum}` : ch.name,
       stereoLinked: false,
+      fxRack: cleanFxRack,
     };
   });
 }

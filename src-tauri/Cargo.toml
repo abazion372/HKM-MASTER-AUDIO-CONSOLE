@@ -18,6 +18,8 @@ tauri-build = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri = { version = "2", features = [] }
+# MUST be registered as the FIRST plugin in lib.rs (see single-instance docs).
+tauri-plugin-single-instance = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-opener = "2"
 # Localhost-only HTTP bridge for desktop_api_request — no TLS features needed.

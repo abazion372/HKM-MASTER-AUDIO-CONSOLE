@@ -45,6 +45,15 @@ export class TelemetryAnalyzer {
   private cachedFreqAxis = new Float32Array(2048);
   private cachedFreqSampleRate = 0;
 
+  // Rotating snapshot pair for `includeSpectrum` reads: avoids committing two
+  // fresh Float32Array(2048) objects (~16 KB) per 5Hz tick to React state —
+  // a steady ~80 KB/s of GC garbage — while still giving every committed
+  // snapshot its own backing store for at least one full tick (200 ms), far
+  // beyond any React commit window.
+  private spectrumSnapA = { pre: new Float32Array(2048), post: new Float32Array(2048) };
+  private spectrumSnapB = { pre: new Float32Array(2048), post: new Float32Array(2048) };
+  private useSpectrumSnapA = true;
+
   private latestSpectrum: SpectrumSnapshot = {
     frequencies: this.cachedFreqAxis,
     preDb: this.preFreqBuf,
@@ -81,6 +90,9 @@ export class TelemetryAnalyzer {
     this.postRTimeBuf = new Float32Array(graph.postRAnalyser.fftSize);
     this.cachedFreqSampleRate = sampleRate;
     this.cachedFreqAxis = computeFrequencyAxis(binCount, sampleRate, graph.preAnalyser.fftSize);
+    this.spectrumSnapA = { pre: new Float32Array(binCount), post: new Float32Array(binCount) };
+    this.spectrumSnapB = { pre: new Float32Array(binCount), post: new Float32Array(binCount) };
+    this.useSpectrumSnapA = true;
     this.latestSpectrum = {
       frequencies: this.cachedFreqAxis,
       preDb: this.preFreqBuf,
@@ -632,11 +644,15 @@ export class TelemetryAnalyzer {
         },
         clippingEvents: this.clippingCount,
       },
-      spectrum: {
-        frequencies: this.cachedFreqAxis,
-        preDb: includeSpectrum ? new Float32Array(this.preFreqBuf) : this.preFreqBuf,
-        postDb: includeSpectrum ? new Float32Array(this.postFreqBuf) : this.postFreqBuf,
-      },
+      spectrum: includeSpectrum
+        ? (() => {
+            const snap = this.useSpectrumSnapA ? this.spectrumSnapA : this.spectrumSnapB;
+            this.useSpectrumSnapA = !this.useSpectrumSnapA;
+            snap.pre.set(this.preFreqBuf);
+            snap.post.set(this.postFreqBuf);
+            return { frequencies: this.cachedFreqAxis, preDb: snap.pre, postDb: snap.post };
+          })()
+        : { frequencies: this.cachedFreqAxis, preDb: this.preFreqBuf, postDb: this.postFreqBuf },
     };
   }
 }

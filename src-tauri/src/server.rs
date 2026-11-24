@@ -20,6 +20,9 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
 
 /// Fixed candidate ports for the production console server (see capabilities/local-server.json).
+/// IMPORTANT: keep 37741 free so the server normally always binds the SAME
+/// port — the WebView2 origin (and therefore any persisted permission state)
+/// stays stable across app restarts and installer updates.
 pub const SERVER_PORTS: [u16; 3] = [37741, 37742, 37743];
 const DEV_BASE: &str = "http://localhost:3000";
 const HEALTH_TIMEOUT: Duration = Duration::from_secs(30);
@@ -60,6 +63,26 @@ fn pick_free_port() -> Option<u16> {
         }
     }
     None
+}
+
+/// Kills any `hkm-server.exe` left behind by a previous instance that crashed
+/// or was force-closed: an orphaned sidecar holds BOTH the exe file (breaking
+/// NSIS/updater installs with "Error opening file for writing") and the fixed
+/// port 37741 (forcing a fallback port = new WebView origin = permission
+/// prompts). Safe because the single-instance plugin guarantees this process
+/// is the only live HKM console, so any hkm-server.exe found is a stale orphan.
+fn kill_stale_server_processes() {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let _ = Command::new("taskkill")
+            .args(["/F", "/IM", "hkm-server.exe"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
 }
 
 async fn wait_healthy(client: &reqwest::Client, base: &str, timeout: Duration) -> Result<(), String> {
@@ -204,6 +227,11 @@ pub fn ensure_server(app: &AppHandle, manager: &ServerManager, http: &reqwest::C
             return Ok(DEV_BASE.to_string());
         }
     }
+
+    // Clear orphaned sidecars from a crashed previous run before choosing a
+    // port (see kill_stale_server_processes). This process has no managed
+    // server child yet, so the kill can never hit our own runtime.
+    kill_stale_server_processes();
 
     let port = pick_free_port()
         .ok_or_else(|| "All HKM console server ports (37741-37743) are already in use.".to_string())?;

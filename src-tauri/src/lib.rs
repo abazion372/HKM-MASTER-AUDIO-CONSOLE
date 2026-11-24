@@ -18,7 +18,10 @@ mod win_audio;
 mod win_sessions;
 
 use serde::Serialize;
-use tauri::{AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
+use tauri::{
+    webview::{PermissionKind, PermissionResponse},
+    AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder,
+};
 
 /// Shared runtime state managed on the Tauri app.
 pub struct DesktopState {
@@ -252,6 +255,24 @@ fn shutdown_everything(app: &AppHandle) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default()
+        // MUST stay the first registered plugin: the second instance of the
+        // app hands its args to this callback and exits before reaching setup.
+        // This also guarantees that at startup any running hkm-server.exe is
+        // a stale orphan (safe to kill) rather than a live second console.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_focus();
+            }
+        }))
+        // Church console policy: the operator assigns physical inputs inside
+        // the app, so the WebView microphone permission is granted natively and
+        // the Chromium "wants to use your microphone" prompt NEVER appears —
+        // not on first run, not after an update, and not when the console
+        // server falls back to a different fixed port (new origin).
+        .on_permission_request(|_webview, kind| match kind {
+            PermissionKind::Microphone => PermissionResponse::Allow,
+            _ => PermissionResponse::Default,
+        })
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {

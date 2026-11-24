@@ -134,6 +134,13 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
 
     let timerId: number | null = null;
     let cancelled = false;
+    // Quantize meter state to 0.5 dB and only commit changed values: raw float
+    // setState at 30fps re-rendered the whole 1k-line module tree ~30×/sec.
+    const qHalf = (v: number) => Math.round(v * 2) / 2;
+    const setIfChanged = (
+      setter: (fn: (prev: number) => number) => void,
+      next: number
+    ) => setter((prev) => (prev === next ? prev : next));
     const renderScope = () => {
       timerId = null;
       if (document.hidden) return;
@@ -146,10 +153,10 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
       const streamRms = roomRms > -90 ? Math.min(broadcastDsp.limiterCeilingDb, roomRms + boost) : -96;
       const streamPeak = roomPeak > -90 ? Math.min(broadcastDsp.limiterCeilingDb, roomPeak + boost) : -96;
 
-      setFastRoomDb(roomRms);
-      setFastRoomPeakDb(roomPeak);
-      setFastStreamDb(streamRms);
-      setFastStreamPeakDb(streamPeak);
+      setIfChanged(setFastRoomDb, qHalf(roomRms));
+      setIfChanged(setFastRoomPeakDb, qHalf(roomPeak));
+      setIfChanged(setFastStreamDb, qHalf(streamRms));
+      setIfChanged(setFastStreamPeakDb, qHalf(streamPeak));
 
       const amp = streamRms > -90 ? Math.max(0.03, Math.min(1, (streamRms + 54) / 54)) : 0.02;
       const hist = waveformHistoryRef.current;

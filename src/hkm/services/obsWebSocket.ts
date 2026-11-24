@@ -50,7 +50,8 @@ type StateListener = (state: ObsConnectionState) => void;
 class ObsWebSocketService {
   private ws: WebSocket | null = null;
   private url: string = 'ws://127.0.0.1:4455';
-  private password: string = 'UAebSZ237i37R0ub';
+  // No hardcoded default: OBS WebSocket passwords are per-install secrets.
+  private password: string = '';
   private pendingRequests = new Map<
     string,
     { resolve: (data: unknown) => void; reject: (err: Error) => void }
@@ -143,6 +144,10 @@ class ObsWebSocketService {
       this.setConfig(url || this.url, password);
     }
 
+    // A manual connect is always an intent to be connected: re-arm the
+    // automatic reconnection that a previous disconnect() disabled.
+    this.autoReconnect = true;
+
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
       return;
     }
@@ -156,8 +161,10 @@ class ObsWebSocketService {
 
       const connectTimeout = window.setTimeout(() => {
         if (socket.readyState !== WebSocket.OPEN) {
+          // Just close: the single onclose handler runs the disconnect logic
+          // (calling handleDisconnect here as well would double-count
+          // reconnectAttempts and exhaust the retry budget early).
           socket.close();
-          this.handleDisconnect('Connection timeout. OBS Studio WebSocket did not respond.');
         }
       }, 3500);
 
@@ -507,7 +514,9 @@ class ObsWebSocketService {
   private startPolling() {
     if (this.pollTimer) window.clearInterval(this.pollTimer);
     this.pollTimer = window.setInterval(() => {
-      if (this.state.connected) {
+      // Skip WS round-trips while the console window is hidden — Stream/
+      // Record state transitions still arrive instantly via subscribed events.
+      if (this.state.connected && !document.hidden) {
         this.syncStreamStatus();
         this.syncStats();
       }

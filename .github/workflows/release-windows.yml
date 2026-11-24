@@ -62,14 +62,24 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'HKM Audio System ${{ github.ref_name }}'
           releaseBody: |
-            ## HKM Audio System — Native Windows Desktop Release (${{ github.ref_name }})
+            ## HKM Audio System — v1.0.0 · First Verified Stable Release
 
-            ### Highlights
-            - **Self-Contained Windows x64 NSIS Installer** (`HKM Audio System_*_x64-setup.exe`) with embedded Next.js standalone control plane & bundled server runtime.
-            - **Signed In-App Silent Updates**: releases now ship `latest.json` + minisign signatures — the installed app auto-detects, downloads, verifies and updates itself (no browser needed).
-            - **Channel Fader Bay relocated into the left Input Panel** — the central processing deck now uses the full console width for signal-flow phase strips and DSP modules.
-            - **Native Windows WASAPI Process-Exclusion Loopback** (`ActivateAudioInterfaceAsync`): zero-driver desktop audio capture without self-feedback.
-            - **Per-Application Audio Capture & Source Isolation Firewall**.
-            - **16-Channel Virtual Console, 31-Band GEQ, Active Crossover, Real-Time Feedback & Hum Analyzer, and Room Acoustics DSP**.
+            Full code-quality, crash-risk and 24/7-resource audit passed: strict TypeScript + lint clean, browser-verified zero console errors, near-zero idle load. This is the verified stable baseline for always-on church consoles.
+
+            ### New in v1.0.0
+            - **Guitar FX Rack — real-world pedalboard per input**: 12 stompbox slots in canonical chain order (Gate → Wah → Octaver → Comp → Overdrive → Distortion → Phaser → Chorus → Flanger → Tremolo → Delay → Reverb) with real-world archetypes (Tube Screamer/Klon, Phase 90, CH-1, DD-8 dotted-eighth with tap tempo, POG octaver, NS-2 gate, RV-6 reverbs). Engage any pedal on any channel from its input strip; zero audio-thread cost when off.
+            - **Discrete 5.1/7.1 jack routing** — REAR/FRONT/CENTER/SIDE ports of PCIe & onboard cards as separate outputs per speaker zone.
+            - **Real instrument inputs (MIC/LINE/INST Hi-Z)** with 48V interlocks, plus the tab-driven super input strip.
+
+            ### Install & update reliability (fixes)
+            - **Installer no longer fails on `hkm-server.exe`** (file lock during update) — the installer closes the app + sidecar before extracting files.
+            - **The server no longer asks for microphone permission on each install** — the mic permission is granted natively and the console always binds the same origin.
+            - Single-instance guard, orphaned sidecar cleanup, no more placeholder file in the install log.
+            - 24/7 resource fixes: recorder memory/mic leaks, OBS overnight reconnect, hidden-window polling, WS backoff, zero store I/O per telemetry frame.
+
+            ### Stable platform
+            - **Self-Contained Windows x64 NSIS Installer** with embedded Next.js standalone control plane & bundled server runtime.
+            - **Signed In-App Silent Updates** (`latest.json` + minisign signatures) — installed apps update themselves.
+            - 16-Channel Virtual Console, WASAPI Process-Exclusion Loopback, per-app capture & source isolation, feedback/hum analysis, 31-band GEQ, active crossover, room acoustics DSP, remote companion.
           releaseDraft: false
           prerelease: false

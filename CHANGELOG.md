@@ -5,9 +5,20 @@ All notable changes to HKM Audio System are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - 2026-11-24 — First Verified Stable Release
+
+Full code-quality, crash-risk and 24/7-resource audit passed (lint + strict TypeScript clean, browser-verified zero console errors, metered audio path with effects engaged), plus the fixes below. This is the first release stamped as a verified stable baseline for always-on church consoles.
 
 ### Added
+
+- **Guitar FX Rack — real-world pedalboard per input channel (research-grounded)**: every channel strip now carries a 12-slot stompbox rack in canonical pedal order (Gate → Wah → Octaver → Comp → Overdrive → Distortion → Phaser → Chorus → Flanger → Tremolo → Delay → Reverb). Any pedal can be engaged on any input from the channel's strip — the rack reloads with the selected channel tab, exactly like the rest of the super input strip:
+  - **Real-world archetypes with professional parameter ranges** (Tube-Screamer/Klon asymmetric tanh diode clip with 720 Hz mid hump, MXR Phase 90 4/8-stage allpass cascade, Boss CH-1 antiphase stereo chorus, Boss DD-8 dotted-eighth delay with **tap tempo**, NS-2-style AudioWorklet noise gate, POG-style octave voices via full-wave rectifier + zero-crossing divider, Boss RV-6 style convolved reverb with synthesized Room/Hall/Plate/Spring impulse responses). Research reference: `docs/GUITAR-FX-RACK.md`.
+  - **Zero-idle-cost engineering**: pedals are lazy-built on first stomp, engage/disengage through a 15 ms dry/wet crossfade (never disconnect mid-audio), delay and reverb keep their trails ringing out before the wet node graph is disposed entirely — an unengaged pedal costs zero audio-thread CPU, and a bypassed rack collapses to a unity passthrough.
+  - Sound-true implementation details: 8192-point WaveShaper curves with 4× oversampling, `setTargetAtTime` everywhere (no zipper noise), LFO-to-AudioParam modulation in seconds, feedback loops always contain a DelayNode, IRs cached per type/decay at the context sample rate.
+  - FX state persists per channel with migration-safe normalization (older sessions default to all-bypassed); mobile companion patches keep working.
+- **Single-instance app**: the second launch now focuses the existing window instead of spawning a zombie instance.
+- **Native microphone permission grant**: the WebView2 microphone permission is granted natively at the shell level — the Chromium "wants to use your microphones" prompt never appears, not on first run, not after an update, and not when the console server changes port.
+- NSIS installer hooks (`src-tauri/windows/installer-hooks.nsh`) covering install and uninstall.
 
 - **Discrete output jack routing — 5.1/7.1 sound cards treated as separate FRONT / REAR / CENTER-SUB / SIDE outputs (PCIe + onboard)**: multi-channel endpoints are exploded into per-jack stereo pairs following the WAVEFORMATEXTENSIBLE channel order and the industry HD Audio jack colour code (green FL/FR, orange FC/LFE, black BL/BR, grey SL/SR). A zone can be assigned to a specific physical jack so the console drives each port as its own independently aligned output — exactly like a matrixed zone-output card:
   - `PROBE DISCRETE JACKS` probes every enumerated output endpoint (`AudioContext` `{sinkId}` → `destination.maxChannelCount`, 30-day label-matched cache) and exposes 5.1/7.1 devices as discrete jacks.
@@ -22,6 +33,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Switching modes auto-rescales the stored preamp gain into the new mode's silkscreen range; PAD (−20 dB) and polarity Ø apply to the real DSP chain in every mode.
 - **Instrument Rig Checklist**: when the focused channel runs INST, the Phase 1 · Stage Preamp deck shows the real-world guitar rig checklist (Hi-Z/INST jack or DI, phantom warning, −6 dBFS strum target, ground-lift hum discipline, PAD for hot pedalboards).
 - **Electric Guitar (Worship Rig) instrument profile** in the Band module: Hi-Z source type, amp-mud/fizz EQ hints, single-coil level expectations, and DI ground-lift diagnostics.
+
+### Fixed
+
+- **Installer failure "Error opening file for writing: …\binaries\hkm-server.exe"**: the NSIS installer previously tried to overwrite the console-server sidecar while the previous version's process was still running (Windows file lock → Abort/Retry/Ignore dialog). The installer now force-closes both the app and its sidecar in the PREINSTALL hook before any file is extracted, so updates and reinstalls are silent and conflict-free. The app also kills orphaned `hkm-server.exe` processes at startup before binding its port — a crashed previous run no longer locks the fixed port 37741 (which also kept the WebView permission origin stable).
+- **`Extract: binaries\PLACEHOLDER.txt` in the install log**: the repo placeholder file is no longer bundled once the real `hkm-server.exe` runtime is present.
+- **Microphone permission re-asked after each install**: root cause was the console server falling back to a different fixed port when a stale sidecar held 37741 — each port is a different WebView2 origin, so the permission prompt returned. Fixed by the stale-sidecar kill + stable primary port + the native permission grant above.
+- **24/7 resource audit gaps** (all closed):
+  - Multitrack recorder: recorded take blobs were never revoked on delete and grew unbounded (minutes of audio pinned in memory forever); recording continued with the mic held open if the module was unmounted mid-take; the 10 Hz waveform interval was torn down and recreated on every 5 Hz telemetry commit. Takes are now capped at 20 with immediate blob revocation, capture hard-stops on unmount, and the interval reads telemetry through a ref.
+  - OBS reconnect logic: a manual disconnect permanently disabled auto-reconnect (OBS restarts overnight were never re-detected); connect-timeouts double-counted reconnect attempts and exhausted the retry budget after ~3 real tries; the 1.8 s status polling continued while the window was hidden. All fixed; polling now pauses when hidden (state transitions still arrive instantly via subscribed events).
+  - Desktop/companion WebSocket reconnect now uses exponential backoff (2 s → 10 s cap) instead of fixed 2 s forever.
+  - Livestream module meters re-rendered the whole 1k-line tree at ~30 fps with unquantized float state — now quantized to 0.5 dB with equality-guarded setters, matching every other meter loop in the app.
+  - WebSocket mini-service touched the JSON store (fs stat + possible re-read) for every 5 Hz telemetry frame before its early-return — the hot path is now handled first, so a running console performs zero store I/O per frame.
+  - Telemetry analyzer allocated two fresh Float32Array(2048) spectra per 5 Hz tick (~80 KB/s GC garbage) — now double-buffered with swap.
+  - Removed 2.5 k lines of dead `LiveConsoleModule` code (never imported; contained inert 60 fps loops — a maintenance trap).
+  - Wall clock timer no longer wakes a hidden window (recomputed on visibilitychange instead).
+  - Hardware scan survives `enumerateDevices` rejections instead of surfacing unhandled promise rejections.
+  - MIDI learn no longer fires a network POST inside a `setState` updater (impure updater).
+  - Removed the hardcoded OBS WebSocket password shipped in the client bundle.
 
 ### Changed
 

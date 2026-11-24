@@ -48,7 +48,8 @@
         "languages": [
           "English"
         ],
-        "displayLanguageSelector": false
+        "displayLanguageSelector": false,
+        "installerHooks": "./windows/installer-hooks.nsh"
       }
     }
   },

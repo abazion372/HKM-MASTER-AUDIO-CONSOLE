@@ -1,4 +1,5 @@
 import type { AudioSourceSimulation, InputChannel } from '../types/audio.ts';
+import { ChannelFxRack } from './fx/fxEngines.ts';
 import { BUTTERWORTH_Q_DB, calcTimeStats, clamp, dbToLinear } from './audioUtils.ts';
 
 export interface ChannelStripNodes {
@@ -8,6 +9,8 @@ export interface ChannelStripNodes {
   eqLowNode: BiquadFilterNode;
   eqMidNode: BiquadFilterNode;
   eqHighNode: BiquadFilterNode;
+  /** Guitar/instrument pedalboard insert (EQ → FX → comp → pan → fader). */
+  fxRack: ChannelFxRack;
   compNode: DynamicsCompressorNode;
   pannerNode: StereoPannerNode;
   faderGain: GainNode;
@@ -26,9 +29,13 @@ export interface ChannelStripMetersSnapshot {
 
 /**
  * Manages the per-channel console strip DSP bank:
- *   InputSource ─▶ preampGain ─▶ hpf ─▶ eqLow ─▶ eqMid ─▶ eqHigh ─▶ comp ─▶ panner ─▶ faderGain ─▶ busMixSum
+ *   InputSource ─▶ preampGain ─▶ hpf ─▶ eqLow ─▶ eqMid ─▶ eqHigh ─▶ [FX RACK]
+ *                ─▶ comp ─▶ panner ─▶ faderGain ─▶ busMixSum
  *                       │
  *                       └──▶ analyser (pre-fader meter tap when strip is active)
+ *
+ * The FX rack is a real pedalboard insert: when it (or all pedals) is off it
+ * is a pure unity passthrough with zero wet nodes in the graph.
  */
 export class ChannelStripBank {
   private strips: ChannelStripNodes[] = [];
@@ -105,12 +112,15 @@ export class ChannelStripBank {
       faderGain.channelCountMode = 'explicit';
       faderGain.channelInterpretation = 'speakers';
 
-      // Complete contiguous strip signal chain
+      // Guitar FX rack insert between the channel EQ and the strip comp.
+      const fxRack = new ChannelFxRack();
+      fxRack.attach(ctx, eqHighNode, compNode);
+
+      // Complete contiguous strip signal chain (FX rack wires EQ→comp itself)
       preampGain.connect(hpfNode);
       hpfNode.connect(eqLowNode);
       eqLowNode.connect(eqMidNode);
       eqMidNode.connect(eqHighNode);
-      eqHighNode.connect(compNode);
       compNode.connect(pannerNode);
       pannerNode.connect(faderGain);
 
@@ -121,6 +131,7 @@ export class ChannelStripBank {
         eqLowNode,
         eqMidNode,
         eqHighNode,
+        fxRack,
         compNode,
         pannerNode,
         faderGain,
@@ -206,6 +217,9 @@ export class ChannelStripBank {
 
       strip.pannerNode.pan.setTargetAtTime(clamp((ch.pan || 0) / 100, -1, 1), now, 0.015);
 
+      // Guitar FX rack (pedalboard) — no-op passthrough until engaged.
+      strip.fxRack.applyState(ch.fxRack);
+
       const isSuppressed =
         ch.mute ||
         (anySolo && !ch.solo) ||
@@ -281,6 +295,7 @@ export class ChannelStripBank {
         strip.eqLowNode.disconnect();
         strip.eqMidNode.disconnect();
         strip.eqHighNode.disconnect();
+        strip.fxRack.dispose();
         strip.compNode.disconnect();
         strip.pannerNode.disconnect();
         strip.faderGain.disconnect();

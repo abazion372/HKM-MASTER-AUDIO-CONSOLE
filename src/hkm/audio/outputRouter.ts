@@ -44,7 +44,7 @@ export class OutputRouter {
   private jackMerger: ChannelMergerNode | null = null;
   private jackZoneChains = new Map<
     OutputJackSlot,
-    { gain: GainNode; delay: DelayNode; splitter: ChannelSplitterNode; analyser: AnalyserNode; buf: Float32Array }
+    { gain: GainNode; delay: DelayNode; splitter: ChannelSplitterNode; analyser: AnalyserNode; buf: Float32Array<ArrayBuffer> }
   >();
   private jackLayoutChannels = 0; // 0 = legacy stereo path, else 6/8
   private jackSlotZones = new Map<OutputJackSlot, string>(); // slot -> zoneId (active patch)
@@ -286,7 +286,7 @@ export class OutputRouter {
       splitter.connect(merger, 1, indices[1]); // R → jack channel B
       zoneDelay.connect(analyser);
 
-      this.jackZoneChains.set(slot, { gain: zoneGain, delay: zoneDelay, splitter, analyser, buf: new Float32Array(analyser.fftSize) });
+      this.jackZoneChains.set(slot, { gain: zoneGain, delay: zoneDelay, splitter, analyser, buf: new Float32Array(analyser.fftSize) as Float32Array<ArrayBuffer> });
     }
 
     // Real multichannel devices: address the stream 1:1 with 'discrete'

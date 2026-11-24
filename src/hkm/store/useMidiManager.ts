@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   AuditAuthority,
   DspConfig,
@@ -30,6 +30,8 @@ export function useMidiManager({
   const [midiMappings, setMidiMappings] = useState<MidiMapping[]>(DEFAULT_MIDI_MAPPINGS);
   const [midiLearningId, setMidiLearningId] = useState<string | null>(null);
   const [lastMidiPacket, setLastMidiPacket] = useState<MidiPacket | null>(null);
+  const midiMappingsRef = useRef(midiMappings);
+  midiMappingsRef.current = midiMappings;
 
   const updateAndPersistMidiMappings = useCallback((next: MidiMapping[]) => {
     setMidiMappings(next);
@@ -61,27 +63,27 @@ export function useMidiManager({
       setLastMidiPacket(packet);
 
       if (midiLearningId) {
-        setMidiMappings((prev) => {
-          const next = prev.map((m) =>
-            m.id === midiLearningId
-              ? {
-                  ...m,
-                  deviceName: packet.deviceName,
-                  channel: packet.channel,
-                  messageType: packet.messageType,
-                  controller: packet.controller,
-                  lastRawValue: packet.rawValue,
-                  lastUpdatedAt: packet.timestamp,
-                }
-              : m
-          );
-          appFetch('/api/midi-mappings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mappings: next }),
-          }).catch(() => {});
-          return next;
-        });
+        // Side effects (POST) never belong inside a setState updater: build the
+        // next list from the ref and persist via the dedicated helper.
+        const learned = midiMappingsRef.current.map((m) =>
+          m.id === midiLearningId
+            ? {
+                ...m,
+                deviceName: packet.deviceName,
+                channel: packet.channel,
+                messageType: packet.messageType,
+                controller: packet.controller,
+                lastRawValue: packet.rawValue,
+                lastUpdatedAt: packet.timestamp,
+              }
+            : m
+        );
+        setMidiMappings(learned);
+        appFetch('/api/midi-mappings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mappings: learned }),
+        }).catch(() => {});
         setMidiLearningId(null);
         return;
       }

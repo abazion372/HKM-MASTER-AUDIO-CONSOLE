@@ -384,7 +384,13 @@ export async function scanBrowserMediaDevices(
   if (typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices) {
     return [];
   }
-  const mediaList = await navigator.mediaDevices.enumerateDevices();
+  let mediaList: MediaDeviceInfo[];
+  try {
+    mediaList = await navigator.mediaDevices.enumerateDevices();
+  } catch {
+    // Permission/context teardown edge cases must not reject the whole scan.
+    return [];
+  }
   const seenLabels = new Map<string, DetectedHardwareEndpoint>();
 
   for (const item of mediaList) {

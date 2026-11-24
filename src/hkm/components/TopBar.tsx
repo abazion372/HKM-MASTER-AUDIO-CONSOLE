@@ -182,14 +182,43 @@ const TopBarInner: React.FC<TopBarProps> = ({
     };
   }, [showToolsPopover]);
 
+  // Wall clock: ticks only while visible; a visibilitychange listener refreshes
+  // it instantly on return, so the 1s timer never wakes a hidden window.
   useEffect(() => {
-    const id = window.setInterval(() => {
-      if (document.hidden) return;
+    const updateClock = () => {
       setClockStr(
         new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
       );
-    }, 1000);
-    return () => window.clearInterval(id);
+    };
+    let id: number | null = null;
+    const start = () => {
+      if (id === null && !document.hidden) {
+        updateClock();
+        id = window.setInterval(() => {
+          if (document.hidden) return;
+          updateClock();
+        }, 1000);
+      }
+    };
+    const stop = () => {
+      if (id !== null) {
+        window.clearInterval(id);
+        id = null;
+      }
+    };
+    const onVis = () => {
+      if (document.hidden) {
+        stop();
+      } else {
+        start();
+      }
+    };
+    start();
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVis);
+    };
   }, []);
 
   useEffect(() => {
