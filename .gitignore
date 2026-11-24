@@ -37,6 +37,14 @@ yarn-error.log*
 # vercel
 .vercel
 
+# runtime state (churns constantly in 24/7 operation; never commit)
+/db/hkm-state.json
+/db/*.db
+/db/*.db-journal
+
+# local tooling artifacts
+tool-results/
+
 
 # typescript
 *.tsbuildinfo
