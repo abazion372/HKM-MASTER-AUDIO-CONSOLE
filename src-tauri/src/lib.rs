@@ -283,7 +283,11 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(server::ManagedServer::default())
         .setup(|app| {
-            win_sessions::ensure_self_sessions_unmuted();
+            // Run on a dedicated worker thread so COM MTA initialization never
+            // poisons the main GUI thread's STA apartment required by tao/OleInitialize.
+            std::thread::spawn(|| {
+                win_sessions::ensure_self_sessions_unmuted();
+            });
             let http = reqwest::Client::new();
             let state = DesktopState {
                 http,
