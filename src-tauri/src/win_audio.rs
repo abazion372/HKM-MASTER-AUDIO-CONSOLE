@@ -395,11 +395,12 @@ mod windows_impl {
         AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM,
         AUDCLNT_STREAMFLAGS_EVENTCALLBACK, AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY,
         DEVICE_STATE_ACTIVE, IAudioCaptureClient, IAudioClient, IAudioRenderClient, IConnector,
-        IDeviceTopology, IKsJackDescription, IMMDevice, IMMDeviceCollection,
-        IMMDeviceEnumerator, IPart, KSJACK_DESCRIPTION, MMDeviceEnumerator, WAVEFORMATEX,
-        WAVEFORMATEXTENSIBLE, eConsole, eRender,
+        IDeviceTopology, IMMDevice, IMMDeviceCollection, IMMDeviceEnumerator, IPart,
+        MMDeviceEnumerator, WAVEFORMATEX, WAVEFORMATEXTENSIBLE, WAVEFORMATEXTENSIBLE_0,
+        WAVE_FORMAT_PCM, eConsole, eRender,
     };
-    use windows::Win32::Media::Multimedia::{WAVE_FORMAT_IEEE_FLOAT, WAVE_FORMAT_PCM};
+    use windows::Win32::Media::KernelStreaming::{IKsJackDescription, KSJACK_DESCRIPTION};
+    use windows::Win32::Media::Multimedia::WAVE_FORMAT_IEEE_FLOAT;
     use windows::Win32::System::Com::{
         CLSCTX, CLSCTX_ALL, COINIT_MULTITHREADED, CoCreateInstance, CoInitializeEx, CoTaskMemFree,
     };
@@ -790,7 +791,7 @@ mod windows_impl {
                 nAvgBytesPerSec: 48_000 * block_align as u32,
                 cbSize: 22,
             },
-            wValidBitsPerSample: 32,
+            Samples: WAVEFORMATEXTENSIBLE_0 { wValidBitsPerSample: 32 },
             dwChannelMask: channel_mask_for(channels),
             SubFormat: SUBTYPE_IEEE_FLOAT,
         }
@@ -835,7 +836,7 @@ mod windows_impl {
                 nAvgBytesPerSec: 48_000 * block_align as u32,
                 cbSize: 22,
             },
-            wValidBitsPerSample: 16,
+            Samples: WAVEFORMATEXTENSIBLE_0 { wValidBitsPerSample: 16 },
             dwChannelMask: channel_mask_for(channels),
             SubFormat: SUBTYPE_PCM,
         }
@@ -1051,6 +1052,18 @@ mod windows_impl {
 
 #[cfg(windows)]
 use windows_impl as sys;
+
+// File-scope windows imports for the raw-output engine + exclusive WASAPI
+// pump (they run outside `windows_impl`; see initialize_exclusive_stream
+// and raw_output_exclusive_pump below).
+#[cfg(windows)]
+use windows::core::PCWSTR;
+#[cfg(windows)]
+use windows::Win32::Foundation::{BOOL, CloseHandle, WAIT_OBJECT_0};
+#[cfg(windows)]
+use windows::Win32::Media::Audio::{WAVEFORMATEX, WAVEFORMATEXTENSIBLE};
+#[cfg(windows)]
+use windows::Win32::System::Threading::{CreateEventW, WaitForSingleObject};
 
 // ---------------------------------------------------------------------------
 // Cross-module helpers (used by win_sessions / apo)
