@@ -16,22 +16,58 @@ import {
   type SystemAudioCaptureMethod,
 } from './systemAudioBridge.ts';
 
+interface JackZoneDspChain {
+  filterA: BiquadFilterNode;
+  filterB: BiquadFilterNode;
+  gain: GainNode;
+  delay: DelayNode;
+  splitter: ChannelSplitterNode;
+  centerLfeSubFilterA?: BiquadFilterNode;
+  centerLfeSubFilterB?: BiquadFilterNode;
+  centerLfeSubGain?: GainNode;
+  centerLfeSubDelay?: DelayNode;
+  analyser: AnalyserNode;
+  buf: Float32Array<ArrayBuffer>;
+}
+
+interface AuxZoneHardwareSink {
+  deviceId: string;
+  filterA: BiquadFilterNode;
+  filterB: BiquadFilterNode;
+  delay: DelayNode;
+  gain: GainNode;
+  dest: MediaStreamAudioDestinationNode;
+  audioEl: HTMLAudioElement;
+}
+
 /**
  * Manages all Console Outputs + Desktop Audio Self-Loopback Firewall:
  *   1. Main Monitor / PA Output (`monitorGain -> paZoneDelayNode -> paZoneGainNode -> ctx.destination`)
  *      — upgraded with the DISCRETE JACK ROUTER: when the active sink is a
- *      5.1/7.1 device (probed via destination.maxChannelCount, or the training
- *      simulated card), each zone renders onto its own physical jack channel
- *      pair through a ChannelMerger with 'discrete' interpretation
- *      (FL/FR green, BL/BR black, FC/LFE orange, SL/SR grey).
- *   2. Dedicated Stream / OBS Output (`streamOutputGain -> MediaStreamDestination -> Audio.setSinkId`)
- *   3. Native Windows WASAPI RAW / MFX Output Tap (`rawTapNode -> pushRawOutputPcm`)
+ *      5.1/7.1 PCIe or onboard card (or configured in discrete jack mode), each
+ *      physical jack pair (FL/FR Green, FC/LFE Orange, BL/BR Black, SL/SR Grey)
+ *      receives its own independent zone signal with per-zone Linkwitz-Riley /
+ *      Butterworth crossover filtering, delay alignment, polarity, and trim!
+ *      Furthermore, on the Orange `center-lfe` jack (channels 2 & 3), if both a
+ *      `center` zone and a `sub` zone exist, Channel 2 (FC) carries the high-passed
+ *      Center mono vocal feed while Channel 3 (LFE) carries the low-passed Subwoofer feed!
+ *   2. Simultaneous Multi-Device Zone Outputs (`auxZoneSinks`):
+ *      Any unmuted `SpeakerZone` assigned to a `hardwareOutputId` different from
+ *      the primary `ctx.destination` device automatically renders in parallel
+ *      through its own DSP chain (`monitorGain -> filter -> delay -> gain -> MediaStreamDestination -> Audio.setSinkId`),
+ *      allowing multiple physical audio outputs (PCIe card + USB interface + HDMI + Headphones)
+ *      to be turned on at the exact same time!
+ *   3. Dedicated Stream / OBS Output (`streamOutputGain -> MediaStreamDestination -> Audio.setSinkId`)
+ *      — independent of `MON`, always active when engine is running and a stream device is selected.
+ *   4. Native Windows WASAPI RAW / MFX Output Tap (`rawTapNode -> pushRawOutputPcm`)
  */
 export class OutputRouter {
   private ctx: AudioContext | null = null;
   private postAnalyser: AnalyserNode | null = null;
 
   private monitorGain: GainNode | null = null;
+  private paZoneFilterA: BiquadFilterNode | null = null;
+  private paZoneFilterB: BiquadFilterNode | null = null;
   private paZoneDelayNode: DelayNode | null = null;
   private paZoneGainNode: GainNode | null = null;
   private lastZones: SpeakerZone[] = [];
@@ -40,18 +76,19 @@ export class OutputRouter {
   private streamMediaDest: MediaStreamAudioDestinationNode | null = null;
   private streamAudioEl: HTMLAudioElement | null = null;
 
+  // ---- Simultaneous Multi-Device Zone Sinks (Zone -> distinct physical output device) ----
+  private auxZoneSinks = new Map<string, AuxZoneHardwareSink>();
+
   // ---- Discrete jack router (5.1/7.1 channel-pair zone routing) ----
   private jackMerger: ChannelMergerNode | null = null;
-  private jackZoneChains = new Map<
-    OutputJackSlot,
-    { gain: GainNode; delay: DelayNode; splitter: ChannelSplitterNode; analyser: AnalyserNode; buf: Float32Array<ArrayBuffer> }
-  >();
+  private jackZoneChains = new Map<OutputJackSlot, JackZoneDspChain>();
   private jackLayoutChannels = 0; // 0 = legacy stereo path, else 6/8
   private jackSlotZones = new Map<OutputJackSlot, string>(); // slot -> zoneId (active patch)
   private jackSinkDeviceId: string | null = null;
   private jackSimulated = false;
   private jackDeviceChannelCount = 0;
   private simJackDeviceId: string | null = null;
+  private knownDeviceChannels = new Map<string, number>();
 
   private rawTapNode: AudioWorkletNode | null = null;
   private rawTapSilentSink: GainNode | null = null;
@@ -85,7 +122,21 @@ export class OutputRouter {
     this.onOutputFallbackCb = cb;
   }
 
+  /** Register probed or native WASAPI channel counts per output device ID. */
+  public setKnownDeviceChannelCounts(counts: Record<string, number>): void {
+    this.knownDeviceChannels.clear();
+    for (const [id, count] of Object.entries(counts)) {
+      if (count >= 2) {
+        this.knownDeviceChannels.set(id, count);
+      }
+    }
+    if (this.ctx && this.lastZones.length > 0) {
+      this.applySpeakerZones(this.lastZones);
+    }
+  }
+
   public attachGraph(ctx: AudioContext, postAnalyser: AnalyserNode): void {
+    this.teardownAuxZoneSinks();
     this.ctx = ctx;
     this.postAnalyser = postAnalyser;
 
@@ -94,6 +145,11 @@ export class OutputRouter {
     this.monitorGain.channelCount = 2;
     this.monitorGain.channelCountMode = 'explicit';
     this.monitorGain.channelInterpretation = 'speakers';
+
+    this.paZoneFilterA = ctx.createBiquadFilter();
+    this.paZoneFilterA.type = 'allpass';
+    this.paZoneFilterB = ctx.createBiquadFilter();
+    this.paZoneFilterB.type = 'allpass';
 
     this.paZoneDelayNode = ctx.createDelay(0.5);
     this.paZoneDelayNode.delayTime.value = 0;
@@ -112,17 +168,17 @@ export class OutputRouter {
 
     this.streamMediaDest = ctx.createMediaStreamDestination();
 
-    // Wire Post-DSP output to PA Monitor + PA Zone Delay/Trim -> Speakers, plus isolated Stream/OBS bus
+    // Wire Post-DSP output to PA Monitor + PA Zone Crossover/Delay/Trim -> Speakers, plus isolated Stream/OBS bus
     this.postAnalyser.connect(this.monitorGain);
-    this.monitorGain.connect(this.paZoneDelayNode);
+    this.monitorGain.connect(this.paZoneFilterA);
+    this.paZoneFilterA.connect(this.paZoneFilterB);
+    this.paZoneFilterB.connect(this.paZoneDelayNode);
     this.paZoneDelayNode.connect(this.paZoneGainNode);
     this.paZoneGainNode.connect(ctx.destination);
 
     this.postAnalyser.connect(this.streamOutputGain);
     this.streamOutputGain.connect(this.streamMediaDest);
 
-    // Fresh context: reset the discrete jack router (layout re-derived after
-    // the sink is applied; see setOutputDevice / applySpeakerZones).
     this.jackMerger = null;
     this.jackZoneChains.clear();
     this.jackSlotZones.clear();
@@ -137,18 +193,63 @@ export class OutputRouter {
     }
   }
 
+  private configureZoneCrossoverFilters(
+    filterA: BiquadFilterNode,
+    filterB: BiquadFilterNode,
+    zone: SpeakerZone,
+    now: number
+  ): void {
+    const fc = clamp(zone.crossoverHz || 80, 35, 400);
+    if (zone.role === 'sub') {
+      // Subwoofer role ALWAYS low-passes at crossoverHz (24 dB/oct Linkwitz-Riley cascade)
+      filterA.type = 'lowpass';
+      filterB.type = 'lowpass';
+      filterA.frequency.setTargetAtTime(fc, now, 0.015);
+      filterB.frequency.setTargetAtTime(fc, now, 0.015);
+      filterA.Q.setTargetAtTime(0.7071, now, 0.015);
+      filterB.Q.setTargetAtTime(0.7071, now, 0.015);
+    } else if (zone.crossoverSlope && zone.crossoverSlope !== 'None') {
+      // Main / Center / Rear / Stage Monitor high-passed above subwoofer crossover
+      filterA.type = 'highpass';
+      filterB.type = zone.crossoverSlope === 'LR24' ? 'highpass' : 'allpass';
+      filterA.frequency.setTargetAtTime(fc, now, 0.015);
+      filterB.frequency.setTargetAtTime(fc, now, 0.015);
+      filterA.Q.setTargetAtTime(0.7071, now, 0.015);
+      filterB.Q.setTargetAtTime(0.7071, now, 0.015);
+    } else {
+      // Full-range transparent pass-through
+      filterA.type = 'lowpass';
+      filterB.type = 'lowpass';
+      filterA.frequency.setTargetAtTime(20000, now, 0.015);
+      filterB.frequency.setTargetAtTime(20000, now, 0.015);
+      filterA.Q.setTargetAtTime(0.7071, now, 0.015);
+      filterB.Q.setTargetAtTime(0.7071, now, 0.015);
+    }
+  }
+
   public applySpeakerZones(zones: SpeakerZone[]): void {
     this.lastZones = zones;
     if (!this.ctx || !this.paZoneDelayNode || !this.paZoneGainNode || zones.length === 0) return;
 
-    // ---- Discrete jack path: rebuild graph if the slot→zone patch changed ----
+    // 1. Sync simultaneous auxiliary hardware output sinks (zones routed to a distinct physical output device)
+    this.syncAuxZoneHardwareSinks(zones);
+
+    // 2. Discrete PCIe jack path: rebuild graph if the slot->zone patch changed
     if (this.reconcileJackGraph(zones)) {
       this.applyZoneValuesToJackChains(zones);
       return;
     }
 
-    // ---- Legacy stereo path: only the main zone drives the single PA chain ----
-    const mainZone = zones.find((z) => z.role === 'main-lr') ?? zones[0];
+    // 3. Primary stereo PA path on ctx.destination: drive from main-lr zone (or first zone on the primary device)
+    const activeSinkId = this.resolveEffectiveSinkDeviceId();
+    const mainZone =
+      zones.find(
+        (z) =>
+          z.role === 'main-lr' &&
+          (!z.hardwareOutputId || z.hardwareOutputId === activeSinkId)
+      ) ??
+      zones.find((z) => !z.hardwareOutputId || z.hardwareOutputId === activeSinkId) ??
+      zones[0];
     if (!mainZone) return;
 
     const now = this.ctx.currentTime;
@@ -156,31 +257,179 @@ export class OutputRouter {
     const sign = mainZone.polarityInverted ? -1 : 1;
     const gainLinear = mainZone.mute ? 0 : dbToLinear(clamp(mainZone.levelDb ?? 0, -48, 12)) * sign;
 
+    if (this.paZoneFilterA && this.paZoneFilterB) {
+      this.configureZoneCrossoverFilters(this.paZoneFilterA, this.paZoneFilterB, mainZone, now);
+    }
     this.paZoneDelayNode.delayTime.setTargetAtTime(delaySec, now, 0.015);
     this.paZoneGainNode.gain.setTargetAtTime(gainLinear, now, 0.015);
   }
 
   // =========================================================================
+  //   SIMULTANEOUS MULTI-DEVICE SPEAKER ZONE ROUTING
+  //   Allows turning on 2, 3, 4+ distinct physical output devices at once!
+  // =========================================================================
+
+  private resolveEffectiveSinkDeviceId(): string {
+    if (this.preferredOutputDeviceId) return this.preferredOutputDeviceId;
+    const defaultDev =
+      this.outputDeviceMetaCache.find((d) => d.deviceId && d.deviceId !== 'default' && d.deviceId !== 'communications') ??
+      this.outputDeviceMetaCache[0];
+    return defaultDev?.deviceId || '';
+  }
+
+  private syncAuxZoneHardwareSinks(zones: SpeakerZone[]): void {
+    if (!this.ctx || !this.monitorGain || typeof Audio === 'undefined') return;
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const primarySinkId = this.resolveEffectiveSinkDeviceId();
+
+    const activeZoneIds = new Set<string>();
+
+    for (const zone of zones) {
+      const targetDevId = (zone.hardwareOutputId || '').split('::')[0];
+      // A zone needs its own parallel HTMLAudioElement sink if:
+      // - It has an explicit hardwareOutputId
+      // - That hardwareOutputId is not the simulated training card
+      // - That hardwareOutputId is different from the primary ctx.destination device
+      // - The zone is not currently routed through a discrete jack on the primary PCIe card
+      const isOnPrimaryJack = Boolean(
+        zone.outputJackId && parseJackId(zone.outputJackId)?.deviceId === primarySinkId
+      );
+      const needsAuxSink =
+        Boolean(targetDevId) &&
+        targetDevId !== 'default' &&
+        targetDevId !== SIM_PIE_8OUT_DEVICE_ID &&
+        targetDevId !== primarySinkId &&
+        !isOnPrimaryJack &&
+        !zone.mute;
+
+      if (!needsAuxSink) continue;
+      activeZoneIds.add(zone.id);
+
+      let sink = this.auxZoneSinks.get(zone.id);
+      if (sink && sink.deviceId !== targetDevId) {
+        this.disposeAuxSink(sink);
+        this.auxZoneSinks.delete(zone.id);
+        sink = undefined;
+      }
+
+      if (!sink) {
+        const filterA = ctx.createBiquadFilter();
+        const filterB = ctx.createBiquadFilter();
+        const delay = ctx.createDelay(0.5);
+        const gain = ctx.createGain();
+        const dest = ctx.createMediaStreamDestination();
+        const audioEl = new Audio();
+        audioEl.autoplay = true;
+        audioEl.srcObject = dest.stream;
+
+        this.monitorGain.connect(filterA);
+        filterA.connect(filterB);
+        filterB.connect(delay);
+        delay.connect(gain);
+        gain.connect(dest);
+
+        sink = { deviceId: targetDevId, filterA, filterB, delay, gain, dest, audioEl };
+        this.auxZoneSinks.set(zone.id, sink);
+
+        void (async () => {
+          try {
+            const elWithSink = audioEl as unknown as { setSinkId?: (id: string) => Promise<void> };
+            if ('setSinkId' in audioEl && typeof elWithSink.setSinkId === 'function') {
+              await elWithSink.setSinkId(targetDevId);
+            }
+            await audioEl.play().catch(() => {});
+          } catch (err) {
+            console.warn(`Aux zone sink (${zone.name} -> ${targetDevId}) failed:`, err);
+          }
+        })();
+      }
+
+      this.configureZoneCrossoverFilters(sink.filterA, sink.filterB, zone, now);
+      const delaySec = clamp((zone.delayMs || 0) / 1000, 0, 0.5);
+      const sign = zone.polarityInverted ? -1 : 1;
+      const gainLinear = zone.mute ? 0 : dbToLinear(clamp(zone.levelDb ?? 0, -48, 12)) * sign;
+      sink.delay.delayTime.setTargetAtTime(delaySec, now, 0.015);
+      sink.gain.gain.setTargetAtTime(gainLinear, now, 0.015);
+
+      if (sink.audioEl.paused && this.monitorAudible && !this.emergencyMuted) {
+        void sink.audioEl.play().catch(() => {});
+      }
+    }
+
+    // Tear down any aux sinks for zones that were muted, removed, or moved back to the primary device
+    for (const [zoneId, sink] of this.auxZoneSinks.entries()) {
+      if (!activeZoneIds.has(zoneId)) {
+        this.disposeAuxSink(sink);
+        this.auxZoneSinks.delete(zoneId);
+      }
+    }
+  }
+
+  private disposeAuxSink(sink: AuxZoneHardwareSink): void {
+    try {
+      sink.audioEl.pause();
+      sink.audioEl.srcObject = null;
+      sink.filterA.disconnect();
+      sink.filterB.disconnect();
+      sink.delay.disconnect();
+      sink.gain.disconnect();
+      sink.dest.disconnect();
+    } catch {
+      // ignore cleanup errors
+    }
+  }
+
+  private teardownAuxZoneSinks(): void {
+    for (const sink of this.auxZoneSinks.values()) {
+      this.disposeAuxSink(sink);
+    }
+    this.auxZoneSinks.clear();
+  }
+
+  // =========================================================================
   //   DISCRETE JACK ROUTER — 5.1/7.1 channel-pair zone routing
   //   One physical jack pair per zone: FL/FR (green), BL/BR (black),
-  //   FC/LFE (orange), SL/SR (grey). One-zone-per-jack interlock included.
+  //   FC/LFE (orange), SL/SR (grey). Includes per-zone Crossover & FC/LFE split!
   // =========================================================================
 
   /** Training-mode simulated 7.1 card id (see utils/jackTopology.ts). */
   public setSimulatedJackDeviceId(id: string | null): void {
     this.simJackDeviceId = id;
-    // Re-evaluate routing against the current sink.
-    if (this.ctx) this.reconcileJackGraph(this.lastZones);
+    if (this.ctx) {
+      this.reconcileJackGraph(this.lastZones);
+      this.applyZoneValuesToJackChains(this.lastZones);
+    }
+  }
+
+  /**
+   * Resolve the device ID used for discrete jack matching even when the user
+   * hasn't explicitly clicked "Set Master PA" (i.e. preferredOutputDeviceId is '' / default).
+   */
+  private resolveJackSinkDeviceId(zones: SpeakerZone[]): string | null {
+    if (this.preferredOutputDeviceId) return this.preferredOutputDeviceId;
+    if (this.simJackDeviceId) return this.simJackDeviceId;
+    // Check if any zone already has an outputJackId pointing to a known device
+    for (const z of zones) {
+      const parsed = parseJackId(z.outputJackId);
+      if (parsed?.deviceId) return parsed.deviceId;
+    }
+    const eff = this.resolveEffectiveSinkDeviceId();
+    return eff || null;
   }
 
   /**
    * Channel count of the ACTIVE sink as the router understands it:
-   * real device → destination.maxChannelCount; simulated card → 8.
+   * simulated card -> 8; known probed/WASAPI count -> 6/8; WebAudio destination.maxChannelCount -> 6/8.
    */
-  private detectSinkChannelCount(): number {
+  private detectSinkChannelCount(sinkDeviceId: string | null): number {
     if (!this.ctx) return 2;
-    if (this.simJackDeviceId && this.preferredOutputDeviceId === this.simJackDeviceId) {
+    if (this.simJackDeviceId && sinkDeviceId === this.simJackDeviceId) {
       return 8;
+    }
+    if (sinkDeviceId && this.knownDeviceChannels.has(sinkDeviceId)) {
+      const known = this.knownDeviceChannels.get(sinkDeviceId) || 2;
+      if (known >= 4) return Math.min(known, 8);
     }
     try {
       const max = this.ctx.destination.maxChannelCount || 2;
@@ -191,22 +440,18 @@ export class OutputRouter {
   }
 
   /**
-   * Derive the slot→zone patch for the active sink (zones whose outputJackId
-   * points at the sink device; main-lr defaults onto the green front jack when
-   * nothing references the sink yet). Rebuilds the merger graph whenever the
-   * patch or layout changes. Returns true when discrete mode is active.
+   * Derive the slot->zone patch for the active sink. Rebuilds the merger graph
+   * whenever the patch or layout changes. Returns true when discrete mode is active.
    */
   private reconcileJackGraph(zones: SpeakerZone[]): boolean {
     if (!this.ctx || !this.monitorGain) return false;
 
-    const sinkDeviceId = this.preferredOutputDeviceId || null;
+    const sinkDeviceId = this.resolveJackSinkDeviceId(zones);
     const simulated = Boolean(
       this.simJackDeviceId && sinkDeviceId === this.simJackDeviceId && sinkDeviceId !== null
     );
-    const channelCount = this.detectSinkChannelCount();
+    const channelCount = this.detectSinkChannelCount(sinkDeviceId);
 
-    // Slot→zone patch: explicit assignments first (first-wins interlock), then
-    // the automatic main-lr → front green jack default for a fresh install.
     const nextSlotZones = new Map<OutputJackSlot, string>();
     if (channelCount >= 4 && sinkDeviceId) {
       for (const zone of zones) {
@@ -214,9 +459,28 @@ export class OutputRouter {
         if (!parsed || parsed.deviceId !== sinkDeviceId) continue;
         if (!nextSlotZones.has(parsed.slot)) nextSlotZones.set(parsed.slot, zone.id);
       }
+      // If the active sink is a multi-channel 5.1/7.1 card and no explicit jack patch exists yet,
+      // auto-map the standard church roles to their discrete physical jacks (Front L/R -> Green,
+      // Sub/Center -> Orange, Rear Fill -> Black, Stage Monitor -> Grey) so the card immediately
+      // outputs discrete separated channels instead of a mixed stereo downmix!
       if (nextSlotZones.size === 0) {
-        const mainZone = zones.find((z) => z.role === 'main-lr') ?? zones[0];
-        if (mainZone) nextSlotZones.set('front-lr', mainZone.id);
+        const frontZone = zones.find((z) => z.role === 'main-lr') ?? zones[0];
+        const centerOrSubZone =
+          zones.find((z) => z.role === 'sub') ?? zones.find((z) => z.role === 'center');
+        const rearZone =
+          zones.find((z) => z.role === 'rear-fill') ?? zones.find((z) => z.role === 'overflow');
+        const sideZone = zones.find((z) => z.role === 'stage-monitor');
+
+        if (frontZone) nextSlotZones.set('front-lr', frontZone.id);
+        if (centerOrSubZone && centerOrSubZone.id !== frontZone?.id) {
+          nextSlotZones.set('center-lfe', centerOrSubZone.id);
+        }
+        if (rearZone && rearZone.id !== frontZone?.id) {
+          nextSlotZones.set('rear-lr', rearZone.id);
+        }
+        if (channelCount >= 8 && sideZone && sideZone.id !== frontZone?.id) {
+          nextSlotZones.set('side-lr', sideZone.id);
+        }
       }
     }
 
@@ -235,15 +499,21 @@ export class OutputRouter {
       this.jackSimulated = simulated;
       this.jackDeviceChannelCount = channelCount;
       if (channelCount >= 4 && nextSlotZones.size > 0) {
-        this.buildJackGraph();
+        this.buildJackGraph(zones);
       }
     }
 
     return this.jackMerger !== null;
   }
 
-  /** Build the merger + per-zone chains for the current slot patch. */
-  private buildJackGraph(): void {
+  /**
+   * Build the discrete ChannelMerger + per-jack crossover/delay/gain chains.
+   * Special handling for `center-lfe` (Orange jack, channels 2 = FC and 3 = LFE):
+   * - If both a `center` zone and a `sub` zone exist, Channel 2 (Tip = FC) carries
+   *   the high-passed Center zone and Channel 3 (Ring = LFE) carries the low-passed Subwoofer zone!
+   * - Otherwise, the assigned zone feeds both channels of that jack with its role crossover filter applied.
+   */
+  private buildJackGraph(zones: SpeakerZone[]): void {
     if (!this.ctx || !this.monitorGain || !this.paZoneGainNode) return;
     const ctx = this.ctx;
     const channels = this.jackLayoutChannels;
@@ -258,9 +528,13 @@ export class OutputRouter {
     };
 
     for (const slot of OUTPUT_JACK_SLOT_ORDER) {
-      if (!this.jackSlotZones.has(slot)) continue;
+      const assignedZoneId = this.jackSlotZones.get(slot);
+      if (!assignedZoneId) continue;
       const indices = layoutIndices[slot];
       if (!indices || indices[1] >= channels) continue;
+
+      const filterA = ctx.createBiquadFilter();
+      const filterB = ctx.createBiquadFilter();
 
       const zoneGain = ctx.createGain();
       zoneGain.gain.value = 1;
@@ -271,41 +545,86 @@ export class OutputRouter {
       const zoneDelay = ctx.createDelay(0.5);
       zoneDelay.delayTime.value = 0;
 
-      // Split L/R so each jack conductor receives its own channel — a
-      // ChannelSplitter's outputs ARE the individual channels (the merger's
-      // mono inputs then map them 1:1 onto the jack pair).
       const splitter = ctx.createChannelSplitter(2);
-
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 256;
 
-      this.monitorGain.connect(zoneGain);
+      this.monitorGain.connect(filterA);
+      filterA.connect(filterB);
+      filterB.connect(zoneGain);
       zoneGain.connect(zoneDelay);
       zoneDelay.connect(splitter);
-      splitter.connect(merger, 0, indices[0]); // L → jack channel A
-      splitter.connect(merger, 1, indices[1]); // R → jack channel B
       zoneDelay.connect(analyser);
 
-      this.jackZoneChains.set(slot, { gain: zoneGain, delay: zoneDelay, splitter, analyser, buf: new Float32Array(analyser.fftSize) as Float32Array<ArrayBuffer> });
+      const chainRecord: JackZoneDspChain = {
+        filterA,
+        filterB,
+        gain: zoneGain,
+        delay: zoneDelay,
+        splitter,
+        analyser,
+        buf: new Float32Array(analyser.fftSize) as Float32Array<ArrayBuffer>,
+      };
+
+      // On the Orange CENTER/SUB jack (channels 2 = Center FC, 3 = Subwoofer LFE),
+      // check if we have both a Center zone and a Subwoofer zone so we can split
+      // Center onto Channel 2 and Subwoofer onto Channel 3 independently!
+      const assignedZone = zones.find((z) => z.id === assignedZoneId);
+      const companionSubZone =
+        slot === 'center-lfe' && assignedZone?.role === 'center'
+          ? zones.find((z) => z.role === 'sub')
+          : slot === 'center-lfe' && assignedZone?.role === 'sub'
+            ? zones.find((z) => z.role === 'center')
+            : undefined;
+
+      if (slot === 'center-lfe' && assignedZone && companionSubZone) {
+        const subFilterA = ctx.createBiquadFilter();
+        const subFilterB = ctx.createBiquadFilter();
+        const subGain = ctx.createGain();
+        const subDelay = ctx.createDelay(0.5);
+        const subSplitter = ctx.createChannelSplitter(2);
+
+        this.monitorGain.connect(subFilterA);
+        subFilterA.connect(subFilterB);
+        subFilterB.connect(subGain);
+        subGain.connect(subDelay);
+        subDelay.connect(subSplitter);
+
+        if (assignedZone.role === 'center') {
+          // assignedZone is Center (Ch 2 FC), companion is Sub (Ch 3 LFE)
+          splitter.connect(merger, 0, indices[0]);
+          subSplitter.connect(merger, 0, indices[1]);
+        } else {
+          // assignedZone is Sub (Ch 3 LFE), companion is Center (Ch 2 FC)
+          subSplitter.connect(merger, 0, indices[0]);
+          splitter.connect(merger, 0, indices[1]);
+        }
+
+        chainRecord.centerLfeSubFilterA = subFilterA;
+        chainRecord.centerLfeSubFilterB = subFilterB;
+        chainRecord.centerLfeSubGain = subGain;
+        chainRecord.centerLfeSubDelay = subDelay;
+      } else {
+        splitter.connect(merger, 0, indices[0]); // L -> jack channel A
+        splitter.connect(merger, 1, indices[1]); // R -> jack channel B
+      }
+
+      this.jackZoneChains.set(slot, chainRecord);
     }
 
-    // Real multichannel devices: address the stream 1:1 with 'discrete'
-    // (no browser speaker down-mix). Simulated card: leave the destination in
-    // its default mode — the discrete merger output folds naturally so the
-    // front pair stays audible on the physical stereo device while the other
-    // jacks remain metered (training behaviour).
     if (!this.jackSimulated) {
       try {
-        ctx.destination.channelCount = channels;
-        ctx.destination.channelCountMode = 'explicit';
-        ctx.destination.channelInterpretation = 'discrete';
+        const maxSupported = Math.max(2, ctx.destination.maxChannelCount || 2);
+        if (maxSupported >= channels) {
+          ctx.destination.channelCount = channels;
+          ctx.destination.channelCountMode = 'explicit';
+          ctx.destination.channelInterpretation = 'discrete';
+        }
       } catch {
-        // Device refused the layout — merger still feeds the default layout.
+        // Device refused the layout — merger still feeds the default layout cleanly.
       }
     }
 
-    // Take over the destination: legacy PA zone chain goes silent, the
-    // per-jack chains render instead.
     try {
       this.paZoneGainNode.disconnect(ctx.destination);
     } catch {
@@ -325,7 +644,7 @@ export class OutputRouter {
       }
       if (!this.jackSimulated) {
         try {
-          this.ctx.destination.channelCount = Math.max(2, this.ctx.destination.maxChannelCount || 2);
+          this.ctx.destination.channelCount = 2;
           this.ctx.destination.channelCountMode = 'explicit';
           this.ctx.destination.channelInterpretation = 'speakers';
         } catch {
@@ -335,9 +654,15 @@ export class OutputRouter {
     }
     for (const chain of this.jackZoneChains.values()) {
       try {
+        chain.filterA.disconnect();
+        chain.filterB.disconnect();
         chain.gain.disconnect();
         chain.delay.disconnect();
         chain.splitter.disconnect();
+        chain.centerLfeSubFilterA?.disconnect();
+        chain.centerLfeSubFilterB?.disconnect();
+        chain.centerLfeSubGain?.disconnect();
+        chain.centerLfeSubDelay?.disconnect();
         chain.analyser.disconnect();
       } catch {
         // ignore
@@ -348,10 +673,18 @@ export class OutputRouter {
     this.jackSlotZones.clear();
     this.jackLayoutChannels = 0;
 
-    if (this.ctx && this.monitorGain && this.paZoneDelayNode && this.paZoneGainNode) {
-      // Restore legacy chain wiring.
+    if (
+      this.ctx &&
+      this.monitorGain &&
+      this.paZoneFilterA &&
+      this.paZoneFilterB &&
+      this.paZoneDelayNode &&
+      this.paZoneGainNode
+    ) {
       try {
-        this.monitorGain.connect(this.paZoneDelayNode);
+        this.monitorGain.connect(this.paZoneFilterA);
+        this.paZoneFilterA.connect(this.paZoneFilterB);
+        this.paZoneFilterB.connect(this.paZoneDelayNode);
         this.paZoneDelayNode.connect(this.paZoneGainNode);
         this.paZoneGainNode.connect(this.ctx.destination);
       } catch {
@@ -360,7 +693,7 @@ export class OutputRouter {
     }
   }
 
-  /** Per-zone trim/delay/polarity/mute onto the active jack chains. */
+  /** Per-zone crossover/trim/delay/polarity/mute onto the active jack chains. */
   private applyZoneValuesToJackChains(zones: SpeakerZone[]): void {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
@@ -368,11 +701,41 @@ export class OutputRouter {
       const chain = this.jackZoneChains.get(slot);
       const zone = zones.find((z) => z.id === zoneId);
       if (!chain || !zone) continue;
+
+      this.configureZoneCrossoverFilters(chain.filterA, chain.filterB, zone, now);
       const delaySec = clamp((zone.delayMs || 0) / 1000, 0, 0.5);
       const sign = zone.polarityInverted ? -1 : 1;
       const gainLinear = zone.mute ? 0 : dbToLinear(clamp(zone.levelDb ?? 0, -48, 12)) * sign;
       chain.delay.delayTime.setTargetAtTime(delaySec, now, 0.015);
       chain.gain.gain.setTargetAtTime(gainLinear, now, 0.015);
+
+      if (
+        slot === 'center-lfe' &&
+        chain.centerLfeSubFilterA &&
+        chain.centerLfeSubFilterB &&
+        chain.centerLfeSubGain &&
+        chain.centerLfeSubDelay
+      ) {
+        const companion =
+          zone.role === 'center'
+            ? zones.find((z) => z.role === 'sub')
+            : zones.find((z) => z.role === 'center');
+        if (companion) {
+          this.configureZoneCrossoverFilters(
+            chain.centerLfeSubFilterA,
+            chain.centerLfeSubFilterB,
+            companion,
+            now
+          );
+          const compDelay = clamp((companion.delayMs || 0) / 1000, 0, 0.5);
+          const compSign = companion.polarityInverted ? -1 : 1;
+          const compGain = companion.mute
+            ? 0
+            : dbToLinear(clamp(companion.levelDb ?? 0, -48, 12)) * compSign;
+          chain.centerLfeSubDelay.delayTime.setTargetAtTime(compDelay, now, 0.015);
+          chain.centerLfeSubGain.gain.setTargetAtTime(compGain, now, 0.015);
+        }
+      }
     }
   }
 
@@ -570,35 +933,18 @@ export class OutputRouter {
     const monBlocked = params.sourceMode === 'desktop-audio' && safety.selfLoopbackBlocked;
     const streamBlocked = params.sourceMode === 'desktop-audio' && safety.streamLoopbackBlocked;
 
-    // On Windows Desktop (Tauri), start the in-process WASAPI render pump automatically
-    // whenever monitorAudible is active so hkm-audio-system.exe itself owns a live
-    // Windows audio session (allowing OBS Application Audio Capture targeting the
-    // HKM Audio System window to capture post-DSP audio directly from PID hkm-audio-system.exe).
-    if (isDesktopApp() && params.isRunning && this.monitorAudible && !this.emergencyMuted && !monBlocked) {
-      if (!this.rawTapNode) {
-        void this.ensureDesktopInProcessTap();
-      }
-    } else if (isDesktopApp() && !this.rawOutputActive && this.rawTapNode) {
-      this.teardownRawTap();
-      void stopRawOutput();
-    }
-
+    // IMPORTANT FOR LOW-SPEC PC STABILITY & MULTICHANNEL PCIe ROUTING:
+    // Normal desktop playback uses WebView2's native C++ audio render thread (`ctx.destination`),
+    // which has zero JS-to-Rust IPC overhead and preserves full 5.1/7.1 discrete channel separation.
+    // `win_sessions.rs` protects the entire `hkm-audio-system.exe` + `msedgewebview2.exe` process tree
+    // from being muted, so OBS Application Audio Capture captures WebView2 natively.
     if (this.monitorGain) {
       const baseLinear = dbToLinear(this.monitorLevelDb);
       const tbFactor = this.talkbackActive ? 0.2 : 1.0; // -14 dB cue dim during Talkback
-      // When the in-process WASAPI render pump is active on Windows Desktop (rawTapNode != null),
-      // mute WebView2's ctx.destination (monitorGain = 0) so speakers don't double-play while
-      // hkm-audio-system.exe renders the post-DSP signal to both the speakers and OBS!
-      const useInProcessDesktopRender =
-        isDesktopApp() &&
-        !this.preferredOutputDeviceId &&
-        this.jackMerger === null &&
-        this.rawTapNode !== null;
       const target =
         this.monitorAudible &&
         !this.emergencyMuted &&
         !this.rawOutputActive &&
-        !useInProcessDesktopRender &&
         !monBlocked
           ? baseLinear * tbFactor
           : 0;
@@ -668,11 +1014,8 @@ export class OutputRouter {
     this.preferredOutputDeviceId = cleanId || undefined;
     if (!this.ctx) return true;
 
-    // Simulated training card: no physical sink to switch — the discrete jack
-    // router drives the layout, audio keeps flowing through the current sink.
     if (cleanId === SIM_PIE_8OUT_DEVICE_ID) {
-      this.reconcileJackGraph(this.lastZones);
-      this.applyZoneValuesToJackChains(this.lastZones);
+      this.applySpeakerZones(this.lastZones);
       return true;
     }
 
@@ -682,10 +1025,7 @@ export class OutputRouter {
     if (hasSetSinkId && ctxWithSink.setSinkId) {
       try {
         await ctxWithSink.setSinkId(cleanId || '');
-        // Sink switched: channel layout of the destination may have changed —
-        // re-derive the discrete jack router against the new device.
-        this.reconcileJackGraph(this.lastZones);
-        this.applyZoneValuesToJackChains(this.lastZones);
+        this.applySpeakerZones(this.lastZones);
         return true;
       } catch (err) {
         console.warn('AudioContext.setSinkId failed:', err);
@@ -696,8 +1036,7 @@ export class OutputRouter {
           } catch {
             // ignore fallback sink reset failure
           }
-          this.reconcileJackGraph(this.lastZones);
-          this.applyZoneValuesToJackChains(this.lastZones);
+          this.applySpeakerZones(this.lastZones);
           this.onOutputFallbackCb?.(
             cleanId,
             'Saved audio output device is unavailable; routed safely to System Default Output.'
@@ -733,7 +1072,6 @@ export class OutputRouter {
       return true;
     }
     if (!this.ctx || !this.streamMediaDest) {
-      // Stored in preferredStreamOutputDeviceId; attachGraph() will wire it when engine starts
       return true;
     }
     try {
@@ -743,8 +1081,14 @@ export class OutputRouter {
       }
       if (this.streamAudioEl) {
         this.streamAudioEl.srcObject = this.streamMediaDest.stream;
-        if ('setSinkId' in this.streamAudioEl && typeof (this.streamAudioEl as unknown as { setSinkId?: (id: string) => Promise<void> }).setSinkId === 'function') {
-          await (this.streamAudioEl as unknown as { setSinkId: (id: string) => Promise<void> }).setSinkId(cleanId);
+        if (
+          'setSinkId' in this.streamAudioEl &&
+          typeof (this.streamAudioEl as unknown as { setSinkId?: (id: string) => Promise<void> }).setSinkId ===
+            'function'
+        ) {
+          await (this.streamAudioEl as unknown as { setSinkId: (id: string) => Promise<void> }).setSinkId(
+            cleanId
+          );
         }
         await this.streamAudioEl.play().catch(() => {});
       }
@@ -752,55 +1096,6 @@ export class OutputRouter {
     } catch (err) {
       console.warn('Stream output setSinkId failed:', err);
       return false;
-    }
-  }
-
-  private desktopTapInitializing = false;
-
-  private async ensureDesktopInProcessTap(): Promise<void> {
-    if (this.desktopTapInitializing || this.rawTapNode || !this.ctx || !this.postAnalyser) return;
-    if (this.preferredOutputDeviceId || this.jackMerger !== null) return;
-    this.desktopTapInitializing = true;
-    try {
-      await startRawOutput(this.rawOutputEndpointId);
-      await this.ensureRawTapWorklet();
-      if (!this.ctx || !this.postAnalyser || !this.monitorAudible || this.emergencyMuted) {
-        await stopRawOutput();
-        return;
-      }
-
-      this.teardownRawTap();
-      const tapNode = new AudioWorkletNode(this.ctx, 'raw-output-tap-processor', {
-        numberOfInputs: 1,
-        numberOfOutputs: 1,
-        channelCount: 2,
-        outputChannelCount: [2],
-      });
-      const silentSink = this.ctx.createGain();
-      silentSink.gain.value = 0;
-
-      tapNode.port.onmessage = (ev) => {
-        if (ev.data instanceof ArrayBuffer && !this.emergencyMuted && this.monitorAudible) {
-          void pushRawOutputPcm(ev.data);
-        }
-      };
-
-      this.postAnalyser.connect(tapNode);
-      tapNode.connect(silentSink);
-      silentSink.connect(this.ctx.destination);
-
-      this.rawTapNode = tapNode;
-      this.rawTapSilentSink = silentSink;
-      // Mute WebView2's monitorGain now that in-process WASAPI render is live
-      if (this.monitorGain && this.ctx) {
-        this.monitorGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.015);
-      }
-    } catch (err) {
-      console.warn('In-process desktop WASAPI render tap fallback to WebView2 output:', err);
-      this.teardownRawTap();
-      await stopRawOutput();
-    } finally {
-      this.desktopTapInitializing = false;
     }
   }
 

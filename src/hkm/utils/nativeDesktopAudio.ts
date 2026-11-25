@@ -35,6 +35,8 @@ export interface RawOutputEndpointInfo {
   isDefault: boolean;
   rawSupported: boolean;
   apoRegistered: boolean;
+  channels?: number;
+  isMultichannelCapable?: boolean;
 }
 
 export interface ApoSystemStatus {
@@ -245,7 +247,7 @@ export async function stopRawOutput(): Promise<void> {
 }
 
 export async function openWindowsSoundSettings(
-  page: 'apps-volume' | 'sound' = 'apps-volume'
+  page: 'apps-volume' | 'sound' | 'mmsys' | 'speaker-config' = 'apps-volume'
 ): Promise<boolean> {
   const core = getTauriCore();
   if (!core?.invoke) return false;
@@ -254,5 +256,15 @@ export async function openWindowsSoundSettings(
     return true;
   } catch {
     return false;
+  }
+}
+
+export async function prepareDesktopForUpdate(): Promise<void> {
+  const core = getTauriCore();
+  if (!core?.invoke) return;
+  try {
+    await core.invoke('prepare_for_update');
+  } catch {
+    // ignore if command unavailable on older build
   }
 }

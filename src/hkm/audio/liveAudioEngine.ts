@@ -248,6 +248,10 @@ class LiveAudioEngine {
     this.outputRouter.setSimulatedJackDeviceId(id);
   }
 
+  public setKnownDeviceChannelCounts(counts: Record<string, number>): void {
+    this.outputRouter.setKnownDeviceChannelCounts(counts);
+  }
+
   public sampleJackLevels(): Array<{ slot: string; zoneId: string; rmsDb: number }> {
     return this.outputRouter.sampleJackLevels();
   }

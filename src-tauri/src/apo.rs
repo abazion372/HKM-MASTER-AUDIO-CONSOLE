@@ -22,6 +22,8 @@ pub struct RawOutputEndpointInfo {
     pub is_default: bool,
     pub raw_supported: bool,
     pub apo_registered: bool,
+    pub channels: u16,
+    pub is_multichannel_capable: bool,
 }
 
 #[derive(Clone, Serialize)]
@@ -58,6 +60,12 @@ fn apo_state() -> &'static ApoStateInner {
 // PKEY_Device_FriendlyName = {a45c254e-df1c-4efd-8020-67d146a850e0},2
 #[cfg(windows)]
 const PKEY_DEVICE_FRIENDLY_NAME: &str = r"{a45c254e-df1c-4efd-8020-67d146a850e0},2";
+// PKEY_DeviceInterface_FriendlyName = {026e516e-b814-414b-83cd-856d6fef4822},2 (Adapter name, e.g. Realtek HD Audio / Sound Blaster PCIe)
+#[cfg(windows)]
+const PKEY_ADAPTER_FRIENDLY_NAME: &str = r"{026e516e-b814-414b-83cd-856d6fef4822},2";
+// PKEY_AudioEndpoint_PhysicalSpeakers = {1da5d803-d492-4edd-8c23-e0c0ffee7f0e},3
+#[cfg(windows)]
+const PKEY_PHYSICAL_SPEAKERS: &str = r"{1da5d803-d492-4edd-8c23-e0c0ffee7f0e},3";
 #[cfg(windows)]
 const RENDER_REGISTRY_PATH: &str = r"SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Render";
 
@@ -234,12 +242,56 @@ fn enumerate_endpoints_and_dll() -> (Vec<RawOutputEndpointInfo>, Option<String>)
     };
 
     for key in root.enum_keys().flatten() {
-        let props_path = format!("{}\\{}\\Properties", RENDER_REGISTRY_PATH, key);
-        let name = RegKey::predef(HKEY_LOCAL_MACHINE)
-            .open_subkey_with_flags(&props_path, winreg::enums::KEY_READ)
+        // Check DeviceState == 1 (DEVICE_STATE_ACTIVE) so disabled/unplugged ghosts don't clutter
+        let device_state = root
+            .open_subkey_with_flags(&key, winreg::enums::KEY_READ)
             .ok()
+            .and_then(|sub| sub.get_value::<u32, _>("DeviceState").ok())
+            .unwrap_or(1);
+        if device_state != 1 {
+            continue;
+        }
+
+        let props_path = format!("{}\\{}\\Properties", RENDER_REGISTRY_PATH, key);
+        let props_key = RegKey::predef(HKEY_LOCAL_MACHINE)
+            .open_subkey_with_flags(&props_path, winreg::enums::KEY_READ)
+            .ok();
+
+        let endpoint_label = props_key
+            .as_ref()
             .and_then(|props| props.get_value::<String, _>(PKEY_DEVICE_FRIENDLY_NAME).ok())
             .unwrap_or_else(|| "Speaker Endpoint".to_string());
+        let adapter_label = props_key
+            .as_ref()
+            .and_then(|props| props.get_value::<String, _>(PKEY_ADAPTER_FRIENDLY_NAME).ok())
+            .unwrap_or_default();
+        let name = if !adapter_label.is_empty() && !endpoint_label.contains(&adapter_label) {
+            format!("{} ({})", endpoint_label, adapter_label)
+        } else {
+            endpoint_label
+        };
+
+        let physical_mask = props_key
+            .as_ref()
+            .and_then(|props| props.get_value::<u32, _>(PKEY_PHYSICAL_SPEAKERS).ok())
+            .unwrap_or(0);
+        let mask_channels = physical_mask.count_ones() as u16;
+
+        let full_endpoint_id = format!("{{0.0.0.00000000}}.{}", key);
+        let wasapi_channels = crate::win_audio::query_endpoint_mix_channels(&full_endpoint_id)
+            .unwrap_or(2);
+        let channels = wasapi_channels.max(mask_channels).max(2);
+        let lower_name = name.to_lowercase();
+        let is_multichannel_capable = channels >= 6
+            || lower_name.contains("5.1")
+            || lower_name.contains("7.1")
+            || lower_name.contains("surround")
+            || ((lower_name.contains("realtek")
+                || lower_name.contains("sound blaster")
+                || lower_name.contains("xonar")
+                || lower_name.contains("pcie")
+                || lower_name.contains("high definition audio"))
+                && (lower_name.contains("speakers") || lower_name.contains("line out")));
 
         let apo_registered = RegKey::predef(HKEY_LOCAL_MACHINE)
             .open_subkey_with_flags(
@@ -252,13 +304,18 @@ fn enumerate_endpoints_and_dll() -> (Vec<RawOutputEndpointInfo>, Option<String>)
             .unwrap_or(false)
             || installed.iter().any(|id| id == &key);
 
-        let is_default = default_id.as_deref() == Some(key.as_str());
+        let is_default = default_id
+            .as_deref()
+            .map(|d| d == key.as_str() || d.ends_with(&key))
+            .unwrap_or(false);
         endpoints.push(RawOutputEndpointInfo {
             id: key,
             name,
             is_default,
             raw_supported: true,
             apo_registered,
+            channels,
+            is_multichannel_capable,
         });
     }
 

@@ -1078,6 +1078,7 @@ export default function App() {
                     onAddZone={session.handleAddZone}
                     onRemoveZone={session.handleRemoveZone}
                     outputDevices={hardware.outputDevices}
+                    outputJackEndpoints={hardware.outputJackEndpoints}
                     onScanAudioDevices={hardware.refreshAudioDevices}
                     telemetry={audio.telemetry}
                     emergencyMuted={session.emergencyMuted}

@@ -1470,11 +1470,11 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
               {isDesktopApp() && (
                 <button
                   type="button"
-                  onClick={() => void openWindowsSoundSettings()}
-                  title="Open Windows Sound settings — set the card's speaker configuration to 5.1/7.1 so every jack carries its own pair"
+                  onClick={() => void openWindowsSoundSettings('mmsys')}
+                  title="Open Windows Sound Control Panel (mmsys.cpl) — click Configure on your PCIe card and select 5.1 or 7.1 Surround so Windows unlocks all rear jacks"
                   className="h-7 px-1.5 rounded border border-[#293544] bg-[#0B1017] text-slate-400 hover:text-white font-mono text-[8.5px] font-bold cursor-pointer shrink-0"
                 >
-                  WIN SOUND
+                  5.1/7.1 SETUP
                 </button>
               )}
             </div>
@@ -1533,17 +1533,53 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                         </span>
                       )}
                       {assignedZones.map((z) => (
-                        <span
+                        <button
                           key={z.id}
-                          className="px-1.5 py-0.5 rounded bg-teal-500/15 text-teal-300 border border-teal-500/35 truncate max-w-[120px]"
+                          type="button"
+                          disabled={locked || !onUpdateZone}
+                          onClick={() => onUpdateZone?.(z.id, { mute: !z.mute })}
+                          title={`Click to ${z.mute ? 'turn ON' : 'MUTE'} ${z.name} on ${devLabel}`}
+                          className={`px-1.5 py-0.5 rounded border truncate max-w-[130px] cursor-pointer disabled:opacity-45 ${
+                            z.mute
+                              ? 'bg-rose-950/40 text-rose-300 border-rose-500/40 line-through'
+                              : 'bg-teal-500/20 text-teal-200 border-teal-400/50 font-bold'
+                          }`}
                         >
-                          {z.name}
-                        </span>
+                          {z.mute ? `OFF: ${z.name}` : `● ${z.name}`}
+                        </button>
                       ))}
                       {!isMasterOut && !isStreamOut && assignedZones.length === 0 && (
                         <span className="text-slate-500 italic">Available port</span>
                       )}
                     </div>
+
+                    {onUpdateZone && zones.length > 0 && (
+                      <div className="pt-0.5">
+                        <select
+                          aria-label={`Route speaker zone simultaneously to ${devLabel}`}
+                          value=""
+                          disabled={locked}
+                          onChange={(e) => {
+                            const zoneId = e.target.value;
+                            if (!zoneId) return;
+                            onUpdateZone(zoneId, {
+                              hardwareOutputId: dev.deviceId,
+                              hardwareOutput: devLabel,
+                              outputJackId: undefined,
+                              mute: false,
+                            });
+                          }}
+                          className="w-full h-6 px-1.5 rounded border border-[#2C394A] bg-[#0B1017] text-teal-200 font-mono text-[8.5px] cursor-pointer disabled:opacity-45"
+                        >
+                          <option value="">+ Route Speaker Zone Here (Active Simultaneously)…</option>
+                          {zones.map((z) => (
+                            <option key={z.id} value={z.id}>
+                              {z.hardwareOutputId === dev.deviceId ? `✓ ${z.name} (${z.role})` : `→ ${z.name} (${z.role})`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
 
                     {(isMasterOut || isStreamOut) && (
                       <div className="space-y-0.5 pt-0.5">
