@@ -1,0 +1,1452 @@
+     1→import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+     2→import type { ModuleId } from './types/audio.ts';
+     3→import { useConsoleSession } from './store/useConsoleSession.ts';
+     4→import { useAudioEngine } from './store/useAudioEngine.ts';
+     5→import { useHardwareManager } from './store/useHardwareManager.ts';
+     6→import { useMidiManager } from './store/useMidiManager.ts';
+     7→import { useKeyboardShortcutsManager } from './store/useKeyboardShortcutsManager.ts';
+     8→import { isDesktopApp } from './utils/appApi.ts';
+     9→import {
+    10→  NATIVE_DESKTOP_AUDIO_ID,
+    11→  isNativeDesktopInputId,
+    12→  openWindowsSoundSettings,
+    13→  setDesktopAudioSourceIsolation,
+    14→  type DesktopSourceIsolationStatus,
+    15→} from './utils/nativeDesktopAudio.ts';
+    16→import { checkDesktopUpdate } from './utils/appUpdater.ts';
+    17→import { liveAudioEngine } from './audio/liveAudioEngine.ts';
+    18→import { TopBar } from './components/TopBar.tsx';
+    19→import { Sidebar } from './components/Sidebar.tsx';
+    20→import { ConsoleInstrumentDeck } from './components/ConsoleInstrumentDeck.tsx';
+    21→import { CentralDspChainView } from './components/CentralDspChainView.tsx';
+    22→import { ConsoleLeftPanel } from './components/ConsoleLeftPanel.tsx';
+    23→import { ConsoleRightPanel } from './components/ConsoleRightPanel.tsx';
+    24→import { ConsoleBottomBar } from './components/ConsoleBottomBar.tsx';
+    25→import { FeedbackAnalyzerModule } from './components/FeedbackAnalyzerModule.tsx';
+    26→import { AcousticAnalyzerModule } from './components/AcousticAnalyzerModule.tsx';
+    27→import { SpeakerZonesModule } from './components/SpeakerZonesModule.tsx';
+    28→import { MicrophoneIntelligenceModule } from './components/MicrophoneIntelligenceModule.tsx';
+    29→import { InstrumentIntelligenceModule } from './components/InstrumentIntelligenceModule.tsx';
+    30→import { LivestreamObsModule } from './components/LivestreamObsModule.tsx';
+    31→import { AutomatedSoundCheckModule } from './components/AutomatedSoundCheckModule.tsx';
+    32→import { PresetsServiceModule } from './components/PresetsServiceModule.tsx';
+    33→import { AiEngineerModule } from './components/AiEngineerModule.tsx';
+    34→import { MidiMappingModule } from './components/MidiMappingModule.tsx';
+    35→import { HardwareDiagnosticsModule } from './components/HardwareDiagnosticsModule.tsx';
+    36→import { VirtualDiBassModule } from './components/VirtualDiBassModule.tsx';
+    37→import { RemoteCompanionView } from './components/RemoteCompanionView.tsx';
+    38→import { KeyboardShortcutManager } from './components/KeyboardShortcutManager.tsx';
+    39→import { UpdateNotificationModal } from './components/UpdateNotificationModal.tsx';
+    40→import { AppMenuBar, APP_VERSION, type UpdateCheckBannerState } from './components/AppMenuBar.tsx';
+    41→import { GainStagingAssistantModal } from './components/GainStagingAssistantModal.tsx';
+    42→import { GlobalSearchModal } from './components/GlobalSearchModal.tsx';
+    43→import { SignalJourneyModal } from './components/SignalJourneyModal.tsx';
+    44→import { MultitrackRecorderModule } from './components/MultitrackRecorderModule.tsx';
+    45→import { UniversalRoutingModule } from './components/UniversalRoutingModule.tsx';
+    46→import { validateDspConfig } from './utils/camillaDsp.ts';
+    47→
+    48→export default function App() {
+    49→  const [remoteCompanionToken, setRemoteCompanionToken] = useState<string | null>(() => {
+    50→    if (isDesktopApp()) return null;
+    51→    try {
+    52→      const params = new URLSearchParams(window.location.search);
+    53→      if (params.get('mode') === 'remote') {
+    54→        const tok = params.get('token');
+    55→        if (tok) return tok;
+    56→      }
+    57→    } catch {
+    58→      // ignore URL parse error
+    59→    }
+    60→    return null;
+    61→  });
+    62→
+    63→  const [activeModule, setActiveModule] = useState<ModuleId>('dsp');
+    64→  const [selectedChannelId, setSelectedChannelId] = useState<string>('ch-1');
+    65→  const [consoleLocked, setConsoleLocked] = useState<boolean>(false);
+    66→  const [appVersion, setAppVersion] = useState<string>(APP_VERSION);
+    67→  const [showAboutModal, setShowAboutModal] = useState(false);
+    68→  const [showUpdateModal, setShowUpdateModal] = useState(false);
+    69→  const [showGainStaging, setShowGainStaging] = useState(false);
+    70→  const [showGlobalSearch, setShowGlobalSearch] = useState(false);
+    71→  const [signalJourneyChannelId, setSignalJourneyChannelId] = useState<string | null>(null);
+    72→  const [desktopSourceIsolationStatus, setDesktopSourceIsolationStatus] =
+    73→    useState<DesktopSourceIsolationStatus | null>(null);
+    74→  const sourceIsolationQueueRef = useRef<Promise<DesktopSourceIsolationStatus | null>>(Promise.resolve(null));
+    75→
+    76→  const syncDesktopSourceIsolation = useCallback((enabled: boolean) => {
+    77→    const next = sourceIsolationQueueRef.current.then(() => setDesktopAudioSourceIsolation(enabled));
+    78→    sourceIsolationQueueRef.current = next.then(() => null, () => null);
+    79→    return next;
+    80→  }, []);
+    81→
+    82→  useEffect(() => {
+    83→    const onKeyDown = (e: KeyboardEvent) => {
+    84→      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    85→        e.preventDefault();
+    86→        setShowGlobalSearch((prev) => !prev);
+    87→      }
+    88→    };
+    89→    window.addEventListener('keydown', onKeyDown);
+    90→    return () => window.removeEventListener('keydown', onKeyDown);
+    91→  }, []);
+    92→  const [updateCheckState, setUpdateCheckState] = useState<UpdateCheckBannerState>({ status: 'idle' });
+    93→  const [availableUpdate, setAvailableUpdate] = useState<{
+    94→    version: string;
+    95→    notes?: string;
+    96→    onInstall: (onProgress?: (percent: number) => void) => Promise<void>;
+    97→  } | null>(null);
+    98→
+    99→  const runUpdateCheck = useCallback(async (openModalIfFound: boolean) => {
+   100→    setUpdateCheckState({ status: 'checking' });
+   101→    const res = await checkDesktopUpdate();
+   102→    if (res.available && res.downloadAndInstall && res.version) {
+   103→      setAvailableUpdate({
+   104→        version: res.version,
+   105→        notes: res.notes,
+   106→        onInstall: res.downloadAndInstall,
+   107→      });
+   108→      setUpdateCheckState({ status: 'available', version: res.version });
+   109→      if (openModalIfFound) {
+   110→        setShowUpdateModal(true);
+   111→      }
+   112→      return;
+   113→    }
+   114→    if (res.error) {
+   115→      setUpdateCheckState({ status: 'error', message: res.error });
+   116→      return;
+   117→    }
+   118→    setUpdateCheckState({ status: 'up-to-date' });
+   119→  }, []);
+   120→
+   121→  // Resolve exact native desktop version & proactively check for verified releases on launch
+   122→  useEffect(() => {
+   123→    if (!isDesktopApp()) return;
+   124→    let active = true;
+   125→
+   126→    import('@tauri-apps/api/app')
+   127→      .then((appApi) => appApi.getVersion())
+   128→      .then((ver) => {
+   129→        if (active && ver) setAppVersion(ver);
+   130→      })
+   131→      .catch(() => {
+   132→        // fallback to build-time APP_VERSION
+   133→      });
+   134→
+   135→    const timer = window.setTimeout(async () => {
+   136→      if (active) {
+   137→        await runUpdateCheck(true);
+   138→      }
+   139→    }, 3500);
+   140→
+   141→    return () => {
+   142→      active = false;
+   143→      window.clearTimeout(timer);
+   144→    };
+   145→  }, [runUpdateCheck]);
+   146→
+   147→  const midiRef = useRef<any>(null);
+   148→  const shortcutsRef = useRef<any>(null);
+   149→
+   150→  const handleMidiMappingsLoaded = useCallback((mappings: any[]) => {
+   151→    midiRef.current?.updateAndPersistMidiMappings(mappings);
+   152→  }, []);
+   153→
+   154→  const handleKeyboardShortcutsLoaded = useCallback((shortcutsList: any[]) => {
+   155→    shortcutsRef.current?.updateAndPersistShortcuts(shortcutsList);
+   156→  }, []);
+   157→
+   158→  // 1. Console Session Store: holds mixer state, presets, configuration versions, and SQLite persistence
+   159→  const session = useConsoleSession({
+   160→    remoteCompanionToken,
+   161→    onMidiMappingsLoaded: handleMidiMappingsLoaded,
+   162→    onKeyboardShortcutsLoaded: handleKeyboardShortcutsLoaded,
+   163→  });
+   164→
+   165→  const {
+   166→    desktopWsRef,
+   167→    setFindings,
+   168→    handleUpdateChannel,
+   169→    handleUpdateDsp,
+   170→    handleSelectPreset,
+   171→    handleAddChannel,
+   172→    handleAddEqBand,
+   173→    handleResetDsp,
+   174→    handleClearAllSolos,
+   175→    setChannels,
+   176→    logAudit,
+   177→    setObsStatus,
+   178→    handleSaveVersion,
+   179→    handleBatchMute,
+   180→    handleToggleEmergencyMute,
+   181→    handleToggleTotalBypass,
+   182→    handleUndoLastDsp,
+   183→    handleSelectDevice,
+   184→    handleRegisterDevices,
+   185→    handleReconcileLiveInputs,
+   186→  } = session;
+   187→
+   188→  // 2. Physical Hardware Discovery + Unified Startup & Hot-Plug 1-to-1 Input Auto-Slotting
+   189→  const hardware = useHardwareManager({
+   190→    activeDevice: session.activeDevice,
+   191→    platform: session.platform,
+   192→    devices: session.devices,
+   193→    onRegisterDevices: handleRegisterDevices,
+   194→    onSelectDevice: handleSelectDevice,
+   195→    logAudit,
+   196→    hydrated: session.hydrated,
+   197→    onSyncLiveInputsToChannels: handleReconcileLiveInputs,
+   198→  });
+   199→
+   200→  const handleSendWsTelemetry = useCallback(
+   201→    (tel: Parameters<NonNullable<Parameters<typeof useAudioEngine>[0]['onSendWsTelemetry']>>[0]) => {
+   202→      const ws = desktopWsRef.current;
+   203→      if (ws && ws.readyState === WebSocket.OPEN) {
+   204→        ws.send(JSON.stringify({ type: 'telemetry:frame', telemetry: tel }));
+   205→      }
+   206→    },
+   207→    [desktopWsRef]
+   208→  );
+   209→
+   210→  const handleAddAutoFinding = useCallback(
+   211→    (finding: Parameters<NonNullable<Parameters<typeof useAudioEngine>[0]['onAddFinding']>>[0]) => {
+   212→      setFindings((prev) => [finding, ...prev]);
+   213→    },
+   214→    [setFindings]
+   215→  );
+   216→
+   217→  const handlePrepareBridgeStrip = useCallback(
+   218→    (mode: 'live-mic' | 'desktop-audio' | 'pink-noise') => {
+   219→      if (mode !== 'desktop-audio' && mode !== 'pink-noise') return;
+   220→      setChannels((prev) => {
+   221→        const ch0 = prev[0];
+   222→        if (!ch0 || ch0.hardwareInputId || ch0.faderDb > -47.5) return prev;
+   223→        return prev.map((c, idx) =>
+   224→          idx === 0 ? { ...c, faderDb: 0, gainDb: 24, mute: false } : c
+   225→        );
+   226→      });
+   227→    },
+   228→    [setChannels]
+   229→  );
+   230→
+   231→  const handleInputsUnlocked = useCallback(() => {
+   232→    void hardware.refreshAudioDevices(false, 'slot-new');
+   233→  }, [hardware.refreshAudioDevices]);
+   234→
+   235→  // 3. Live Web Audio DSP Engine Runtime
+   236→  const audio = useAudioEngine({
+   237→    dsp: session.dsp,
+   238→    channels: session.channels,
+   239→    zones: session.zones,
+   240→    activeDevice: session.activeDevice,
+   241→    bufferSize: session.bufferSize,
+   242→    sampleRate: session.sampleRate,
+   243→    plugins: session.plugins,
+   244→    needsSpectrumState: activeModule === 'feedback' || activeModule === 'virtual-di',
+   245→    onSendWsTelemetry: handleSendWsTelemetry,
+   246→    logAudit,
+   247→    onAddFinding: handleAddAutoFinding,
+   248→    onPrepareBridgeStrip: handlePrepareBridgeStrip,
+   249→    onInputsUnlocked: handleInputsUnlocked,
+   250→  });
+   251→
+   252→  const desktopLoopbackMonitorActive = useMemo(
+   253→    () =>
+   254→      audio.engineRunning &&
+   255→      audio.monitorAudible &&
+   256→      (audio.audioSource === 'desktop-audio' ||
+   257→        session.channels.some((channel) => isNativeDesktopInputId(channel.hardwareInputId) && !channel.mute)),
+   258→    [audio.engineRunning, audio.monitorAudible, audio.audioSource, session.channels]
+   259→  );
+   260→
+   261→  useEffect(() => {
+   262→    if (!isDesktopApp()) {
+   263→      liveAudioEngine.setTauriSourceIsolationActive(false);
+   264→      return;
+   265→    }
+   266→    if (!desktopLoopbackMonitorActive) {
+   267→      liveAudioEngine.setTauriSourceIsolationActive(false);
+   268→    }
+   269→    let cancelled = false;
+   270→    void syncDesktopSourceIsolation(desktopLoopbackMonitorActive)
+   271→      .then((status) => {
+   272→        if (cancelled) return;
+   273→        if (status) {
+   274→          setDesktopSourceIsolationStatus(status);
+   275→          liveAudioEngine.setTauriSourceIsolationActive(
+   276→            Boolean(desktopLoopbackMonitorActive && status.enabled && status.skippedSessions === 0)
+   277→          );
+   278→        } else {
+   279→          liveAudioEngine.setTauriSourceIsolationActive(false);
+   280→        }
+   281→      })
+   282→      .catch((error) => {
+   283→        if (!cancelled) {
+   284→          liveAudioEngine.setTauriSourceIsolationActive(false);
+   285→          setDesktopSourceIsolationStatus({
+   286→            enabled: false,
+   287→            mutedSessions: 0,
+   288→            skippedSessions: 1,
+   289→            message: String(error),
+   290→          });
+   291→        }
+   292→      });
+   293→    return () => {
+   294→      cancelled = true;
+   295→    };
+   296→  }, [desktopLoopbackMonitorActive, syncDesktopSourceIsolation]);
+   297→
+   298→  // 4. Web MIDI Controller Hardware Integration
+   299→  const midi = useMidiManager({
+   300→    onUpdateDsp: session.setDsp,
+   301→    onUpdateChannels: setChannels,
+   302→    onUpdateEmergencyMute: session.setEmergencyMuted,
+   303→    logAudit,
+   304→  });
+   305→  midiRef.current = midi;
+   306→
+   307→  const handleMuteBandShortcut = useCallback(() => {
+   308→    handleBatchMute('band', true);
+   309→  }, [handleBatchMute]);
+   310→
+   311→  const handleSaveSnapshotShortcut = useCallback(
+   312→    (label: string) => {
+   313→      handleSaveVersion(label);
+   314→    },
+   315→    [handleSaveVersion]
+   316→  );
+   317→
+   318→  const handleNavigateModuleShortcut = useCallback((mod: string) => {
+   319→    setActiveModule(mod as ModuleId);
+   320→  }, []);
+   321→
+   322→  // 5. Global Keyboard Shortcuts & Tap Tempo Manager
+   323→  const shortcuts = useKeyboardShortcutsManager({
+   324→    onToggleEmergencyMute: handleToggleEmergencyMute,
+   325→    onToggleTotalBypass: handleToggleTotalBypass,
+   326→    onUndoLastDsp: handleUndoLastDsp,
+   327→    onToggleEngine: audio.handleToggleEngine,
+   328→    onToggleMonitor: audio.handleToggleMonitor,
+   329→    onMuteBand: handleMuteBandShortcut,
+   330→    onClearSolos: handleClearAllSolos,
+   331→    onSaveSnapshot: handleSaveSnapshotShortcut,
+   332→    onNavigateModule: handleNavigateModuleShortcut,
+   333→  });
+   334→  shortcutsRef.current = shortcuts;
+   335→
+   336→  const handleExitRemoteCompanion = () => {
+   337→    setRemoteCompanionToken(null);
+   338→    try {
+   339→      const url = new URL(window.location.href);
+   340→      if (url.searchParams.has('mode') || url.searchParams.has('token')) {
+   341→        url.searchParams.delete('mode');
+   342→        url.searchParams.delete('token');
+   343→        window.history.replaceState({}, '', url.toString());
+   344→      }
+   345→    } catch {
+   346→      // ignore URL mutation errors
+   347→    }
+   348→  };
+   349→
+   350→  const handleApproveFinding = (id: string) => {
+   351→    const target = session.findings.find((f) => f.id === id);
+   352→    if (!target || !target.proposedPatch) return;
+   353→    const patch = target.proposedPatch;
+   354→
+   355→    const nextDsp = { ...session.dsp, bypassed: false };
+   356→    if (typeof patch.hpfEnabled === 'boolean') nextDsp.hpfEnabled = patch.hpfEnabled;
+   357→    if (typeof patch.hpfHz === 'number') nextDsp.hpfHz = patch.hpfHz;
+   358→    if (patch.eqBandUpdate) {
+   359→      const idx = patch.eqBandUpdate.index ?? 1;
+   360→      nextDsp.eqBands = nextDsp.eqBands.map((b, i) =>
+   361→        i === idx ? { ...b, ...patch.eqBandUpdate, enabled: true } : b
+   362→      );
+   363→    }
+   364→
+   365→    session.handleUpdateDsp(nextDsp);
+   366→    session.setFindings((prev) =>
+   367→      prev.map((f) =>
+   368→        f.id === id
+   369→          ? {
+   370→              ...f,
+   371→              status: 'verified',
+   372→              afterSnapshot: audio.telemetry.isRunning
+   373→                ? { rmsDb: audio.telemetry.postRmsDb, peakDb: audio.telemetry.postPeakDb }
+   374→                : undefined,
+   375→            }
+   376→          : f
+   377→      )
+   378→    );
+   379→    session.logAudit('Approved AI DSP Patch', `${target.title} → ${patch.description}`, 'ai-approved');
+   380→  };
+   381→
+   382→  const pendingFindingsCount = session.findings.filter((f) => f.status === 'pending').length;
+   383→
+   384→  const selectedChannel = useMemo(
+   385→    () => session.channels.find((c) => c.id === selectedChannelId) ?? session.channels[0],
+   386→    [selectedChannelId, session.channels]
+   387→  );
+   388→
+   389→  const guardedUpdateChannel = useCallback(
+   390→    (id: string, patch: Parameters<typeof handleUpdateChannel>[1]) => {
+   391→      if (consoleLocked) return;
+   392→      handleUpdateChannel(id, patch);
+   393→    },
+   394→    [consoleLocked, handleUpdateChannel]
+   395→  );
+   396→
+   397→  const guardedUpdateDsp = useCallback(
+   398→    (patch: Parameters<typeof handleUpdateDsp>[0]) => {
+   399→      if (consoleLocked) return;
+   400→      handleUpdateDsp(patch);
+   401→    },
+   402→    [consoleLocked, handleUpdateDsp]
+   403→  );
+   404→
+   405→  const guardedSelectPreset = useCallback(
+   406→    (preset: Parameters<typeof handleSelectPreset>[0]) => {
+   407→      if (consoleLocked) return;
+   408→      handleSelectPreset(preset);
+   409→    },
+   410→    [consoleLocked, handleSelectPreset]
+   411→  );
+   412→
+   413→  const guardedAddChannel = useCallback(
+   414→    (name?: string, role?: string) => {
+   415→      if (consoleLocked) return;
+   416→      handleAddChannel(name, role);
+   417→    },
+   418→    [consoleLocked, handleAddChannel]
+   419→  );
+   420→
+   421→  const guardedAddEqBand = useCallback(() => {
+   422→    if (consoleLocked) return;
+   423→    handleAddEqBand();
+   424→  }, [consoleLocked, handleAddEqBand]);
+   425→
+   426→  const handleResetAll = useCallback(() => {
+   427→    if (consoleLocked) return;
+   428→    handleResetDsp();
+   429→    handleClearAllSolos();
+   430→  }, [consoleLocked, handleResetDsp, handleClearAllSolos]);
+   431→
+   432→  const handleUpdateObs = useCallback(
+   433→    (patch: Partial<typeof session.obsStatus>) => {
+   434→      setObsStatus((prev) => ({ ...prev, ...patch }));
+   435→    },
+   436→    [setObsStatus]
+   437→  );
+   438→
+   439→  const dspValidation = useMemo(
+   440→    () => validateDspConfig(session.dsp, session.sampleRate, session.zones),
+   441→    [session.dsp, session.sampleRate, session.zones]
+   442→  );
+   443→  const consoleHasWarning =
+   444→    !dspValidation.valid ||
+   445→    dspValidation.warnings.length > 0 ||
+   446→    audio.telemetry.feedbackRisk.detected ||
+   447→    audio.telemetry.humRisk.detected ||
+   448→    pendingFindingsCount > 0 ||
+   449→    audio.schedulingRisk !== 'low';
+   450→  const consoleIsLimiting =
+   451→    Boolean(audio.telemetry.qualityGateEngaged) ||
+   452→    (audio.engineRunning && audio.telemetry.postPeakDb >= session.dsp.limiter.ceilingDb - 0.8);
+   453→  const consoleHasSignal = audio.engineRunning && audio.telemetry.postRmsDb > -56;
+   454→
+   455→  useEffect(() => {
+   456→    if (activeModule === 'hardware' && isDesktopApp()) {
+   457→      void hardware.refreshDesktopAudioInfo();
+   458→    }
+   459→  }, [activeModule, hardware.refreshDesktopAudioInfo]);
+   460→
+   461→  const activeOutputLabel = useMemo(() => {
+   462→    const matched =
+   463→      hardware.outputDevices.find((d) => d.deviceId === hardware.preferredOutputDeviceId) ??
+   464→      hardware.outputDevices[0];
+   465→    return matched?.label || 'System Default Speakers';
+   466→  }, [hardware.outputDevices, hardware.preferredOutputDeviceId]);
+   467→
+   468→  const outputIsHeadphonesOrVirtual =
+   469→    /headphone|earphone|airpods|buds|bluetooth|cable|virtual|voicemeeter/i.test(activeOutputLabel);
+   470→
+   471→  const openPhysicalMicChannels = useMemo(
+   472→    () =>
+   473→      session.channels.filter(
+   474→        (ch) =>
+   475→          Boolean(ch.hardwareInputId) &&
+   476→          !isNativeDesktopInputId(ch.hardwareInputId) &&
+   477→          !ch.mute &&
+   478→          ch.faderDb > -47.5
+   479→      ),
+   480→    [session.channels]
+   481→  );
+   482→
+   483→  const showAcousticLoopbackWarning =
+   484→    audio.engineRunning &&
+   485→    audio.monitorAudible &&
+   486→    !session.emergencyMuted &&
+   487→    !hardware.singleSpeakerMode &&
+   488→    !outputIsHeadphonesOrVirtual &&
+   489→    openPhysicalMicChannels.length > 0;
+   490→
+   491→  const handleMuteAllPhysicalMics = useCallback(() => {
+   492→    if (consoleLocked) return;
+   493→    setChannels((prev) =>
+   494→      prev.map((c) =>
+   495→        c.hardwareInputId && !isNativeDesktopInputId(c.hardwareInputId) ? { ...c, mute: true } : c
+   496→      )
+   497→    );
+   498→    logAudit(
+   499→      'Muted Built-In / Physical Mics',
+   500→      'Muted physical microphone channels via Acoustic Loopback Guard to stop speaker feedback.',
+   501→      'operator'
+   502→    );
+   503→  }, [consoleLocked, logAudit, setChannels]);
+   504→
+   505→  const {
+   506→    outputDevices,
+   507→    preferredOutputDeviceId,
+   508→    handleSelectOutputDevice,
+   509→  } = hardware;
+   510→
+   511→  const {
+   512→    setMonitorAudibleState,
+   513→    ensureEngineStarted,
+   514→  } = audio;
+   515→
+   516→  const secondaryMonitorCandidate = useMemo(() => {
+   517→    const nonDefaultOutputs = outputDevices.filter(
+   518→      (d) =>
+   519→        d.deviceId &&
+   520→        d.deviceId !== 'default' &&
+   521→        d.deviceId !== 'communications' &&
+   522→        d.deviceId !== preferredOutputDeviceId
+   523→    );
+   524→    return (
+   525→      nonDefaultOutputs.find((d) => /headphone|usb|interface|focusrite|scarlett|behringer|motu|rme/i.test(d.label || '')) ??
+   526→      nonDefaultOutputs.find((d) => !/cable|virtual|voicemeeter|obs/i.test(d.label || '')) ??
+   527→      null
+   528→    );
+   529→  }, [outputDevices, preferredOutputDeviceId]);
+   530→
+   531→  const handleRouteMonitorToSecondaryOutput = useCallback(async () => {
+   532→    if (consoleLocked || !secondaryMonitorCandidate?.deviceId) return;
+   533→    const ok = await handleSelectOutputDevice(secondaryMonitorCandidate.deviceId);
+   534→    if (!ok) return;
+   535→    setMonitorAudibleState(true);
+   536→    logAudit(
+   537→      'Routed MON to Secondary Output',
+   538→      `Isolated Desktop Audio monitor bus onto ${secondaryMonitorCandidate.label || 'Secondary Audio Output'} to break loopback.`,
+   539→      'operator'
+   540→    );
+   541→  }, [consoleLocked, handleSelectOutputDevice, logAudit, secondaryMonitorCandidate, setMonitorAudibleState]);
+   542→
+   543→  const handleBrowserDspToSpeakers = useCallback(async () => {
+   544→    if (consoleLocked) return;
+   545→    setMonitorAudibleState(false);
+   546→    if (isDesktopApp()) {
+   547→      try {
+   548→        await syncDesktopSourceIsolation(false);
+   549→      } catch (error) {
+   550→        setDesktopSourceIsolationStatus({
+   551→          enabled: false,
+   552→          mutedSessions: 0,
+   553→          skippedSessions: 1,
+   554→          message: String(error),
+   555→        });
+   556→      }
+   557→    }
+   558→    const builtInSpeaker =
+   559→      outputDevices.find((d) => !/cable|virtual|voicemeeter|obs/i.test(d.label || '')) ??
+   560→      outputDevices[0];
+   561→    if (builtInSpeaker?.deviceId) {
+   562→      const outputApplied = await handleSelectOutputDevice(builtInSpeaker.deviceId);
+   563→      if (!outputApplied) return;
+   564→    }
+   565→
+   566→    let hasDesktopCh = false;
+   567→    let nextChannels = session.channels.map((ch) => {
+   568→      if (!ch.hardwareInputId) return ch;
+   569→      if (isNativeDesktopInputId(ch.hardwareInputId)) {
+   570→        hasDesktopCh = true;
+   571→        return {
+   572→          ...ch,
+   573→          mute: false,
+   574→          faderDb: ch.faderDb <= -40 ? 0 : ch.faderDb,
+   575→        };
+   576→      }
+   577→      return { ...ch, mute: true };
+   578→    });
+   579→
+   580→    if (!hasDesktopCh) {
+   581→      const openIdx = nextChannels.findIndex((c) => !c.hardwareInputId);
+   582→      const targetIdx = openIdx >= 0 ? openIdx : 0;
+   583→      if (nextChannels[targetIdx]) {
+   584→        nextChannels = nextChannels.map((c, idx) =>
+   585→          idx === targetIdx
+   586→            ? {
+   587→                ...c,
+   588→                hardwareInputId: NATIVE_DESKTOP_AUDIO_ID,
+   589→                hardwareInputLabel: 'Desktop Audio (All Apps)',
+   590→                name: 'Desktop Audio',
+   591→                role: 'Browser / Media',
+   592→                mute: false,
+   593→                faderDb: c.faderDb <= -40 ? 0 : c.faderDb,
+   594→              }
+   595→            : c
+   596→        );
+   597→      }
+   598→    }
+   599→
+   600→    const desktopCh = nextChannels.find((c) => isNativeDesktopInputId(c.hardwareInputId));
+   601→    if (desktopCh) {
+   602→      setSelectedChannelId(desktopCh.id);
+   603→    }
+   604→
+   605→    setChannels(nextChannels);
+   606→    const started = await ensureEngineStarted(nextChannels);
+   607→    if (!started) return;
+   608→    if (isDesktopApp()) {
+   609→      try {
+   610→        const isolation = await syncDesktopSourceIsolation(true);
+   611→        setDesktopSourceIsolationStatus(isolation);
+   612→        if (!isolation?.enabled || isolation.skippedSessions > 0) {
+   613→          await syncDesktopSourceIsolation(false).catch(() => null);
+   614→          setDesktopSourceIsolationStatus({
+   615→            enabled: false,
+   616→            mutedSessions: 0,
+   617→            skippedSessions: isolation?.skippedSessions ?? 1,
+   618→            message: isolation?.message || 'Windows could not safely isolate every active render session.',
+   619→          });
+   620→          logAudit(
+   621→            'Desktop Source Isolation Incomplete',
+   622→            isolation?.message || `Could not safely isolate ${isolation?.skippedSessions ?? 0} Windows audio session(s); speaker monitoring remains off.`,
+   623→            'system'
+   624→          );
+   625→          return;
+   626→        }
+   627→      } catch (error) {
+   628→        await syncDesktopSourceIsolation(false).catch(() => null);
+   629→        setDesktopSourceIsolationStatus({
+   630→          enabled: false,
+   631→          mutedSessions: 0,
+   632→          skippedSessions: 1,
+   633→          message: String(error),
+   634→        });
+   635→        return;
+   636→      }
+   637→    }
+   638→    setMonitorAudibleState(true);
+   639→    logAudit(
+   640→      'Enabled Browser → DSP → Speakers',
+   641→      `Locked Master PA to ${builtInSpeaker?.label || 'Built-in Speakers'}, muted physical mics, and enabled MON on Desktop Audio.`,
+   642→      'operator'
+   643→    );
+   644→  }, [
+   645→    consoleLocked,
+   646→    ensureEngineStarted,
+   647→    handleSelectOutputDevice,
+   648→    logAudit,
+   649→    outputDevices,
+   650→    session.channels,
+   651→    setChannels,
+   652→    setMonitorAudibleState,
+   653→    syncDesktopSourceIsolation,
+   654→  ]);
+   655→
+   656→  if (remoteCompanionToken) {
+   657→    return (
+   658→      <RemoteCompanionView
+   659→        token={remoteCompanionToken}
+   660→        onExitRemote={handleExitRemoteCompanion}
+   661→      />
+   662→    );
+   663→  }
+   664→
+   665→  return (
+   666→    <div className="h-screen flex flex-col hw-chassis text-slate-100 overflow-hidden">
+   667→      <AppMenuBar
+   668→        appVersion={appVersion}
+   669→        isDesktop={isDesktopApp()}
+   670→        engineRunning={audio.engineRunning}
+   671→        monitorAudible={audio.monitorAudible}
+   672→        totalBypassed={session.dsp.bypassed}
+   673→        emergencyMuted={session.emergencyMuted}
+   674→        canUndo={session.undoStack.length > 0}
+   675→        navDockPosition={session.navDockPosition}
+   676→        updateState={updateCheckState}
+   677→        onNavigateModule={setActiveModule}
+   678→        onChangeDockPosition={session.setNavDockPosition}
+   679→        onSaveSnapshot={() => session.handleSaveVersion('Manual Menu Snapshot')}
+   680→        onUndoLastDsp={session.handleUndoLastDsp}
+   681→        onResetEqFlat={() =>
+   682→          guardedUpdateDsp({
+   683→            eqBands: session.dsp.eqBands.map((b) => ({ ...b, gainDb: 0 })),
+   684→          })
+   685→        }
+   686→        onClearAllSolos={session.handleClearAllSolos}
+   687→        onOpenShortcuts={() => shortcuts.setShowShortcutsModal(true)}
+   688→        onToggleEngine={audio.handleToggleEngine}
+   689→        onToggleMonitor={audio.handleToggleMonitor}
+   690→        onToggleTotalBypass={session.handleToggleTotalBypass}
+   691→        onToggleEmergencyMute={session.handleToggleEmergencyMute}
+   692→        onCheckForUpdates={() => void runUpdateCheck(true)}
+   693→        onOpenUpdateModal={() => setShowUpdateModal(true)}
+   694→        onOpenAbout={() => setShowAboutModal(true)}
+   695→        onOpenGlobalSearch={() => setShowGlobalSearch(true)}
+   696→        onOpenGainStaging={() => setShowGainStaging(true)}
+   697→        onOpenSignalJourney={() => setSignalJourneyChannelId(selectedChannel?.id ?? 'ch-1')}
+   698→      />
+   699→      <TopBar
+   700→        venueName={session.venueName}
+   701→        roomName={session.roomName}
+   702→        activeDevice={session.activeDevice}
+   703→        platform={session.platform}
+   704→        driver={session.driver}
+   705→        sampleRate={session.sampleRate}
+   706→        bufferSize={session.bufferSize}
+   707→        activePreset={session.activePreset}
+   708→        presets={session.presets}
+   709→        onSelectPreset={guardedSelectPreset}
+   710→        consoleLocked={consoleLocked}
+   711→        onToggleLock={() => setConsoleLocked((v) => !v)}
+   712→        engineRunning={audio.engineRunning}
+   713→        onToggleEngine={audio.handleToggleEngine}
+   714→        monitorAudible={audio.monitorAudible}
+   715→        onToggleMonitor={audio.handleToggleMonitor}
+   716→        emergencyMuted={session.emergencyMuted}
+   717→        onToggleEmergencyMute={session.handleToggleEmergencyMute}
+   718→        totalBypassed={session.dsp.bypassed}
+   719→        onToggleTotalBypass={session.handleToggleTotalBypass}
+   720→        consoleTheme={session.consoleTheme}
+   721→        onThemeChange={session.setConsoleTheme}
+   722→        audioSource={audio.audioSource}
+   723→        onSourceChange={audio.handleSourceChange}
+   724→        systemCpuPercent={audio.systemCpuPercent}
+   725→        schedulingRisk={audio.schedulingRisk}
+   726→        onOpenDiagnostics={() => setActiveModule('hardware')}
+   727→        tapTempo={shortcuts.tapTempo}
+   728→        onTapTempo={() => shortcuts.executeShortcutAction('tap-tempo', 'CLICK')}
+   729→        onOpenShortcuts={() => shortcuts.setShowShortcutsModal(true)}
+   730→        shortcutsArmed={shortcuts.shortcutsGlobalEnabled}
+   731→        inputDevices={hardware.inputDevices}
+   732→        outputDevices={hardware.outputDevices}
+   733→        activeOutputDeviceId={hardware.preferredOutputDeviceId}
+   734→        onSelectOutputDevice={hardware.handleSelectOutputDevice}
+   735→        dsp={session.dsp}
+   736→        onUpdateDsp={guardedUpdateDsp}
+   737→        agcGainDb={audio.telemetry.agcGainDb ?? 0}
+   738→        qualityScorePct={audio.telemetry.qualityScorePct ?? 100}
+   739→        qualityGateEngaged={audio.telemetry.qualityGateEngaged ?? false}
+   740→        qualityGateReason={audio.telemetry.qualityGateReason ?? null}
+   741→        activeSurgicalFilters={audio.telemetry.activeSurgicalFilters ?? []}
+   742→        onOpenGainStaging={() => setShowGainStaging(true)}
+   743→        onOpenSignalJourney={() => setSignalJourneyChannelId(selectedChannel?.id ?? 'ch-1')}
+   744→        desktopBridgeState={audio.desktopBridgeState}
+   745→        specializedDesktopInputs={hardware.specializedDesktopInputs}
+   746→        onSelectDesktopCaptureMethod={audio.setDesktopCaptureMethod}
+   747→        onSelectSpecializedDesktopDevice={audio.setSpecializedDesktopDevice}
+   748→      />
+   749→
+   750→      {session.navDockPosition === 'top' && (
+   751→        <Sidebar
+   752→          activeModule={activeModule}
+   753→          onSelectModule={setActiveModule}
+   754→          telemetry={audio.telemetry}
+   755→          pendingFindingsCount={pendingFindingsCount}
+   756→          dockPosition={session.navDockPosition}
+   757→          onChangeDockPosition={session.setNavDockPosition}
+   758→        />
+   759→      )}
+   760→
+   761→      {(session.emergencyMuted || session.dsp.bypassed) && (
+   762→        <div
+   763→          className={`shrink-0 px-4 py-1 border-b font-mono text-[11px] flex flex-wrap items-center justify-between gap-2 ${
+   764→            session.emergencyMuted
+   765→              ? 'bg-red-950/80 border-red-500/60 text-red-200'
+   766→              : 'bg-amber-950/70 border-amber-500/50 text-amber-200'
+   767→          }`}
+   768→        >
+   769→          <span className="font-semibold">
+   770→            {session.emergencyMuted && session.dsp.bypassed
+   771→              ? 'SAFETY OVERRIDE: GLOBAL EMERGENCY MUTE & TOTAL SIGNAL BYPASS BOTH ENGAGED'
+   772→              : session.emergencyMuted
+   773→                ? 'GLOBAL EMERGENCY MUTE ACTIVE — LIVE PA & MONITOR OUTPUTS SILENCED'
+   774→                : 'TOTAL SIGNAL BYPASS ACTIVE — DRY UNPROCESSED PASS-THROUGH (EQ/HPF/DYNAMICS BYPASSED)'}
+   775→          </span>
+   776→          <div className="flex items-center gap-2">
+   777→            {session.dsp.bypassed && (
+   778→              <button
+   779→                type="button"
+   780→                onClick={session.handleToggleTotalBypass}
+   781→                className="px-2 py-0.5 rounded border border-amber-400/60 bg-amber-500/20 text-amber-100 hover:bg-amber-500/35 text-[10px] font-semibold cursor-pointer"
+   782→              >
+   783→                RESTORE DSP
+   784→              </button>
+   785→            )}
+   786→            {session.emergencyMuted && (
+   787→              <button
+   788→                type="button"
+   789→                onClick={session.handleToggleEmergencyMute}
+   790→                className="px-2 py-0.5 rounded border border-red-400/60 bg-red-600 text-white hover:bg-red-500 text-[10px] font-semibold cursor-pointer"
+   791→              >
+   792→                UNMUTE PA
+   793→              </button>
+   794→            )}
+   795→          </div>
+   796→        </div>
+   797→      )}
+   798→
+   799→      {hardware.hotPlugEndpoint && (
+   800→        <div className="shrink-0 px-4 py-1 border-b border-teal-500/50 bg-[#0D2126] text-teal-100 font-mono text-[11px] flex flex-wrap items-center justify-between gap-2">
+   801→          <span>
+   802→            NEW AUDIO HARDWARE DETECTED: <strong>{hardware.hotPlugEndpoint.name}</strong> → Auto-matched{' '}
+   803→            <strong>{hardware.hotPlugEndpoint.matchedLabel}</strong> ({hardware.hotPlugEndpoint.recommendedDriver} ·{' '}
+   804→            {hardware.hotPlugEndpoint.estimatedInputChannels}×{hardware.hotPlugEndpoint.estimatedOutputChannels})
+   805→          </span>
+   806→          <div className="flex items-center gap-2">
+   807→            <button
+   808→              type="button"
+   809→              onClick={() => void hardware.handleBindDetectedEndpoint(hardware.hotPlugEndpoint!)}
+   810→              className="px-2.5 py-0.5 rounded bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold text-[10px] cursor-pointer"
+   811→            >
+   812→              AUTO-BIND &amp; RECALL
+   813→            </button>
+   814→            <button
+   815→              type="button"
+   816→              onClick={hardware.dismissHotPlug}
+   817→              className="px-2 py-0.5 rounded border border-teal-400/40 text-teal-200 hover:bg-teal-500/20 text-[10px] cursor-pointer"
+   818→            >
+   819→              DISMISS
+   820→            </button>
+   821→          </div>
+   822→        </div>
+   823→      )}
+   824→
+   825→      {/* =========================================================================
+   826→          FIXED 3-COLUMN HARDWARE CONSOLE WORKBENCH (LEFT I/O | CENTER MODULE | RIGHT TELEMETRY)
+   827→          ========================================================================= */}
+   828→      {showAcousticLoopbackWarning && (
+   829→        <div className="shrink-0 px-4 py-1 border-b border-amber-500/60 bg-amber-950/75 text-amber-100 font-mono text-[11px] flex flex-wrap items-center justify-between gap-2">
+   830→          <span>
+   831→            ACOUSTIC LOOPBACK RISK: Mic channel(s) [
+   832→            <strong>{openPhysicalMicChannels.map((c) => `CH${c.index}`).join(', ')}</strong>] are
+   833→            open while <strong>{activeOutputLabel}</strong> (MON) is live — mute laptop mic to
+   834→            stop feedback.
+   835→          </span>
+   836→          <button
+   837→            type="button"
+   838→            disabled={consoleLocked}
+   839→            onClick={handleMuteAllPhysicalMics}
+   840→            className="px-2.5 py-0.5 rounded border border-amber-300/70 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[10px] cursor-pointer disabled:opacity-45"
+   841→          >
+   842→            MUTE MIC (STOP LOOPBACK)
+   843→          </button>
+   844→        </div>
+   845→      )}
+   846→      {audio.audioSource === 'desktop-audio' && audio.engineRunning && (
+   847→        <div
+   848→          className={`shrink-0 px-4 py-1 border-b font-mono text-[11px] flex flex-wrap items-center justify-between gap-2 ${
+   849→            audio.desktopBridgeState.selfLoopbackBlocked
+   850→              ? 'bg-amber-950/80 border-amber-500/60 text-amber-100'
+   851→              : 'bg-emerald-950/75 border-emerald-500/45 text-emerald-100'
+   852→          }`}
+   853→        >
+   854→          <span>
+   855→            {audio.desktopBridgeState.selfLoopbackBlocked
+   856→              ? `SELF-LOOPBACK FIREWALL: ${audio.desktopBridgeState.safetyReason}`
+   857→              : `SYSTEM AUDIO BRIDGE ISOLATED: ${audio.desktopBridgeState.safetyReason}`}
+   858→          </span>
+   859→          <div className="flex items-center gap-2">
+   860→            {audio.desktopBridgeState.selfLoopbackBlocked && secondaryMonitorCandidate && (
+   861→              <button
+   862→                type="button"
+   863→                disabled={consoleLocked}
+   864→                onClick={() => void handleRouteMonitorToSecondaryOutput()}
+   865→                className="px-2.5 py-0.5 rounded border border-teal-300/60 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-[10px] cursor-pointer disabled:opacity-45"
+   866→              >
+   867→                ROUTE MON TO {secondaryMonitorCandidate.label?.slice(0, 22) || 'HEADPHONES'}
+   868→              </button>
+   869→            )}
+   870→            <button
+   871→              type="button"
+   872→              disabled={consoleLocked}
+   873→              onClick={() => void audio.setDesktopCaptureMethod('display-media', true)}
+   874→              className={`px-2.5 py-0.5 rounded border text-[10px] font-bold cursor-pointer disabled:opacity-45 ${
+   875→                audio.desktopBridgeState.selfLoopbackBlocked
+   876→                  ? 'border-amber-300/70 bg-amber-500 hover:bg-amber-400 text-slate-950'
+   877→                  : 'border-emerald-400/50 bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-100'
+   878→              }`}
+   879→            >
+   880→              {audio.desktopBridgeState.selfLoopbackBlocked ? 'RE-PICK ISOLATED TAB' : 'RE-PICK SOURCE'}
+   881→            </button>
+   882→          </div>
+   883→        </div>
+   884→      )}
+   885→      <div className="flex-1 min-h-0 flex flex-row overflow-hidden">
+   886→        {session.navDockPosition === 'left' && (
+   887→          <Sidebar
+   888→            activeModule={activeModule}
+   889→            onSelectModule={setActiveModule}
+   890→            telemetry={audio.telemetry}
+   891→            pendingFindingsCount={pendingFindingsCount}
+   892→            dockPosition={session.navDockPosition}
+   893→            onChangeDockPosition={session.setNavDockPosition}
+   894→          />
+   895→        )}
+   896→
+   897→        <div className="flex-1 min-w-0 min-h-0 flex flex-row gap-1.5 p-1.5 overflow-hidden">
+   898→          {/* FIXED LEFT PANEL: LIVE INPUTS & OUTPUTS */}
+   899→          <ConsoleLeftPanel
+   900→            inputDevices={hardware.inputDevices}
+   901→            outputDevices={hardware.outputDevices}
+   902→            channels={session.channels}
+   903→            selectedChannelId={selectedChannel?.id ?? 'ch-1'}
+   904→            preferredOutputDeviceId={hardware.preferredOutputDeviceId}
+   905→            preferredStreamOutputDeviceId={hardware.preferredStreamOutputDeviceId}
+   906→            zones={session.zones}
+   907→            telemetry={audio.telemetry}
+   908→            engineRunning={audio.engineRunning}
+   909→            locked={consoleLocked}
+   910→            desktopAudioStatus={hardware.desktopAudioStatus}
+   911→            desktopAudioSessions={hardware.desktopAudioSessions}
+   912→            singleSpeakerMode={hardware.singleSpeakerMode}
+   913→            onEnableBrowserDspSpeakers={() => void handleBrowserDspToSpeakers()}
+   914→            onSelectChannel={setSelectedChannelId}
+   915→            onUpdateChannel={guardedUpdateChannel}
+   916→            onAddChannel={guardedAddChannel}
+   917→            onSelectOutputDevice={(devId) => {
+   918→              if (!consoleLocked) void hardware.handleSelectOutputDevice(devId);
+   919→            }}
+   920→            onSelectStreamOutputDevice={(devId) => {
+   921→              if (!consoleLocked) void hardware.handleSelectStreamOutputDevice(devId);
+   922→            }}
+   923→            onScanAudioDevices={hardware.refreshAudioDevices}
+   924→            audioSource={audio.audioSource}
+   925→            desktopBridgeState={audio.desktopBridgeState}
+   926→            specializedDesktopInputs={hardware.specializedDesktopInputs}
+   927→            onActivateSystemAudioBridge={() =>
+   928→              void audio.setDesktopCaptureMethod(
+   929→                isDesktopApp() ? 'native-wasapi' : 'display-media',
+   930→                true
+   931→              )
+   932→            }
+   933→          />
+   934→
+   935→          {/* CENTER PANEL: ALL 16 MODULES DELIVER THEIR CONTENT HERE */}
+   936→          <main className="flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col">
+   937→            {[audio.audioError, hardware.outputRouteError]
+   938→              .filter((message): message is string => Boolean(message))
+   939→              .map((message) => (
+   940→                <div
+   941→                  key={message}
+   942→                  className="mb-1.5 p-2.5 rounded-md border border-red-500/45 bg-red-500/10 text-xs text-red-300 shrink-0"
+   943→                >
+   944→                  {message}
+   945→                </div>
+   946→              ))}
+   947→
+   948→            {activeModule === 'dsp' && selectedChannel ? (
+   949→              <CentralDspChainView
+   950→                dsp={session.dsp}
+   951→                onUpdateDsp={guardedUpdateDsp}
+   952→                selectedChannel={selectedChannel}
+   953→                onUpdateChannel={guardedUpdateChannel}
+   954→                device={session.activeDevice}
+   955→                platform={session.platform}
+   956→                driver={session.driver}
+   957→                sampleRate={session.sampleRate}
+   958→                bufferSize={session.bufferSize}
+   959→                zones={session.zones}
+   960→                telemetry={audio.telemetry}
+   961→                engineRunning={audio.engineRunning}
+   962→                monitorAudible={audio.monitorAudible}
+   963→                onToggleMonitor={audio.handleToggleMonitor}
+   964→                emergencyMuted={session.emergencyMuted}
+   965→                locked={consoleLocked}
+   966→                audioSource={audio.audioSource}
+   967→                onAddEqBand={guardedAddEqBand}
+   968→              />
+   969→            ) : activeModule === 'console' ? (
+   970→              <ConsoleInstrumentDeck
+   971→                device={session.activeDevice}
+   972→                channels={session.channels}
+   973→                onUpdateChannel={guardedUpdateChannel}
+   974→                dsp={session.dsp}
+   975→                onUpdateDsp={guardedUpdateDsp}
+   976→                telemetry={audio.telemetry}
+   977→                presets={session.presets}
+   978→                activePreset={session.activePreset}
+   979→                onSelectPreset={guardedSelectPreset}
+   980→                emergencyMuted={session.emergencyMuted}
+   981→                onToggleEmergencyMute={session.handleToggleEmergencyMute}
+   982→                zones={session.zones}
+   983→                initialPhase="phase-1-stage"
+   984→                selectedChannelId={selectedChannel?.id ?? 'ch-1'}
+   985→                onSelectChannel={setSelectedChannelId}
+   986→                locked={consoleLocked}
+   987→                audioSource={audio.audioSource}
+   988→                onAddChannel={guardedAddChannel}
+   989→                onAddEqBand={guardedAddEqBand}
+   990→                onRemoveEqBand={session.handleRemoveEqBand}
+   991→              />
+   992→            ) : (
+   993→              <div className="flex-1 min-h-0 overflow-y-auto hw-panel rounded-lg p-3.5">
+   994→                {activeModule === 'feedback' ? (
+   995→                  <FeedbackAnalyzerModule
+   996→                    telemetry={audio.telemetry}
+   997→                    spectrum={audio.spectrum}
+   998→                    dsp={session.dsp}
+   999→                    onUpdateDsp={guardedUpdateDsp}
+  1000→                    onLogVerification={(summary) =>
+  1001→                      session.logAudit('Verified DSP Correction', summary, 'operator')
+  1002→                    }
+  1003→                  />
+  1004→                ) : activeModule === 'acoustics' ? (
+  1005→                  <AcousticAnalyzerModule
+  1006→                    measurement={session.measurement}
+  1007→                    onUpdateMeasurement={session.setMeasurement}
+  1008→                    onExportRoomModeCut={(freqHz) => {
+  1009→                      guardedUpdateDsp({
+  1010→                        bypassed: false,
+  1011→                        eqBands: session.dsp.eqBands.map((b, idx) =>
+  1012→                          idx === 0
+  1013→                            ? { ...b, label: 'Room Mode Cut', enabled: true, frequency: freqHz, gainDb: -3.5, q: 4.5 }
+  1014→                            : b
+  1015→                        ),
+  1016→                      });
+  1017→                      session.logAudit('Exported Room Mode Cut', `Applied -3.5 dB modal cut @ ${freqHz} Hz from REW Analyzer`, 'operator');
+  1018→                    }}
+  1019→                  />
+  1020→                ) : activeModule === 'speakers' ? (
+  1021→                  <SpeakerZonesModule
+  1022→                    zones={session.zones}
+  1023→                    onUpdateZone={(id, patch) => {
+  1024→                      if (!consoleLocked) session.handleUpdateZone(id, patch);
+  1025→                    }}
+  1026→                    onAddZone={session.handleAddZone}
+  1027→                    onRemoveZone={session.handleRemoveZone}
+  1028→                    outputDevices={hardware.outputDevices}
+  1029→                    onScanAudioDevices={hardware.refreshAudioDevices}
+  1030→                    telemetry={audio.telemetry}
+  1031→                    emergencyMuted={session.emergencyMuted}
+  1032→                    onToggleEmergencyMute={session.handleToggleEmergencyMute}
+  1033→                  />
+  1034→                ) : activeModule === 'microphones' ? (
+  1035→                  <MicrophoneIntelligenceModule
+  1036→                    device={session.activeDevice}
+  1037→                    dsp={session.dsp}
+  1038→                    onUpdateDsp={guardedUpdateDsp}
+  1039→                    channels={session.channels}
+  1040→                    onUpdateChannel={guardedUpdateChannel}
+  1041→                    telemetry={audio.telemetry}
+  1042→                    onLogAction={(detail) => session.logAudit('Microphone Intelligence', detail, 'operator')}
+  1043→                  />
+  1044→                ) : activeModule === 'instruments' ? (
+  1045→                  <InstrumentIntelligenceModule
+  1046→                    device={session.activeDevice}
+  1047→                    dsp={session.dsp}
+  1048→                    onUpdateDsp={guardedUpdateDsp}
+  1049→                    channels={session.channels}
+  1050→                    onUpdateChannel={guardedUpdateChannel}
+  1051→                    telemetry={audio.telemetry}
+  1052→                    onLogAction={(detail) => session.logAudit('Instrument & Music Intelligence', detail, 'operator')}
+  1053→                  />
+  1054→                ) : activeModule === 'livestream' ? (
+  1055→                  <LivestreamObsModule
+  1056→                    broadcastDsp={session.broadcastDsp}
+  1057→                    onUpdateBroadcastDsp={(patch) => {
+  1058→                      if (!consoleLocked) session.setBroadcastDsp((prev) => ({ ...prev, ...patch }));
+  1059→                    }}
+  1060→                    obsStatus={session.obsStatus}
+  1061→                    onUpdateObs={handleUpdateObs}
+  1062→                    telemetry={audio.telemetry}
+  1063→                    device={session.activeDevice}
+  1064→                    processedOutputActive={audio.engineRunning && audio.monitorAudible && !session.emergencyMuted}
+  1065→                    onEnableProcessedOutput={() => void handleBrowserDspToSpeakers()}
+  1066→                  />
+  1067→                ) : activeModule === 'soundcheck' ? (
+  1068→                  <AutomatedSoundCheckModule
+  1069→                    device={session.activeDevice}
+  1070→                    channels={session.channels}
+  1071→                    onUpdateChannel={guardedUpdateChannel}
+  1072→                    dsp={session.dsp}
+  1073→                    onUpdateDsp={guardedUpdateDsp}
+  1074→                    broadcastDsp={session.broadcastDsp}
+  1075→                    telemetry={audio.telemetry}
+  1076→                    obsStatus={session.obsStatus}
+  1077→                    measurement={session.measurement}
+  1078→                    onStartEngine={audio.handleToggleEngine}
+  1079→                    onLogAction={(detail) => session.logAudit('Automated Sound Check', detail, 'operator')}
+  1080→                  />
+  1081→                ) : activeModule === 'presets' ? (
+  1082→                  <PresetsServiceModule
+  1083→                    device={session.activeDevice}
+  1084→                    dsp={session.dsp}
+  1085→                    obsStatus={session.obsStatus}
+  1086→                    onUpdateObs={handleUpdateObs}
+  1087→                    presets={session.presets}
+  1088→                    activePreset={session.activePreset}
+  1089→                    onSelectPreset={guardedSelectPreset}
+  1090→                    versions={session.versions}
+  1091→                    onSaveVersion={session.handleSaveVersion}
+  1092→                    onRollbackVersion={session.handleRollbackVersion}
+  1093→                    onImportPresetJson={(imported) => {
+  1094→                      session.setPresets((prev) => [imported, ...prev]);
+  1095→                      guardedSelectPreset(imported);
+  1096→                    }}
+  1097→                  />
+  1098→                ) : activeModule === 'virtual-di' ? (
+  1099→                  <VirtualDiBassModule
+  1100→                    device={session.activeDevice}
+  1101→                    bassDi={session.bassDi}
+  1102→                    onUpdateBassDi={(patch) => {
+  1103→                      if (!consoleLocked) session.setBassDi((prev) => ({ ...prev, ...patch }));
+  1104→                    }}
+  1105→                    dsp={session.dsp}
+  1106→                    onUpdateDsp={guardedUpdateDsp}
+  1107→                    telemetry={audio.telemetry}
+  1108→                    spectrum={audio.spectrum}
+  1109→                    onLogAction={(detail) => session.logAudit('Virtual DI & Bass Processor', detail, 'operator')}
+  1110→                  />
+  1111→                ) : activeModule === 'ai-engineer' ? (
+  1112→                  <AiEngineerModule
+  1113→                    device={session.activeDevice}
+  1114→                    platform={session.platform}
+  1115→                    driver={session.driver}
+  1116→                    dsp={session.dsp}
+  1117→                    telemetry={audio.telemetry}
+  1118→                    findings={session.findings}
+  1119→                    onAddFinding={(f) => session.setFindings((prev) => [f, ...prev])}
+  1120→                    onApproveFinding={handleApproveFinding}
+  1121→                    onDismissFinding={(id) =>
+  1122→                      session.setFindings((prev) =>
+  1123→                        prev.map((f) => (f.id === id ? { ...f, status: 'dismissed' } : f))
+  1124→                      )
+  1125→                    }
+  1126→                  />
+  1127→                ) : activeModule === 'midi' ? (
+  1128→                  <MidiMappingModule
+  1129→                    platform={session.platform}
+  1130→                    midiDevices={midi.midiDevices}
+  1131→                    midiConnected={midi.midiConnected}
+  1132→                    midiError={midi.midiError}
+  1133→                    onRequestMidiAccess={midi.handleRequestMidiAccess}
+  1134→                    mappings={midi.midiMappings}
+  1135→                    onUpdateMappings={midi.updateAndPersistMidiMappings}
+  1136→                    learningId={midi.midiLearningId}
+  1137→                    onSetLearningId={midi.setMidiLearningId}
+  1138→                    lastPacket={midi.lastMidiPacket}
+  1139→                    dsp={session.dsp}
+  1140→                    emergencyMuted={session.emergencyMuted}
+  1141→                    shortcuts={shortcuts.keyboardShortcuts}
+  1142→                    onUpdateShortcuts={shortcuts.updateAndPersistShortcuts}
+  1143→                    shortcutsGlobalEnabled={shortcuts.shortcutsGlobalEnabled}
+  1144→                    onToggleShortcutsGlobalEnabled={() => shortcuts.setShortcutsGlobalEnabled((v) => !v)}
+  1145→                    capturingShortcutId={shortcuts.capturingShortcutId}
+  1146→                    onSetCapturingShortcutId={shortcuts.setCapturingShortcutId}
+  1147→                    onTriggerShortcutAction={shortcuts.executeShortcutAction}
+  1148→                    lastTriggeredShortcut={shortcuts.lastTriggeredShortcut}
+  1149→                    shortcutConflictNotice={shortcuts.shortcutConflictNotice}
+  1150→                    tapTempo={shortcuts.tapTempo}
+  1151→                  />
+  1152→                ) : activeModule === 'routing' ? (
+  1153→                  <UniversalRoutingModule
+  1154→                    channels={session.channels}
+  1155→                    onUpdateChannel={guardedUpdateChannel}
+  1156→                    onAddChannel={guardedAddChannel}
+  1157→                    onRemoveChannel={session.handleRemoveChannel}
+  1158→                    onAddZone={session.handleAddZone}
+  1159→                    onUpdateZone={session.handleUpdateZone}
+  1160→                    onRemoveZone={session.handleRemoveZone}
+  1161→                    inputDevices={hardware.inputDevices}
+  1162→                    outputDevices={hardware.outputDevices}
+  1163→                    preferredOutputDeviceId={hardware.preferredOutputDeviceId}
+  1164→                    preferredStreamOutputDeviceId={hardware.preferredStreamOutputDeviceId}
+  1165→                    onSelectOutputDevice={hardware.handleSelectOutputDevice}
+  1166→                    onSelectStreamOutputDevice={hardware.handleSelectStreamOutputDevice}
+  1167→                    onScanAudioDevices={hardware.refreshAudioDevices}
+  1168→                    zones={session.zones}
+  1169→                    dsp={session.dsp}
+  1170→                    onOpenSignalJourney={(chId) => setSignalJourneyChannelId(chId)}
+  1171→                  />
+  1172→                ) : activeModule === 'recorder' ? (
+  1173→                  <MultitrackRecorderModule
+  1174→                    channels={session.channels}
+  1175→                    telemetry={audio.telemetry}
+  1176→                    engineRunning={audio.engineRunning}
+  1177→                  />
+  1178→                ) : (
+  1179→                  <HardwareDiagnosticsModule
+  1180→                    devices={session.devices}
+  1181→                    desktopBuild={isDesktopApp()}
+  1182→                    activeDevice={session.activeDevice}
+  1183→                    onSelectDevice={session.handleSelectDevice}
+  1184→                    platform={session.platform}
+  1185→                    onSelectPlatform={session.handleSelectPlatform}
+  1186→                    driver={session.driver}
+  1187→                    onSelectDriver={session.handleSelectDriver}
+  1188→                    sampleRate={session.sampleRate}
+  1189→                    onSelectSampleRate={session.handleSelectSampleRate}
+  1190→                    bufferSize={session.bufferSize}
+  1191→                    onSelectBufferSize={session.handleSelectBufferSize}
+  1192→                    plugins={session.plugins}
+  1193→                    onTogglePlugin={session.handleTogglePlugin}
+  1194→                    onLoadCustomPlugin={session.handleLoadCustomPlugin}
+  1195→                    onUnloadPlugin={session.handleUnloadPlugin}
+  1196→                    telemetry={audio.telemetry}
+  1197→                    systemCpuPercent={audio.systemCpuPercent}
+  1198→                    auditEvents={session.auditEvents}
+  1199→                    remoteAccess={session.remoteAccess}
+  1200→                    remoteClients={session.remoteClients}
+  1201→                    lanInterfaces={session.lanInterfaces}
+  1202→                    onUpdateRemoteAccess={session.handleUpdateRemoteAccess}
+  1203→                    onRotateRemoteToken={session.handleRotateRemoteToken}
+  1204→                    onDisconnectRemoteClient={session.handleDisconnectRemoteClient}
+  1205→                    onOpenRemoteCompanion={(tok) => setRemoteCompanionToken(tok)}
+  1206→                    detectedEndpoints={hardware.detectedEndpoints}
+  1207→                    scanningHardware={hardware.scanningHardware}
+  1208→                    onScanHardware={(reqPerm) => void hardware.runHardwareScan(Boolean(reqPerm), false)}
+  1209→                    onBindDetectedEndpoint={(ep) => void hardware.handleBindDetectedEndpoint(ep)}
+  1210→                    onClearHardwareCache={() => void hardware.handleClearHardwareCache()}
+  1211→                    audioSource={audio.audioSource}
+  1212→                    onSelectAudioSource={audio.handleSourceChange}
+  1213→                    engineRunning={audio.engineRunning}
+  1214→                    onToggleEngine={audio.handleToggleEngine}
+  1215→                    desktopAudioStatus={hardware.desktopAudioStatus}
+  1216→                    desktopAudioSessions={hardware.desktopAudioSessions}
+  1217→                    desktopSourceIsolationStatus={desktopSourceIsolationStatus}
+  1218→                    apoStatus={hardware.apoStatus}
+  1219→                    singleSpeakerMode={hardware.singleSpeakerMode}
+  1220→                    apoBusy={hardware.apoBusy}
+  1221→                    apoMessage={hardware.apoMessage}
+  1222→                    onRefreshDesktopAudio={() => void hardware.refreshDesktopAudioInfo()}
+  1223→                    onToggleSingleSpeakerMode={(en, epId) =>
+  1224→                      void hardware.handleToggleSingleSpeakerMode(en, epId)
+  1225→                    }
+  1226→                    onInstallApo={(epId) => void hardware.handleInstallApo(epId)}
+  1227→                    onUninstallApo={(epId) => void hardware.handleUninstallApo(epId)}
+  1228→                    onEnableBrowserDspSpeakers={() => void handleBrowserDspToSpeakers()}
+  1229→                    onOpenWindowsSoundMixer={() => void openWindowsSoundSettings('apps-volume')}
+  1230→                    desktopBridgeState={audio.desktopBridgeState}
+  1231→                    specializedDesktopInputs={hardware.specializedDesktopInputs}
+  1232→                    onSelectDesktopCaptureMethod={audio.setDesktopCaptureMethod}
+  1233→                    onSelectSpecializedDesktopDevice={audio.setSpecializedDesktopDevice}
+  1234→                  />
+  1235→                )}
+  1236→              </div>
+  1237→            )}
+  1238→          </main>
+  1239→
+  1240→          {/* FIXED RIGHT PANEL: SYSTEM TELEMETRY, PRESET RECALL & MASTER PREVIEW */}
+  1241→          <ConsoleRightPanel
+  1242→            dsp={session.dsp}
+  1243→            onUpdateDsp={guardedUpdateDsp}
+  1244→            telemetry={audio.telemetry}
+  1245→            spectrum={audio.spectrum}
+  1246→            systemCpuPercent={audio.systemCpuPercent}
+  1247→            schedulingRisk={audio.schedulingRisk}
+  1248→            bufferSize={session.bufferSize}
+  1249→            sampleRate={session.sampleRate}
+  1250→            driver={session.driver}
+  1251→            platform={session.platform}
+  1252→            appVersion={appVersion}
+  1253→            engineRunning={audio.engineRunning}
+  1254→            emergencyMuted={session.emergencyMuted}
+  1255→            locked={consoleLocked}
+  1256→            onToggleEmergencyMute={session.handleToggleEmergencyMute}
+  1257→            onToggleTotalBypass={session.handleToggleTotalBypass}
+  1258→            obsStatus={session.obsStatus}
+  1259→            presets={session.presets}
+  1260→            activePreset={session.activePreset}
+  1261→            onSelectPreset={guardedSelectPreset}
+  1262→            zones={session.zones}
+  1263→            onNavigateModule={setActiveModule}
+  1264→          />
+  1265→        </div>
+  1266→
+  1267→        {session.navDockPosition === 'right' && (
+  1268→          <Sidebar
+  1269→            activeModule={activeModule}
+  1270→            onSelectModule={setActiveModule}
+  1271→            telemetry={audio.telemetry}
+  1272→            pendingFindingsCount={pendingFindingsCount}
+  1273→            dockPosition={session.navDockPosition}
+  1274→            onChangeDockPosition={session.setNavDockPosition}
+  1275→          />
+  1276→        )}
+  1277→      </div>
+  1278→
+  1279→      {session.navDockPosition === 'bottom' && (
+  1280→        <Sidebar
+  1281→          activeModule={activeModule}
+  1282→          onSelectModule={setActiveModule}
+  1283→          telemetry={audio.telemetry}
+  1284→          pendingFindingsCount={pendingFindingsCount}
+  1285→          dockPosition={session.navDockPosition}
+  1286→          onChangeDockPosition={session.setNavDockPosition}
+  1287→        />
+  1288→      )}
+  1289→
+  1290→      {/* FIXED BOTTOM HARDWARE CONTROL BAR */}
+  1291→      <ConsoleBottomBar
+  1292→        engineRunning={audio.engineRunning}
+  1293→        dspBypassed={session.dsp.bypassed}
+  1294→        onToggleTotalBypass={session.handleToggleTotalBypass}
+  1295→        hasWarning={consoleHasWarning}
+  1296→        consoleLocked={consoleLocked}
+  1297→        onToggleLock={() => setConsoleLocked((v) => !v)}
+  1298→        emergencyMuted={session.emergencyMuted}
+  1299→        onToggleEmergencyMute={session.handleToggleEmergencyMute}
+  1300→        onResetAll={handleResetAll}
+  1301→        onOpenSystemInfo={() => setActiveModule('hardware')}
+  1302→        isLimiting={consoleIsLimiting}
+  1303→        hasSignal={consoleHasSignal}
+  1304→      />
+  1305→
+  1306→      {/* Global Keyboard Shortcut Manager Modal */}
+  1307→      {shortcuts.showShortcutsModal && (
+  1308→        <div
+  1309→          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4"
+  1310→          role="dialog"
+  1311→          aria-modal="true"
+  1312→          aria-label="Global Keyboard Shortcut Manager"
+  1313→        >
+  1314→          <div className="w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-xl border border-slate-700 bg-[#080B10] p-4 shadow-2xl">
+  1315→            <KeyboardShortcutManager
+  1316→              shortcuts={shortcuts.keyboardShortcuts}
+  1317→              onUpdateShortcuts={shortcuts.updateAndPersistShortcuts}
+  1318→              globalEnabled={shortcuts.shortcutsGlobalEnabled}
+  1319→              onToggleGlobalEnabled={() => shortcuts.setShortcutsGlobalEnabled((v) => !v)}
+  1320→              capturingId={shortcuts.capturingShortcutId}
+  1321→              onSetCapturingId={shortcuts.setCapturingShortcutId}
+  1322→              onTriggerAction={shortcuts.executeShortcutAction}
+  1323→              lastTriggered={shortcuts.lastTriggeredShortcut}
+  1324→              conflictNotice={shortcuts.shortcutConflictNotice}
+  1325→              tapTempo={shortcuts.tapTempo}
+  1326→              emergencyMuted={session.emergencyMuted}
+  1327→              isModal
+  1328→              onClose={() => shortcuts.setShowShortcutsModal(false)}
+  1329→            />
+  1330→          </div>
+  1331→        </div>
+  1332→      )}
+  1333→
+  1334→      {/* In-App Desktop Auto-Update Notification Modal */}
+  1335→      {showUpdateModal && availableUpdate && (
+  1336→        <UpdateNotificationModal
+  1337→          version={availableUpdate.version}
+  1338→          notes={availableUpdate.notes}
+  1339→          onInstall={availableUpdate.onInstall}
+  1340→          onDismiss={() => setShowUpdateModal(false)}
+  1341→        />
+  1342→      )}
+  1343→
+  1344→      {/* Pro Gain Staging Assistant Modal */}
+  1345→      <GainStagingAssistantModal
+  1346→        open={showGainStaging}
+  1347→        onClose={() => setShowGainStaging(false)}
+  1348→        channels={session.channels}
+  1349→        device={session.activeDevice}
+  1350→        onUpdateChannel={session.handleUpdateChannel}
+  1351→        onSelectChannel={() => setActiveModule('console')}
+  1352→      />
+  1353→
+  1354→      {/* Global Command & Patch Search Modal (Ctrl+K) */}
+  1355→      <GlobalSearchModal
+  1356→        open={showGlobalSearch}
+  1357→        onClose={() => setShowGlobalSearch(false)}
+  1358→        channels={session.channels}
+  1359→        zones={session.zones}
+  1360→        onNavigateModule={setActiveModule}
+  1361→        onOpenSignalJourney={(chId) => setSignalJourneyChannelId(chId)}
+  1362→      />
+  1363→
+  1364→      {/* End-to-End Signal Journey Trace Modal */}
+  1365→      <SignalJourneyModal
+  1366→        open={Boolean(signalJourneyChannelId)}
+  1367→        onClose={() => setSignalJourneyChannelId(null)}
+  1368→        channel={session.channels.find((c) => c.id === signalJourneyChannelId) ?? null}
+  1369→        device={session.activeDevice}
+  1370→        dsp={session.dsp}
+  1371→        zones={session.zones}
+  1372→        onNavigateModule={setActiveModule}
+  1373→      />
+  1374→
+  1375→      {/* About Church Audio Intelligence Dialog */}
+  1376→      {showAboutModal && (
+  1377→        <div
+  1378→          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4"
+  1379→          role="dialog"
+  1380→          aria-modal="true"
+  1381→          aria-label="About Church Audio Intelligence"
+  1382→          onClick={() => setShowAboutModal(false)}
+  1383→        >
+  1384→          <div
+  1385→            className="w-full max-w-md rounded-xl border border-sky-500/40 bg-[#0A0F18] p-5 shadow-2xl space-y-4 font-sans text-slate-200"
+  1386→            onClick={(e) => e.stopPropagation()}
+  1387→          >
+  1388→            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+  1389→              <div>
+  1390→                <h3 className="font-display text-base font-bold text-white">
+  1391→                  Church Audio Intelligence
+  1392→                </h3>
+  1393→                <p className="font-mono text-xs text-sky-400 font-semibold">
+  1394→                  Version v{appVersion}
+  1395→                </p>
+  1396→              </div>
+  1397→              <span className="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-mono text-[10px] font-bold">
+  1398→                {isDesktopApp() ? 'TAURI DESKTOP' : 'WEB CONSOLE'}
+  1399→              </span>
+  1400→            </div>
+  1401→
+  1402→            <div className="space-y-2 text-xs text-slate-300 font-mono bg-[#06090F] p-3 rounded-lg border border-slate-800">
+  1403→              <div className="flex justify-between">
+  1404→                <span className="text-slate-500">DSP Engine:</span>
+  1405→                <span>CamillaDSP v2.0 + WebAudio</span>
+  1406→              </div>
+  1407→              <div className="flex justify-between">
+  1408→                <span className="text-slate-500">Hardware Device:</span>
+  1409→                <span className="truncate max-w-[200px]">{session.activeDevice.model}</span>
+  1410→              </div>
+  1411→              <div className="flex justify-between">
+  1412→                <span className="text-slate-500">Update Endpoint:</span>
+  1413→                <span>GitHub Releases (Signed)</span>
+  1414→              </div>
+  1415→            </div>
+  1416→
+  1417→            <div className="flex items-center justify-between gap-2 pt-1">
+  1418→              <button
+  1419→                type="button"
+  1420→                onClick={() => {
+  1421→                  setShowAboutModal(false);
+  1422→                  void runUpdateCheck(true);
+  1423→                }}
+  1424→                className="px-3 py-1.5 rounded-lg border border-sky-500/40 bg-sky-600/20 hover:bg-sky-600/35 text-sky-200 text-xs font-semibold cursor-pointer"
+  1425→              >
+  1426→                Check for Updates
+  1427→              </button>
+  1428→              <button
+  1429→                type="button"
+  1430→                onClick={() => setShowAboutModal(false)}
+  1431→                className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold cursor-pointer"
+  1432→              >
+  1433→                Close
+  1434→              </button>
+  1435→            </div>
+  1436→          </div>
+  1437→        </div>
+  1438→      )}
+  1439→
+  1440→      {/* Non-intrusive Keydown Trigger Feedback Toast */}
+  1441→      {shortcuts.shortcutToast && !shortcuts.showShortcutsModal && (
+  1442→        <div className="fixed bottom-4 right-4 z-40 pointer-events-none rounded-md border border-sky-400/50 bg-[#0D1119]/95 px-3 py-2 shadow-xl font-mono text-xs flex items-center gap-2.5">
+  1443→          <span className="px-1.5 py-0.5 rounded-xs border border-sky-400/50 bg-sky-500/20 text-sky-300 font-bold">
+  1444→            {shortcuts.shortcutToast.combo}
+  1445→          </span>
+  1446→          <span className="text-white font-semibold">{shortcuts.shortcutToast.label}</span>
+  1447→        </div>
+  1448→      )}
+  1449→    </div>
+  1450→  );
+  1451→}
+  1452→

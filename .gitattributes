@@ -1,0 +1,25 @@
+# Normalize all text files to LF in the repository and on checkout.
+# Matches the Tauri scaffolding convention and keeps the bundled
+# shell/runtime scripts executable on every platform.
+* text=auto eol=lf
+
+# Windows-only scripts must keep CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary assets — never normalize
+*.png binary
+*.ico binary
+*.exe binary
+*.db binary
+*.woff binary
+*.woff2 binary
+*.icns binary
+
+# Machine-generated files — exclude from diffs and merge conflicts
+db/hkm-state.json -diff -merge=ours
+db/custom.db -diff
+bun.lock -diff
+tsconfig.tsbuildinfo -diff
+src-tauri/gen/** -diff
