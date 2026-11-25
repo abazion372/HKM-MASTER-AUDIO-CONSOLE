@@ -268,3 +268,13 @@ export async function prepareDesktopForUpdate(): Promise<void> {
     // ignore if command unavailable on older build
   }
 }
+
+export async function finishDesktopUpdateAndExit(): Promise<void> {
+  const core = getTauriCore();
+  if (!core?.invoke) return;
+  try {
+    await core.invoke('finish_update_and_exit');
+  } catch {
+    // ignore if command unavailable on older build
+  }
+}

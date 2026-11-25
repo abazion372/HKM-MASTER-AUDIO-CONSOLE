@@ -40,7 +40,7 @@ interface AppMenuBarProps {
 
 type MenuKey = 'file' | 'edit' | 'view' | 'audio' | 'help';
 
-export const APP_VERSION = '1.0.2';
+export const APP_VERSION = '1.0.3';
 
 export const AppMenuBar: React.FC<AppMenuBarProps> = ({
   appVersion = APP_VERSION,

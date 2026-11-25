@@ -193,6 +193,15 @@ fn prepare_for_update(app: AppHandle) {
 }
 
 #[tauri::command]
+fn finish_update_and_exit(app: AppHandle) {
+    // Shut down the embedded server and exit the old shell immediately so the
+    // Windows NSIS `/P /R` updater can overwrite hkm-audio-system.exe without
+    // file-lock contention and relaunch the new version cleanly.
+    shutdown_everything(&app);
+    app.exit(0);
+}
+
+#[tauri::command]
 fn restart_app(app: AppHandle) {
     shutdown_everything(&app);
     app.restart();
@@ -331,6 +340,7 @@ pub fn run() {
             open_windows_sound_settings,
             system_cpu_usage,
             prepare_for_update,
+            finish_update_and_exit,
             restart_app,
         ]);
 

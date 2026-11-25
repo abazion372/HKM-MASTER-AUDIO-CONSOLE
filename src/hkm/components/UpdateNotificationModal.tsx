@@ -106,9 +106,9 @@ export function UpdateNotificationModal({
             <div className="p-3 rounded-lg border border-emerald-500/40 bg-emerald-950/40 text-emerald-200 flex items-center gap-2.5">
               <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
               <div>
-                <p className="font-semibold text-emerald-100">Update Installed Successfully!</p>
+                <p className="font-semibold text-emerald-100">Installer Launched for v{version}</p>
                 <p className="text-[11px] text-emerald-300">
-                  Restart the app whenever you are ready to use version {version}.
+                  The updater is replacing the application files and will relaunch HKM Audio System automatically.
                 </p>
               </div>
             </div>

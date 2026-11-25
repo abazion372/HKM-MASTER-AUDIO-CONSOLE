@@ -163,6 +163,17 @@ export async function checkDesktopUpdate(): Promise<{
               break;
           }
         });
+
+        // On Windows NSIS passive mode (`/P /R`), the installer has now been launched
+        // and will automatically relaunch the updated binary once extraction finishes.
+        // Exit the current process immediately so it never holds a file lock on
+        // hkm-audio-system.exe or loops back into "Restart Now" on the old binary.
+        try {
+          const { finishDesktopUpdateAndExit } = await import('./nativeDesktopAudio.ts');
+          await finishDesktopUpdateAndExit();
+        } catch {
+          // ignore
+        }
       },
     };
   } catch {
