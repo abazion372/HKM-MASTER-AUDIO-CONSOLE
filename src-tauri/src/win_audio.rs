@@ -1081,6 +1081,7 @@ pub fn clsctx_all() -> windows::Win32::System::Com::CLSCTX {
 /// name under HKLM\...\MMDevices\Audio\Render — used by the APO status list).
 #[cfg(windows)]
 pub fn default_render_endpoint_id() -> Result<String, String> {
+    let _ = sys::init_com_mta();
     let device = sys::get_default_render_device()?;
     let id = unsafe { device.GetId() }.map_err(|e| format!("IMMDevice::GetId failed: {}", e))?;
     let wide = unsafe { id.as_wide() };
@@ -1102,6 +1103,24 @@ pub fn list_jack_descriptions() -> Vec<crate::DesktopJackDescription> {
 #[cfg(not(windows))]
 pub fn list_jack_descriptions() -> Vec<crate::DesktopJackDescription> {
     Vec::new()
+}
+
+/// Queries the active WASAPI shared-mode mix format channel count (e.g. 2, 6 for 5.1, 8 for 7.1)
+/// for a specific Windows render endpoint ID.
+#[cfg(windows)]
+pub fn query_endpoint_mix_channels(endpoint_id: &str) -> Result<u16, String> {
+    sys::init_com_mta()?;
+    let device = sys::get_render_device_by_id(endpoint_id)?;
+    let audio_client: sys::AudioClientT = unsafe { device.Activate(sys::clsctx_all(), None) }
+        .map_err(|e| format!("IAudioClient activation failed: {}", e))?;
+    let mix_format: *mut sys::WaveFormatT = unsafe { audio_client.GetMixFormat() }
+        .map_err(|e| format!("GetMixFormat failed: {}", e))?;
+    if mix_format.is_null() {
+        return Ok(2);
+    }
+    let info = sys::parse_wave_format(unsafe { &*mix_format });
+    sys::free_wave_format(mix_format);
+    Ok(info.channels.max(2))
 }
 
 fn capture_pump(

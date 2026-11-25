@@ -4,12 +4,25 @@
 /// Returns false when not running on Windows or when the launch failed.
 #[cfg(windows)]
 pub fn open_windows_sound_settings(page: &str) -> bool {
+    use std::os::windows::process::CommandExt;
     use windows::core::PCWSTR;
     use windows::Win32::UI::Shell::ShellExecuteW;
     use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 
+    if page == "mmsys" || page == "speaker-config" {
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        if std::process::Command::new("control.exe")
+            .arg("mmsys.cpl,,0")
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn()
+            .is_ok()
+        {
+            return true;
+        }
+    }
+
     let target = match page {
-        "sound" => "ms-settings:sound",
+        "sound" | "mmsys" | "speaker-config" => "ms-settings:sound",
         _ => "ms-settings:apps-volume",
     };
     let wide: Vec<u16> = target.encode_utf16().chain(std::iter::once(0)).collect();

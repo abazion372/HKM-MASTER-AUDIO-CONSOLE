@@ -8,6 +8,7 @@ import {
   Sliders,
 } from 'lucide-react';
 import type { SignalTelemetry, SpeakerZone } from '../types/audio.ts';
+import type { OutputJackEndpoint } from '../utils/jackTopology.ts';
 import { RotaryKnob, SegmentedLedMeter } from './StudioControls.tsx';
 
 interface SpeakerZonesModuleProps {
@@ -16,6 +17,7 @@ interface SpeakerZonesModuleProps {
   onAddZone?: (name?: string, role?: SpeakerZone['role']) => void;
   onRemoveZone?: (id: string) => void;
   outputDevices?: MediaDeviceInfo[];
+  outputJackEndpoints?: OutputJackEndpoint[];
   onScanAudioDevices?: (requestPermission?: boolean) => Promise<{ inputs: MediaDeviceInfo[]; outputs: MediaDeviceInfo[] }>;
   telemetry?: SignalTelemetry;
   emergencyMuted?: boolean;
@@ -37,6 +39,7 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
   onAddZone,
   onRemoveZone,
   outputDevices = [],
+  outputJackEndpoints = [],
   onScanAudioDevices,
   telemetry,
   emergencyMuted = false,
@@ -801,9 +804,17 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
                       {selectedZone.name.toUpperCase()}
                     </div>
                     <div className="font-mono text-[10px] text-sky-400 truncate">
-                      {selectedZone.hardwareOutputId
-                        ? outputDevices.find((d) => d.deviceId === selectedZone.hardwareOutputId)?.label || selectedZone.hardwareOutput
-                        : outputDevices[0]?.label || 'System Default Output'}
+                      {selectedZone.outputJackId
+                        ? (() => {
+                            const jack = outputJackEndpoints.find((j) => j.jackId === selectedZone.outputJackId);
+                            return jack
+                              ? `PCIe Jack: ${jack.label} (${jack.jackColorName} · CH ${jack.channelIndices[0]}/${jack.channelIndices[1]})`
+                              : selectedZone.hardwareOutput;
+                          })()
+                        : selectedZone.hardwareOutputId
+                          ? outputDevices.find((d) => d.deviceId === selectedZone.hardwareOutputId)?.label ||
+                            selectedZone.hardwareOutput
+                          : outputDevices[0]?.label || 'System Default Output'}
                     </div>
                   </div>
                   <SegmentedLedMeter
@@ -836,23 +847,58 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
                   </select>
                   <select
                     aria-label="Assigned System Output Port"
-                    value={selectedZone.hardwareOutputId ?? ''}
+                    value={
+                      selectedZone.outputJackId
+                        ? `jack::${selectedZone.outputJackId}`
+                        : selectedZone.hardwareOutputId ?? ''
+                    }
                     onChange={(e) => {
-                      const devId = e.target.value;
+                      const raw = e.target.value;
+                      if (raw.startsWith('jack::')) {
+                        const jackId = raw.slice('jack::'.length);
+                        const jack = outputJackEndpoints.find((j) => j.jackId === jackId);
+                        // Clear any other zone occupying this physical jack pair
+                        for (const z of zones) {
+                          if (z.id !== selectedZone.id && z.outputJackId === jackId) {
+                            onUpdateZone(z.id, { outputJackId: undefined });
+                          }
+                        }
+                        onUpdateZone(selectedZone.id, {
+                          outputJackId: jackId,
+                          hardwareOutputId: jack?.parentDeviceId,
+                          hardwareOutput: jack
+                            ? `${jack.label} (${jack.jackColorName} Jack)`
+                            : 'Discrete PCIe Jack',
+                        });
+                        return;
+                      }
+                      const devId = raw;
                       const dev = outputDevices.find((d) => d.deviceId === devId);
                       onUpdateZone(selectedZone.id, {
+                        outputJackId: undefined,
                         hardwareOutputId: devId || undefined,
                         hardwareOutput: dev?.label || (devId ? devId : 'System Default'),
                       });
                     }}
                     className="bg-[#0D121F] border border-slate-700 rounded px-1.5 py-1 text-sky-200"
                   >
-                    <option value="">System Default</option>
-                    {outputDevices.map((d, idx) => (
-                      <option key={`${d.deviceId}-${idx}`} value={d.deviceId}>
-                        {d.label || `Output Port ${idx + 1}`}
-                      </option>
-                    ))}
+                    <option value="">System Default (Primary PA)</option>
+                    {outputJackEndpoints.length > 0 && (
+                      <optgroup label="Discrete PCIe Card Jacks (Separated Channels)">
+                        {outputJackEndpoints.map((j) => (
+                          <option key={j.jackId} value={`jack::${j.jackId}`}>
+                            {j.label} [{j.jackColorName} · CH {j.channelIndices[0]}/{j.channelIndices[1]}] — {j.parentDeviceLabel}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    <optgroup label="Physical Output Devices (Simultaneous Multi-Output)">
+                      {outputDevices.map((d, idx) => (
+                        <option key={`${d.deviceId}-${idx}`} value={d.deviceId}>
+                          {d.label || `Output Port ${idx + 1}`}
+                        </option>
+                      ))}
+                    </optgroup>
                   </select>
                 </div>
                 {onRemoveZone && zones.length > 1 && (

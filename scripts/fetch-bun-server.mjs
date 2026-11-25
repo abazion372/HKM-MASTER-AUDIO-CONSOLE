@@ -27,11 +27,15 @@ function resolveVersion() {
 }
 
 function releaseUrl(version) {
+  // Always use the `bun-windows-x64-baseline` build so `hkm-server.exe` runs on
+  // EVERY 64-bit Windows PC (including older Intel Xeon/Pentium/Celeron/Core i3-i7
+  // and AMD FX/Athlon processors without AVX2 that crash with 0xC000001D Illegal Instruction
+  // on the non-baseline AVX2 build).
   if (version === 'latest') {
-    return 'https://github.com/oven-sh/bun/releases/latest/download/bun-windows-x64.zip';
+    return 'https://github.com/oven-sh/bun/releases/latest/download/bun-windows-x64-baseline.zip';
   }
   const clean = version.replace(/^bun-?v?/i, '');
-  return `https://github.com/oven-sh/bun/releases/download/bun-v${clean}/bun-windows-x64.zip`;
+  return `https://github.com/oven-sh/bun/releases/download/bun-v${clean}/bun-windows-x64-baseline.zip`;
 }
 
 async function download(url, destPath) {

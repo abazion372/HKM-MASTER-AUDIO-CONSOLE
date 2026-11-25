@@ -1,6 +1,6 @@
 [package]
 name = "hkm-audio-system"
-version = "1.0.0"
+version = "1.1.0"
 description = "HKM Audio System — Church Audio Intelligence & DSP Console"
 authors = ["HKM Audio Systems"]
 license = "MIT"

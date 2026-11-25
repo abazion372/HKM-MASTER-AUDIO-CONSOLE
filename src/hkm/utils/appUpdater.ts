@@ -87,13 +87,14 @@ async function checkGithubLatestReleaseFallback(): Promise<{
     notes: release.body,
     downloadAndInstall: async (onProgress?: (percent: number) => void) => {
       onProgress?.(50);
-      // Prefer the native opener plugin (reliable system-browser launch inside
-      // the Tauri shell); fall back to window.open for non-Tauri contexts.
+      // Prefer the global Tauri opener plugin when available; fall back to window.open.
       let opened = false;
       try {
-        const { openUrl } = await import('@tauri-apps/plugin-opener');
-        await openUrl(targetUrl);
-        opened = true;
+        const invoke = (window as unknown as { __TAURI__?: { core?: { invoke?: (cmd: string, args?: unknown) => Promise<unknown> } } }).__TAURI__?.core?.invoke;
+        if (invoke) {
+          await invoke('plugin:opener|open_url', { url: targetUrl });
+          opened = true;
+        }
       } catch {
         // opener unavailable — fall through to window.open
       }
@@ -137,6 +138,13 @@ export async function checkDesktopUpdate(): Promise<{
         let downloaded = 0;
         let contentLength = 0;
 
+        try {
+          const { prepareDesktopForUpdate } = await import('./nativeDesktopAudio.ts');
+          await prepareDesktopForUpdate();
+        } catch {
+          // ignore pre-update hook errors
+        }
+
         await update.downloadAndInstall((event) => {
           switch (event.event) {
             case 'Started':
@@ -155,6 +163,17 @@ export async function checkDesktopUpdate(): Promise<{
               break;
           }
         });
+
+        // On Windows NSIS passive mode (`/P /R`), the installer has now been launched
+        // and will automatically relaunch the updated binary once extraction finishes.
+        // Exit the current process immediately so it never holds a file lock on
+        // hkm-audio-system.exe or loops back into "Restart Now" on the old binary.
+        try {
+          const { finishDesktopUpdateAndExit } = await import('./nativeDesktopAudio.ts');
+          await finishDesktopUpdateAndExit();
+        } catch {
+          // ignore
+        }
       },
     };
   } catch {

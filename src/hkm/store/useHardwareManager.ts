@@ -331,6 +331,18 @@ export function useHardwareManager({
       try {
         const cache = loadJackLayoutCache();
         const endpoints: OutputJackEndpoint[] = [];
+        const deviceCounts: Record<string, number> = {};
+
+        // On Windows Desktop, also query native WASAPI endpoint channel counts & PCIe capability
+        let nativeEndpoints = apoStatus?.endpoints ?? [];
+        if (isDesktopApp() && (explicit || nativeEndpoints.length === 0)) {
+          const freshApo = await getApoStatus();
+          if (freshApo) {
+            setApoStatus(freshApo);
+            nativeEndpoints = freshApo.endpoints;
+          }
+        }
+
         for (const dev of candidates) {
           let count = 2;
           const hit = cache[dev.deviceId];
@@ -338,8 +350,38 @@ export function useHardwareManager({
             count = hit.count;
           } else {
             count = await probeDeviceChannelCount(dev);
-            cache[dev.deviceId] = { label: dev.label || '', count, ts: Date.now() };
           }
+
+          // Cross-match with native Windows WASAPI endpoint metadata by label
+          const devLabelLower = (dev.label || '').toLowerCase();
+          const matchedNative = nativeEndpoints.find((ne) => {
+            const neLower = (ne.name || '').toLowerCase();
+            return (
+              (devLabelLower && neLower && (devLabelLower.includes(neLower) || neLower.includes(devLabelLower))) ||
+              (ne.isDefault && candidates.indexOf(dev) === 0)
+            );
+          });
+
+          if (matchedNative?.channels && matchedNative.channels > count) {
+            count = matchedNative.channels;
+          }
+
+          // Recognize PCIe / Onboard 5.1 & 7.1 analog speaker cards so their Rear/Center/Front jacks
+          // are always available as discrete separated channels rather than a single mixed output
+          const isPcieMultiJackCard =
+            Boolean(matchedNative?.isMultichannelCapable) ||
+            /5\.1|7\.1|surround|xonar|sound blaster|audigy|pci-?e|multi-?channel/i.test(dev.label || '') ||
+            (/realtek|high definition audio|hd audio/i.test(dev.label || '') &&
+              /speaker|line out|analog|rear/i.test(dev.label || '') &&
+              !/headphone|earphone|digital|spdif|optical|hdmi|displayport|nvidia|amd/i.test(dev.label || ''));
+
+          if (count < 6 && isPcieMultiJackCard) {
+            count = /7\.1|8-?ch/i.test(dev.label || '') ? 8 : 6;
+          }
+
+          cache[dev.deviceId] = { label: dev.label || '', count, ts: Date.now() };
+          deviceCounts[dev.deviceId] = count;
+
           if (count >= 4) {
             endpoints.push(
               ...buildJackEndpoints(
@@ -350,6 +392,7 @@ export function useHardwareManager({
           }
         }
         saveJackLayoutCache(cache);
+        liveAudioEngine.setKnownDeviceChannelCounts(deviceCounts);
 
         // Desktop app: refine jack colours with real IKsJackDescription
         // metadata from the Rust shell (list_jack_descriptions) so the bay

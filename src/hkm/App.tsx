@@ -617,6 +617,18 @@ export default function App() {
     );
   }, [consoleLocked, handleSelectOutputDevice, logAudit, secondaryMonitorCandidate, setMonitorAudibleState]);
 
+  const handleEnableObsProcessedOutput = useCallback(async () => {
+    if (consoleLocked) return;
+    const started = await ensureEngineStarted();
+    if (!started) return;
+    setMonitorAudibleState(true);
+    logAudit(
+      'Enabled OBS Processed Application Audio Output',
+      'Started DSP engine and enabled processed application audio output for OBS Application Audio Capture.',
+      'operator'
+    );
+  }, [consoleLocked, ensureEngineStarted, logAudit, setMonitorAudibleState]);
+
   const handleBrowserDspToSpeakers = useCallback(async () => {
     if (consoleLocked) return;
     setMonitorAudibleState(false);
@@ -1125,6 +1137,7 @@ export default function App() {
                     onAddZone={session.handleAddZone}
                     onRemoveZone={session.handleRemoveZone}
                     outputDevices={hardware.outputDevices}
+                    outputJackEndpoints={hardware.outputJackEndpoints}
                     onScanAudioDevices={hardware.refreshAudioDevices}
                     telemetry={audio.telemetry}
                     emergencyMuted={session.emergencyMuted}
@@ -1161,7 +1174,7 @@ export default function App() {
                     telemetry={audio.telemetry}
                     device={session.activeDevice}
                     processedOutputActive={audio.engineRunning && audio.monitorAudible && !session.emergencyMuted}
-                    onEnableProcessedOutput={() => void handleBrowserDspToSpeakers()}
+                    onEnableProcessedOutput={() => void handleEnableObsProcessedOutput()}
                   />
                 ) : activeModule === 'soundcheck' ? (
                   <AutomatedSoundCheckModule
