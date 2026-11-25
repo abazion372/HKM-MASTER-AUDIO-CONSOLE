@@ -134,8 +134,9 @@ pub fn isolation_singleton() -> &'static IsolationManager {
 mod windows_impl {
     use super::*;
 
+    use std::collections::HashMap;
     use windows::core::{Interface, PWSTR};
-    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::Foundation::{BOOL, CloseHandle, HANDLE, INVALID_HANDLE_VALUE};
     use windows::Win32::Media::Audio::{
         IAudioSessionControl, IAudioSessionControl2, IAudioSessionEnumerator, IAudioSessionManager2,
         ISimpleAudioVolume,
@@ -144,6 +145,89 @@ mod windows_impl {
         GetCurrentProcessId, OpenProcess, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
         QueryFullProcessImageNameW,
     };
+
+    const TH32CS_SNAPPROCESS: u32 = 0x0000_0002;
+
+    #[repr(C)]
+    struct ProcessEntry32W {
+        dw_size: u32,
+        cnt_usage: u32,
+        th32_process_id: u32,
+        th32_default_heap_id: usize,
+        th32_module_id: u32,
+        cnt_threads: u32,
+        th32_parent_process_id: u32,
+        pc_pri_class_base: i32,
+        dw_flags: u32,
+        sz_exe_file: [u16; 260],
+    }
+
+    extern "system" {
+        fn CreateToolhelp32Snapshot(dw_flags: u32, th32_process_id: u32) -> HANDLE;
+        fn Process32FirstW(h_snapshot: HANDLE, lppe: *mut ProcessEntry32W) -> BOOL;
+        fn Process32NextW(h_snapshot: HANDLE, lppe: *mut ProcessEntry32W) -> BOOL;
+    }
+
+    /// Returns the set of PIDs belonging to this console's own process tree
+    /// (including all `msedgewebview2.exe` broker, renderer, and AudioService
+    /// descendant processes). We must NEVER mute our own WebView2 audio process
+    /// during source isolation, and if an earlier session left it muted in the
+    /// Windows Volume Mixer, we unmute it automatically.
+    fn collect_self_process_tree(self_pid: u32) -> HashSet<u32> {
+        let mut tree = HashSet::new();
+        tree.insert(self_pid);
+
+        let mut parent_map: HashMap<u32, u32> = HashMap::new();
+        unsafe {
+            let snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+            if snap != INVALID_HANDLE_VALUE && !snap.is_invalid() {
+                let mut entry: ProcessEntry32W = std::mem::zeroed();
+                entry.dw_size = std::mem::size_of::<ProcessEntry32W>() as u32;
+                if Process32FirstW(snap, &mut entry).as_bool() {
+                    loop {
+                        parent_map.insert(entry.th32_process_id, entry.th32_parent_process_id);
+                        if !Process32NextW(snap, &mut entry).as_bool() {
+                            break;
+                        }
+                    }
+                }
+                let _ = CloseHandle(snap);
+            }
+        }
+
+        for &pid in parent_map.keys() {
+            let mut cur = pid;
+            for _ in 0..16 {
+                if tree.contains(&cur) {
+                    tree.insert(pid);
+                    break;
+                }
+                match parent_map.get(&cur) {
+                    Some(&parent) if parent != 0 && parent != cur => cur = parent,
+                    _ => break,
+                }
+            }
+        }
+        tree
+    }
+
+    fn is_self_or_webview_session(pid: u32, self_tree: &HashSet<u32>) -> bool {
+        if self_tree.contains(&pid) {
+            return true;
+        }
+        if let Some((name, path)) = process_identity(pid) {
+            let lower_name = name.to_ascii_lowercase();
+            let lower_path = path.to_ascii_lowercase();
+            if lower_name == "hkm-audio-system"
+                || lower_name == "msedgewebview2"
+                || lower_path.contains("hkm audio system")
+                || lower_path.contains("church.hkm.audiosystem")
+            {
+                return true;
+            }
+        }
+        false
+    }
 
     struct SessionEntry {
         pid: u32,
@@ -214,10 +298,11 @@ mod windows_impl {
 
     pub(super) fn list_sessions_win() -> Vec<DesktopAudioSession> {
         let self_pid = unsafe { GetCurrentProcessId() };
+        let self_tree = collect_self_process_tree(self_pid);
         match enumerate_sessions() {
             Ok(entries) => entries
                 .into_iter()
-                .filter(|entry| entry.pid != 0 && entry.pid != self_pid)
+                .filter(|entry| entry.pid != 0 && !is_self_or_webview_session(entry.pid, &self_tree))
                 .map(|entry| {
                     let (name, path) =
                         process_identity(entry.pid).unwrap_or((format!("PID {}", entry.pid), String::new()));
@@ -233,10 +318,29 @@ mod windows_impl {
         }
     }
 
+    /// Ensures HKM's own process tree (including its WebView2 AudioService child)
+    /// is never left muted in the Windows Volume Mixer.
+    pub(super) fn ensure_self_sessions_unmuted_win() {
+        let self_pid = unsafe { GetCurrentProcessId() };
+        let self_tree = collect_self_process_tree(self_pid);
+        if let Ok(entries) = enumerate_sessions() {
+            for entry in entries {
+                if entry.pid != 0 && is_self_or_webview_session(entry.pid, &self_tree) {
+                    if let Ok(volume) = entry.control.cast::<ISimpleAudioVolume>() {
+                        if unsafe { volume.GetMute() }.map(|b| b.as_bool()).unwrap_or(false) {
+                            let _ = unsafe { volume.SetMute(false, std::ptr::null()) };
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     pub(super) fn isolate_now_win(
         muted_pids: &Mutex<HashSet<u32>>,
     ) -> (u32, u32, Vec<u32>) {
         let self_pid = unsafe { GetCurrentProcessId() };
+        let self_tree = collect_self_process_tree(self_pid);
         let mut muted = 0u32;
         let mut skipped = 0u32;
         let mut newly_muted: Vec<u32> = Vec::new();
@@ -244,8 +348,17 @@ mod windows_impl {
         match enumerate_sessions() {
             Ok(entries) => {
                 for entry in entries {
-                    // pid == 0 → system sounds session (safe to leave); self → the console.
-                    if entry.pid == 0 || entry.pid == self_pid {
+                    if entry.pid == 0 {
+                        continue;
+                    }
+                    // Self + WebView2 AudioService child tree: ensure UNMUTED so
+                    // speaker output and OBS Application Audio Capture are never silenced!
+                    if is_self_or_webview_session(entry.pid, &self_tree) {
+                        if let Ok(volume) = entry.control.cast::<ISimpleAudioVolume>() {
+                            if unsafe { volume.GetMute() }.map(|b| b.as_bool()).unwrap_or(false) {
+                                let _ = unsafe { volume.SetMute(false, std::ptr::null()) };
+                            }
+                        }
                         continue;
                     }
                     let volume: ISimpleAudioVolume = match entry.control.cast() {
@@ -377,11 +490,19 @@ fn isolate_now(manager: &IsolationManager) -> DesktopSourceIsolationStatus {
 fn restore_isolation(manager: &IsolationManager) -> (u32, u32, Option<String>) {
     #[cfg(windows)]
     {
+        sys::ensure_self_sessions_unmuted_win();
         sys::restore_isolation_win(&manager.muted_pids)
     }
     #[cfg(not(windows))]
     {
         let _ = manager;
         (0, 0, Some("Source isolation requires Windows.".to_string()))
+    }
+}
+
+pub fn ensure_self_sessions_unmuted() {
+    #[cfg(windows)]
+    {
+        sys::ensure_self_sessions_unmuted_win();
     }
 }

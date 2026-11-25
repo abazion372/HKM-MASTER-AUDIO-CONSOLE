@@ -570,13 +570,35 @@ export class OutputRouter {
     const monBlocked = params.sourceMode === 'desktop-audio' && safety.selfLoopbackBlocked;
     const streamBlocked = params.sourceMode === 'desktop-audio' && safety.streamLoopbackBlocked;
 
+    // On Windows Desktop (Tauri), start the in-process WASAPI render pump automatically
+    // whenever monitorAudible is active so hkm-audio-system.exe itself owns a live
+    // Windows audio session (allowing OBS Application Audio Capture targeting the
+    // HKM Audio System window to capture post-DSP audio directly from PID hkm-audio-system.exe).
+    if (isDesktopApp() && params.isRunning && this.monitorAudible && !this.emergencyMuted && !monBlocked) {
+      if (!this.rawTapNode) {
+        void this.ensureDesktopInProcessTap();
+      }
+    } else if (isDesktopApp() && !this.rawOutputActive && this.rawTapNode) {
+      this.teardownRawTap();
+      void stopRawOutput();
+    }
+
     if (this.monitorGain) {
       const baseLinear = dbToLinear(this.monitorLevelDb);
       const tbFactor = this.talkbackActive ? 0.2 : 1.0; // -14 dB cue dim during Talkback
+      // When the in-process WASAPI render pump is active on Windows Desktop (rawTapNode != null),
+      // mute WebView2's ctx.destination (monitorGain = 0) so speakers don't double-play while
+      // hkm-audio-system.exe renders the post-DSP signal to both the speakers and OBS!
+      const useInProcessDesktopRender =
+        isDesktopApp() &&
+        !this.preferredOutputDeviceId &&
+        this.jackMerger === null &&
+        this.rawTapNode !== null;
       const target =
         this.monitorAudible &&
         !this.emergencyMuted &&
         !this.rawOutputActive &&
+        !useInProcessDesktopRender &&
         !monBlocked
           ? baseLinear * tbFactor
           : 0;
@@ -730,6 +752,55 @@ export class OutputRouter {
     } catch (err) {
       console.warn('Stream output setSinkId failed:', err);
       return false;
+    }
+  }
+
+  private desktopTapInitializing = false;
+
+  private async ensureDesktopInProcessTap(): Promise<void> {
+    if (this.desktopTapInitializing || this.rawTapNode || !this.ctx || !this.postAnalyser) return;
+    if (this.preferredOutputDeviceId || this.jackMerger !== null) return;
+    this.desktopTapInitializing = true;
+    try {
+      await startRawOutput(this.rawOutputEndpointId);
+      await this.ensureRawTapWorklet();
+      if (!this.ctx || !this.postAnalyser || !this.monitorAudible || this.emergencyMuted) {
+        await stopRawOutput();
+        return;
+      }
+
+      this.teardownRawTap();
+      const tapNode = new AudioWorkletNode(this.ctx, 'raw-output-tap-processor', {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        channelCount: 2,
+        outputChannelCount: [2],
+      });
+      const silentSink = this.ctx.createGain();
+      silentSink.gain.value = 0;
+
+      tapNode.port.onmessage = (ev) => {
+        if (ev.data instanceof ArrayBuffer && !this.emergencyMuted && this.monitorAudible) {
+          void pushRawOutputPcm(ev.data);
+        }
+      };
+
+      this.postAnalyser.connect(tapNode);
+      tapNode.connect(silentSink);
+      silentSink.connect(this.ctx.destination);
+
+      this.rawTapNode = tapNode;
+      this.rawTapSilentSink = silentSink;
+      // Mute WebView2's monitorGain now that in-process WASAPI render is live
+      if (this.monitorGain && this.ctx) {
+        this.monitorGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.015);
+      }
+    } catch (err) {
+      console.warn('In-process desktop WASAPI render tap fallback to WebView2 output:', err);
+      this.teardownRawTap();
+      await stopRawOutput();
+    } finally {
+      this.desktopTapInitializing = false;
     }
   }
 

@@ -276,6 +276,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            win_sessions::ensure_self_sessions_unmuted();
             let http = reqwest::Client::new();
             let state = DesktopState {
                 http: http.clone(),

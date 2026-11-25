@@ -543,7 +543,7 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
         </div>
         <ol className="grid gap-1.5 pl-11 font-mono text-[10px] text-slate-200 leading-relaxed">
           <li>1. In OBS Studio 28+ on Windows, Sources → + → <strong className="text-white">Application Audio Capture (BETA)</strong>.</li>
-          <li>2. Select the <strong className="text-white">Church Audio Intelligence</strong> window and name the source <strong className="text-white">HKM Processed Audio</strong>.</li>
+          <li>2. Select the <strong className="text-white">[hkm-audio-system.exe]: HKM Audio System — Church Audio Console</strong> window and name the source <strong className="text-white">HKM Processed Audio</strong>.</li>
           <li>3. In OBS Settings → Audio, disable global <strong className="text-white">Desktop Audio</strong> to prevent a second, unprocessed copy.</li>
           <li>4. Leave the source’s audio monitoring off, add it to the stream scenes, and assign it to the intended stream track.</li>
         </ol>
