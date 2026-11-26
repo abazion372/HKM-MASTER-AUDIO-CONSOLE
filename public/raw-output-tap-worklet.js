@@ -1,16 +1,20 @@
 /**
  * AudioWorkletProcessor that captures post-DSP console output frames and posts
- * 480-frame (10ms @ 48kHz) interleaved Float32 blocks for native WASAPI RAW
- * output. Channels default to 2 (classic stereo master tap); the v2 per-jack
- * engine arms 4..32 channels via processorOptions so each discrete jack pair
- * of a 5.1/7.1/pro card is carried in its native stream position.
- * Automatically resamples to 48 kHz whenever AudioContext sampleRate differs
- * from 48000 Hz.
+ * 128-frame (one render quantum, ≈2.7 ms @ 48 kHz) interleaved Float32 blocks
+ * for native WASAPI RAW output. Channels default to 2 (classic stereo master
+ * tap); the v2 per-jack engine arms 4..32 channels via processorOptions so each
+ * discrete jack pair of a 5.1/7.1/pro card is carried in its native stream
+ * position. Automatically resamples to 48 kHz whenever AudioContext sampleRate
+ * differs from 48000 Hz.
  */
 class RawOutputTapProcessor extends AudioWorkletProcessor {
   constructor(options) {
     super();
-    this.blockFrames = 480;
+    // One render quantum per post: the block size IS the transport latency of
+    // the raw tap, so it is kept at the minimum the graph produces (128
+    // frames ≈ 2.7 ms). The old 480-frame batching added up to 10 ms before
+    // the PCM even left the worklet.
+    this.blockFrames = 128;
     const requested =
       options && options.processorOptions ? Number(options.processorOptions.channels) : NaN;
     this.channels = Number.isFinite(requested)

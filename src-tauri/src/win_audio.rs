@@ -1275,22 +1275,26 @@ fn raw_output_pump(
     }
 }
 
-/// Failure info from the exclusive-mode Initialize negotiation (the HRESULT is
-/// kept so the caller can decide whether a 16-bit PCM retry makes sense).
+/// Failure info from the exclusive-mode Initialize negotiation (the flag is
+/// kept for diagnostics; the caller's period/format ladder simply tries the
+/// next combination).
 #[cfg(windows)]
 struct ExclusiveInitFailure {
+    #[allow(dead_code)]
     unsupported_format: bool,
     message: String,
 }
 
 /// Exclusive WASAPI negotiation: event-driven stream, buffer-alignment retry,
 /// float32 first with a 16-bit PCM fallback for integer-only endpoints.
-/// Returns the armed client plus its period buffer size in frames.
+/// `period_100ns` is the requested period (== buffer duration for event-driven
+/// exclusive streams). Returns the armed client plus its period buffer size in frames.
 #[cfg(windows)]
 fn initialize_exclusive_stream(
     endpoint_id: &Option<String>,
     channels: u16,
     pcm16: bool,
+    period_100ns: i64,
 ) -> Result<(sys::AudioClientT, u32), ExclusiveInitFailure> {
     let stereo_f32 = sys::target_wave_format();
     let multi_f32 = sys::target_wave_format_channels(channels);
@@ -1309,9 +1313,10 @@ fn initialize_exclusive_stream(
     };
 
     // Exclusive event-driven streams require hnsPeriodicity == hnsBufferDuration.
-    // 20 ms keeps pro-grade latency (plus one period of queued safety) while
-    // leaving the queue a small margin.
-    let mut duration_100ns: i64 = 200_000;
+    // The period IS the exclusive-mode latency (one period is always queued in
+    // the endpoint); the caller ladders down from the pro-grade 10 ms floor and
+    // falls back to 20 ms for devices that reject it.
+    let mut duration_100ns: i64 = period_100ns;
     let mut attempts = 0u8;
     loop {
         attempts += 1;
@@ -1385,27 +1390,43 @@ fn raw_output_pump_exclusive(
 ) -> Result<(), String> {
     sys::init_com_mta()?;
 
-    // Negotiate the exclusive format: 48 kHz float32 first; endpoints whose
-    // exclusive mode is integer-only retry once at 16-bit PCM.
-    let (audio_client, buffer_frames, bits_per_sample) =
-        match initialize_exclusive_stream(&endpoint_id, channels, false) {
-            Ok((client, frames)) => (client, frames, 32u16),
-            Err(first) => {
-                if first.unsupported_format {
-                    match initialize_exclusive_stream(&endpoint_id, channels, true) {
-                        Ok((client, frames)) => (client, frames, 16u16),
-                        Err(second) => {
-                            return Err(format!(
-                                "Exclusive WASAPI failed — float32: {}; 16-bit PCM: {}.",
-                                first.message, second.message
-                            ));
-                        }
+    // Negotiate the exclusive format with a period/format ladder: 10 ms f32
+    // (pro-grade floor) → 20 ms f32 (devices with a larger minimum period) →
+    // 10 ms 16-bit PCM (integer-only endpoints) → 20 ms 16-bit PCM. First
+    // success wins; every failure message is preserved for the error report.
+    let (audio_client, buffer_frames, bits_per_sample, period_label) = {
+        let attempts: [(i64, bool, &str); 4] = [
+            (100_000, false, "10ms f32"),
+            (200_000, false, "20ms f32"),
+            (100_000, true, "10ms pcm16"),
+            (200_000, true, "20ms pcm16"),
+        ];
+        let mut last_message = String::new();
+        let mut found: Option<(sys::AudioClientT, u32, u16, &str)> = None;
+        for (period_100ns, pcm16, label) in attempts {
+            match initialize_exclusive_stream(&endpoint_id, channels, pcm16, period_100ns) {
+                Ok((client, frames)) => {
+                    found = Some((client, frames, if pcm16 { 16u16 } else { 32u16 }, label));
+                    break;
+                }
+                Err(failure) => {
+                    if !last_message.is_empty() {
+                        last_message.push_str("; ");
                     }
-                } else {
-                    return Err(format!("Exclusive WASAPI failed — {}.", first.message));
+                    last_message.push_str(&format!("{}: {}", label, failure.message));
                 }
             }
-        };
+        }
+        match found {
+            Some(v) => v,
+            None => {
+                return Err(format!(
+                    "Exclusive WASAPI failed — every period/format attempt was rejected. {}",
+                    last_message
+                ))
+            }
+        }
+    };
 
     let frame_bytes = channels as usize * (bits_per_sample as usize / 8);
     let f32_frame_bytes = channels as usize * 4;
@@ -1436,8 +1457,8 @@ fn raw_output_pump_exclusive(
     unsafe { audio_client.Start() }.map_err(|e| format!("Raw output Start failed: {}", e))?;
     if let Ok(mut s) = status.lock() {
         *s = Some(format!(
-            "exclusive {}ch/{}bit {} frames/period",
-            channels, bits_per_sample, buffer_frames
+            "exclusive {}ch/{}bit · {} ({} frames/period)",
+            channels, bits_per_sample, period_label, buffer_frames
         ));
     }
 
@@ -1460,11 +1481,12 @@ fn raw_output_pump_exclusive(
 
         // Drift correction: the web producer and the WASAPI clock are
         // independent, so jitter accumulates backlog that would otherwise
-        // persist forever (constant growing delay). Anchor the backlog to one
-        // period whenever it exceeds two periods.
+        // persist forever (constant growing delay). Anchor the backlog to
+        // HALF a period whenever it exceeds 1.5 periods — at the 10 ms period
+        // that bounds queued latency at ≈5 ms after any surge.
         let period_bytes = buffer_frames as usize * f32_frame_bytes;
-        if pending.len() > period_bytes.saturating_mul(2) {
-            pending.drain(..pending.len() - period_bytes);
+        if pending.len() > period_bytes + period_bytes / 2 {
+            pending.drain(..pending.len() - period_bytes / 2);
         }
 
         let ptr = match unsafe { render_client.GetBuffer(buffer_frames) } {
@@ -1561,9 +1583,11 @@ fn raw_output_pump_shared(
             &stereo_format
         };
         let frame_bytes = channels as usize * 4;
-        // 40 ms endpoint buffer (was 200 ms — the pump kept it topped off, so
-        // EVERY block sat ~200 ms before hitting the DAC; the dominant
-        // "system audio is delayed" cause in shared mode).
+        // 40 ms of endpoint CAPACITY (underrun headroom) — latency is decoupled
+        // from this: the adaptive writer below holds the endpoint at a small
+        // padding target instead of keeping it topped off (an eager top-up
+        // leaves a constant ~buffer-duration of latency — 200 ms at v1.1.0,
+        // still ~40 ms after the first shrink; that was the remaining delay).
         let buffer_duration_100ns: i64 = 400_000;
         unsafe {
             audio_client.Initialize(
@@ -1583,22 +1607,33 @@ fn raw_output_pump_shared(
         let buffer_frames: u32 = unsafe { audio_client.GetBufferSize() }
             .map_err(|e| format!("GetBufferSize failed: {}", e))?;
 
-        // Pre-fill the whole buffer with silence so playback starts primed.
-        if let Ok(ptr) = unsafe { render_client.GetBuffer(buffer_frames) } {
+        // Prime ONLY the low-latency padding target with silence so the first
+        // real block is not queued behind a full buffer of silence (that alone
+        // used to pin startup latency at the full buffer duration).
+        let initial_target_frames: u32 = 240; // ≈5 ms @ 48 kHz — the shared-mode latency floor
+        let prime_frames = initial_target_frames.min(buffer_frames);
+        if let Ok(ptr) = unsafe { render_client.GetBuffer(prime_frames) } {
             if !ptr.is_null() {
                 unsafe {
-                    std::ptr::write_bytes(ptr, 0, buffer_frames as usize * frame_bytes);
-                    let _ = render_client.ReleaseBuffer(buffer_frames, sys::zero_buffer_flags());
+                    std::ptr::write_bytes(ptr, 0, prime_frames as usize * frame_bytes);
+                    let _ = render_client.ReleaseBuffer(prime_frames, sys::zero_buffer_flags());
                 }
             }
         }
 
         unsafe { audio_client.Start() }.map_err(|e| format!("Raw output Start failed: {}", e))?;
         if let Ok(mut s) = status.lock() {
-            *s = Some(format!("shared {}ch", channels));
+            *s = Some(format!("shared {}ch (adaptive low-latency)", channels));
         }
 
-        // Each pushed block is 480 frames (10 ms); top up whenever ≥ 10 ms is free.
+        // Adaptive low-latency writer: hold the endpoint padding at a small
+        // target (starts ≈5 ms) and write ONLY what is needed to reach it. If
+        // the environment proves jittery (padding hit zero while no data was
+        // queued — IPC/scheduler hiccup), the target grows by 5 ms steps up to
+        // half the endpoint buffer so glitches self-heal instead of recurring.
+        // Steady-state latency ≈ the target, not the buffer size.
+        let mut target_frames: u32 = initial_target_frames;
+        let mut started = false;
         let mut pending: Vec<u8> = Vec::new();
         loop {
             if stop.load(Ordering::Relaxed) {
@@ -1608,11 +1643,12 @@ fn raw_output_pump_shared(
                 pending.extend_from_slice(&block);
             }
 
-            // Drift correction: anchor any backlog beyond ~40 ms down to a
-            // 10 ms watermark so latency stays bounded near the endpoint
-            // buffer instead of creeping upward permanently.
-            let max_backlog = 1920 * frame_bytes; // ≈40 ms @ 48 kHz
-            let watermark = 480 * frame_bytes; // ≈10 ms @ 48 kHz
+            // Backlog anchor: producer (Web Audio) and consumer (WASAPI) clocks
+            // are independent; cap the queued surplus at ≈20 ms and trim back
+            // to a ≈2 ms watermark so a backlog can never persist as constant
+            // added latency.
+            let max_backlog = 960 * frame_bytes; // ≈20 ms @ 48 kHz
+            let watermark = 96 * frame_bytes; // ≈2 ms @ 48 kHz
             if pending.len() > max_backlog {
                 pending.drain(..pending.len() - watermark);
             }
@@ -1621,35 +1657,36 @@ fn raw_output_pump_shared(
                 Ok(p) => p,
                 Err(_) => break,
             };
-            let available = buffer_frames.saturating_sub(padding);
-            if available >= 480 {
-                if let Ok(ptr) = unsafe { render_client.GetBuffer(available) } {
-                    if !ptr.is_null() {
-                        let needed = available as usize * frame_bytes;
-                        if pending.len() >= needed {
+            if started && padding == 0 && pending.is_empty() {
+                // Underrun: grow the target (never above half the buffer) so the
+                // next hiccup is absorbed. The floor is never raised needlessly.
+                let grown = target_frames.saturating_add(240);
+                target_frames = grown.min(buffer_frames / 2).max(target_frames);
+            }
+            if padding < target_frames {
+                let space = buffer_frames.saturating_sub(padding);
+                let want = target_frames - padding;
+                let have = (pending.len() / frame_bytes) as u32;
+                let write = want.min(space).min(have);
+                if write > 0 {
+                    if let Ok(ptr) = unsafe { render_client.GetBuffer(write) } {
+                        if !ptr.is_null() {
                             unsafe {
-                                std::ptr::copy_nonoverlapping(pending.as_ptr(), ptr, needed);
-                                let _ = render_client
-                                    .ReleaseBuffer(available, sys::zero_buffer_flags());
+                                std::ptr::copy_nonoverlapping(
+                                    pending.as_ptr(),
+                                    ptr,
+                                    write as usize * frame_bytes,
+                                );
+                                let _ = render_client.ReleaseBuffer(write, sys::zero_buffer_flags());
                             }
-                            pending.drain(..needed);
-                        } else {
-                            unsafe {
-                                std::ptr::write_bytes(ptr, 0, needed);
-                                let take = pending.len().min(needed);
-                                if take > 0 {
-                                    std::ptr::copy_nonoverlapping(pending.as_ptr(), ptr, take);
-                                }
-                                let _ = render_client
-                                    .ReleaseBuffer(available, sys::zero_buffer_flags());
-                            }
-                            pending.clear();
+                            pending.drain(..write as usize * frame_bytes);
+                            started = true;
                         }
                     }
                 }
             }
 
-            thread::sleep(std::time::Duration::from_millis(3));
+            thread::sleep(std::time::Duration::from_millis(2));
         }
         let _ = unsafe { audio_client.Stop() };
         if let Ok(mut s) = status.lock() {

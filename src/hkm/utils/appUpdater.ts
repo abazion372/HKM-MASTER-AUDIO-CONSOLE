@@ -1,5 +1,15 @@
 import { isDesktopApp } from './appApi.ts';
 
+/** Live throughput telemetry for an in-app update download. */
+export interface UpdateDownloadStats {
+  downloadedBytes: number;
+  totalBytes: number; // 0 when the server did not report a content length
+  bytesPerSecond: number; // exponential moving average
+}
+
+export type UpdateProgressCallback = (percent: number, stats?: UpdateDownloadStats) => void;
+export type UpdateInstallFn = (onProgress?: UpdateProgressCallback) => Promise<void>;
+
 export interface UpdateStatus {
   checking: boolean;
   updateAvailable: boolean;
@@ -45,7 +55,7 @@ async function checkGithubLatestReleaseFallback(): Promise<{
   available: boolean;
   version?: string;
   notes?: string;
-  downloadAndInstall?: (onProgress?: (percent: number) => void) => Promise<void>;
+  downloadAndInstall?: UpdateInstallFn;
   error?: string;
 }> {
   let currentVersion = '0.2.35';
@@ -85,7 +95,7 @@ async function checkGithubLatestReleaseFallback(): Promise<{
     available: true,
     version: latestVersion,
     notes: release.body,
-    downloadAndInstall: async (onProgress?: (percent: number) => void) => {
+    downloadAndInstall: async (onProgress?: UpdateProgressCallback) => {
       onProgress?.(50);
       // Prefer the global Tauri opener plugin when available; fall back to window.open.
       let opened = false;
@@ -106,6 +116,57 @@ async function checkGithubLatestReleaseFallback(): Promise<{
   };
 }
 
+async function openUrlInSystemBrowser(url: string): Promise<boolean> {
+  // Prefer the global Tauri opener plugin when available; fall back to window.open.
+  try {
+    const invoke = (window as unknown as { __TAURI__?: { core?: { invoke?: (cmd: string, args?: unknown) => Promise<unknown> } } }).__TAURI__?.core?.invoke;
+    if (invoke) {
+      await invoke('plugin:opener|open_url', { url });
+      return true;
+    }
+  } catch {
+    // opener unavailable — fall through to window.open
+  }
+  window.open(url, '_blank', 'noopener,noreferrer');
+  return true;
+}
+
+/**
+ * Resolves the latest release's Windows installer URL and opens it in the system
+ * browser — the escape hatch for networks where the in-app Rust downloader is
+ * throttled (AV HTTPS inspection / DPI / broken IPv6) while the browser downloads
+ * the same artifact from the same CDN at full speed.
+ *
+ * Tries the GitHub Releases API for the exact asset URL, falling back to the
+ * stable `releases/download/v<version>/...` naming convention.
+ */
+export async function openUpdateDownloadInBrowser(targetVersion?: string): Promise<{
+  opened: boolean;
+  url?: string;
+}> {
+  let url: string | undefined;
+  try {
+    const res = await fetch(GITHUB_RELEASES_API, {
+      headers: { Accept: 'application/vnd.github+json' },
+    });
+    if (res.ok) {
+      const release = (await res.json()) as GithubReleasePayload;
+      url = (release.assets ?? []).find((a) => /setup\.exe$|\.msi$/i.test(a.name))?.browser_download_url;
+    }
+  } catch {
+    // offline / rate-limited — fall through to the predictable URL below
+  }
+  if (!url && targetVersion) {
+    const v = targetVersion.replace(/^v/i, '').trim();
+    url = `https://github.com/abazion372/HKM-MASTER-AUDIO-CONSOLE/releases/download/v${v}/HKM.Audio.System_${v}_x64-setup.exe`;
+  }
+  if (!url) {
+    url = 'https://github.com/abazion372/HKM-MASTER-AUDIO-CONSOLE/releases/latest';
+  }
+  const opened = await openUrlInSystemBrowser(url);
+  return { opened, url };
+}
+
 /**
  * Checks for new releases against the Tauri signed updater manifest (`latest.json`),
  * falling back to the public GitHub Releases API when unsigned or before keys are configured.
@@ -115,7 +176,7 @@ export async function checkDesktopUpdate(): Promise<{
   available: boolean;
   version?: string;
   notes?: string;
-  downloadAndInstall?: (onProgress?: (percent: number) => void) => Promise<void>;
+  downloadAndInstall?: UpdateInstallFn;
   error?: string;
 }> {
   if (!isDesktopApp()) {
@@ -134,9 +195,12 @@ export async function checkDesktopUpdate(): Promise<{
       available: true,
       version: update.version,
       notes: update.body,
-      downloadAndInstall: async (onProgress?: (percent: number) => void) => {
+      downloadAndInstall: async (onProgress?: UpdateProgressCallback) => {
         let downloaded = 0;
         let contentLength = 0;
+        let emaBytesPerSecond = 0;
+        let lastTickMs = performance.now();
+        let lastTickBytes = 0;
 
         try {
           const { prepareDesktopForUpdate } = await import('./nativeDesktopAudio.ts');
@@ -149,17 +213,41 @@ export async function checkDesktopUpdate(): Promise<{
           switch (event.event) {
             case 'Started':
               contentLength = event.data.contentLength ?? 0;
-              onProgress?.(0);
+              lastTickMs = performance.now();
+              onProgress?.(0, { downloadedBytes: 0, totalBytes: contentLength, bytesPerSecond: 0 });
               break;
-            case 'Progress':
+            case 'Progress': {
               downloaded += event.data.chunkLength;
-              if (contentLength > 0) {
-                const pct = Math.min(100, Math.round((downloaded / contentLength) * 100));
-                onProgress?.(pct);
+              const now = performance.now();
+              const dtMs = now - lastTickMs;
+              // Emit throttled progress+speed telemetry (every 250 ms) so the UI can
+              // show live throughput without re-rendering per 64 KB chunk.
+              if (dtMs >= 250) {
+                const instantBps = ((downloaded - lastTickBytes) * 1000) / dtMs;
+                emaBytesPerSecond =
+                  emaBytesPerSecond === 0
+                    ? instantBps
+                    : emaBytesPerSecond * 0.3 + instantBps * 0.7;
+                lastTickMs = now;
+                lastTickBytes = downloaded;
+                const pct =
+                  contentLength > 0
+                    ? Math.min(100, Math.round((downloaded / contentLength) * 100))
+                    : 0;
+                onProgress?.(pct, {
+                  downloadedBytes: downloaded,
+                  totalBytes: contentLength,
+                  bytesPerSecond: emaBytesPerSecond,
+                });
               }
               break;
+            }
             case 'Finished':
-              onProgress?.(100);
+              onProgress?.(100, {
+                downloadedBytes: contentLength || downloaded,
+                totalBytes: contentLength,
+                bytesPerSecond: emaBytesPerSecond,
+              });
               break;
           }
         });

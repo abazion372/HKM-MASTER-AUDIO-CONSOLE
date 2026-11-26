@@ -13,7 +13,7 @@ import {
   setDesktopAudioSourceIsolation,
   type DesktopSourceIsolationStatus,
 } from './utils/nativeDesktopAudio.ts';
-import { checkDesktopUpdate } from './utils/appUpdater.ts';
+import { checkDesktopUpdate, type UpdateInstallFn } from './utils/appUpdater.ts';
 import { liveAudioEngine } from './audio/liveAudioEngine.ts';
 import { TopBar } from './components/TopBar.tsx';
 import { Sidebar } from './components/Sidebar.tsx';
@@ -109,7 +109,7 @@ export default function App() {
   const [availableUpdate, setAvailableUpdate] = useState<{
     version: string;
     notes?: string;
-    onInstall: (onProgress?: (percent: number) => void) => Promise<void>;
+    onInstall: UpdateInstallFn;
   } | null>(null);
 
   const runUpdateCheck = useCallback(async (openModalIfFound: boolean) => {
