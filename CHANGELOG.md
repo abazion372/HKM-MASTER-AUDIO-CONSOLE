@@ -5,6 +5,20 @@ All notable changes to HKM Audio System are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.5] - 2026-11-26 — One Input Strip, Zero Duplication: the Channel Bay
+
+### Changed
+
+- **The left input panel no longer repeats the central strip.** The old "super input strip" duplicated the Central DSP Chain's INPUT CONDITIONING card control-for-control (preamp knob, 48V/PAD/Ø, fader, mute) — two places to look, two places to forget. Every per-channel control now lives **exactly once**, in the INPUT CONDITIONING card: the **INPUT SOURCE selector (MIC / LINE / INST)** moved in at the top of the column, joined by the input-domain silkscreen badge (**MIC XLR / LINE TRS / INST 1MΩ**), the mode gain-range note, a **SOLO key beside ACTIVE**, and the **MIX BUS assign keys (MAIN PA / STREAM / SUB)** below the fader. The preamp knob and gain arc are now **mode-aware** — they re-scale to the selected domain's silkscreen range (MIC +0..+60, LINE −12..+12 trim, INST +8..+55), and the arc position follows the mode range instead of a fixed 0..60.
+
+- **The freed left-panel space became the CHANNEL BAY — the whole input bank at a glance.** One live row per channel: channel number chip with mute/solo state LEDs, name + hardware source label, live RMS readout, an animated horizontal meter with peak-hold tick, the input-mode badge, preamp/fader position, and three mix-bus assign LEDs — plus quick per-row **M/S (mute/solo) keys** and click-anywhere-to-focus (the row loads into the central console strip, X32 channel-bay style). A `live/total` counter in the bay header shows how many inputs are flowing. The panel finally answers "what is happening on every input right now" — something the single-channel strip never could.
+
+### Fixed
+
+- **+48V now carries the mic-domain hardware interlock everywhere.** Switching a channel out of MIC mode auto-disengages phantom power (exactly like smart consoles — sending +48V into a guitar or unprotected DI can destroy it), and the 48V key is physically locked out on LINE and INST with an explanatory tooltip. Previously the central card allowed engaging phantom on any mode.
+- **Open-slot guidance is now actionable**: the identity header's "OPEN SLOT" note is a one-tap button that opens the hardware input patch tray directly below, instead of passive text. The patch tray now starts collapsed so the Channel Bay owns the panel space until patching is needed.
+- **Mix-bus keys stay on one line** and the fader cap at its minimum position no longer grazes the bus keys — measured 8 px clearance at 1366×768 and 1600×900, with zero card overflow at both sizes.
+
 ## [1.1.4] - 2026-11-26 — Unmistakable Mute States & the 5 ms Exclusive Floor
 
 ### Fixed
