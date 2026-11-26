@@ -142,9 +142,12 @@ class LiveAudioEngine {
         window.AudioContext ||
         (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       try {
-        this.ctx = new AudioCtx({ latencyHint: 'balanced', sampleRate: 48000 });
+        // 'interactive' = smallest allowed hardware buffer (~10 ms). 'balanced'
+        // silently adds 20-50 ms of graph latency which audibly delays the
+        // whole console against the original input.
+        this.ctx = new AudioCtx({ latencyHint: 'interactive', sampleRate: 48000 });
       } catch {
-        this.ctx = new AudioCtx({ latencyHint: 'balanced' });
+        this.ctx = new AudioCtx({ latencyHint: 'interactive' });
       }
       this.dspGraph.build(this.ctx);
       this.stripBank.attachContext(this.ctx, this.dspGraph.busMixSum);
@@ -185,6 +188,7 @@ class LiveAudioEngine {
 
       this.stripBank.applyChannels(this.lastChannels, this.sourceMode);
       this.dspGraph.applyDsp(dsp);
+      this.stripBank.setDspBypass(dsp.bypassed === true);
       this.syncOutputsAndSafety();
 
       if (this.outputRouter.isRawOutputActive()) {
@@ -238,6 +242,9 @@ class LiveAudioEngine {
   public applyDsp(dsp: DspConfig): void {
     this.lastDsp = dsp;
     this.dspGraph.applyDsp(dsp);
+    // Global DSP bypass must reach the channel strips too (true wire bypass
+    // of strip HPF/EQ/FX/comp while gain, pan, fader and bus sum keep working).
+    this.stripBank.setDspBypass(dsp.bypassed === true);
   }
 
   public applySpeakerZones(zones: SpeakerZone[]): void {

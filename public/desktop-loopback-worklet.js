@@ -20,7 +20,7 @@ class DesktopLoopbackProcessor extends AudioWorkletProcessor {
     this.bufferedFrames = 0;
     this.prebuffered = false;
     this.minPrebufferFrames = 480; // 10ms startup cushion @ 48kHz
-    this.maxLatencyFrames = 3840; // 80ms ceiling @ 48kHz
+    this.maxLatencyFrames = 2400; // 50ms surge ceiling @ 48kHz — anything above is trimmed back to the cushion
     this.lastL = 0;
     this.lastR = 0;
 

@@ -168,7 +168,11 @@ impl RawOutputEngine {
             *s = None;
         }
         let stop = std::sync::Arc::new(AtomicBool::new(false));
-        let (tx, rx) = mpsc::sync_channel::<Vec<u8>>(256);
+        // Small jitter reservoir (~160 ms at 10 ms blocks). A deep queue lets
+        // backlog accumulate when the web producer surges (e.g. tab throttling)
+        // and the delay then NEVER drains — the classic "everything is late"
+        // symptom. Drop-on-full keeps latency bounded at the cost of a glitch.
+        let (tx, rx) = mpsc::sync_channel::<Vec<u8>>(16);
         let thread_stop = stop.clone();
         let status_handle = self.status.clone();
         let mode = if exclusive { "exclusive" } else { "shared" };
@@ -1237,7 +1241,10 @@ fn capture_pump(
                 };
             }
 
-            thread::sleep(std::time::Duration::from_millis(8));
+            // Poll at 2 ms: process-loopback packets land every ~10 ms, and an
+            // 8 ms sleep added up to 8 ms of jittered latency to EVERY captured
+            // chunk before it even reached the console.
+            thread::sleep(std::time::Duration::from_millis(2));
         }
         let _ = unsafe { audio_client.Stop() };
         Ok(())
@@ -1302,8 +1309,9 @@ fn initialize_exclusive_stream(
     };
 
     // Exclusive event-driven streams require hnsPeriodicity == hnsBufferDuration.
-    // 30 ms keeps pro-grade latency while leaving the queue a safety margin.
-    let mut duration_100ns: i64 = 300_000;
+    // 20 ms keeps pro-grade latency (plus one period of queued safety) while
+    // leaving the queue a small margin.
+    let mut duration_100ns: i64 = 200_000;
     let mut attempts = 0u8;
     loop {
         attempts += 1;
@@ -1448,10 +1456,15 @@ fn raw_output_pump_exclusive(
 
         while let Ok(block) = queue.try_recv() {
             pending.extend_from_slice(&block);
-            // Bound the backlog defensively (≈1 s of audio).
-            if pending.len() > 48_000 * f32_frame_bytes {
-                pending.drain(..pending.len() - 48_000 * f32_frame_bytes);
-            }
+        }
+
+        // Drift correction: the web producer and the WASAPI clock are
+        // independent, so jitter accumulates backlog that would otherwise
+        // persist forever (constant growing delay). Anchor the backlog to one
+        // period whenever it exceeds two periods.
+        let period_bytes = buffer_frames as usize * f32_frame_bytes;
+        if pending.len() > period_bytes.saturating_mul(2) {
+            pending.drain(..pending.len() - period_bytes);
         }
 
         let ptr = match unsafe { render_client.GetBuffer(buffer_frames) } {
@@ -1548,7 +1561,10 @@ fn raw_output_pump_shared(
             &stereo_format
         };
         let frame_bytes = channels as usize * 4;
-        let buffer_duration_100ns: i64 = 2_000_000; // 200 ms
+        // 40 ms endpoint buffer (was 200 ms — the pump kept it topped off, so
+        // EVERY block sat ~200 ms before hitting the DAC; the dominant
+        // "system audio is delayed" cause in shared mode).
+        let buffer_duration_100ns: i64 = 400_000;
         unsafe {
             audio_client.Initialize(
                 sys::share_mode_shared(),
@@ -1582,7 +1598,7 @@ fn raw_output_pump_shared(
             *s = Some(format!("shared {}ch", channels));
         }
 
-        // Each pushed block is 480 frames (10 ms); fill whenever ≥ 20 ms is available.
+        // Each pushed block is 480 frames (10 ms); top up whenever ≥ 10 ms is free.
         let mut pending: Vec<u8> = Vec::new();
         loop {
             if stop.load(Ordering::Relaxed) {
@@ -1590,10 +1606,15 @@ fn raw_output_pump_shared(
             }
             while let Ok(block) = queue.try_recv() {
                 pending.extend_from_slice(&block);
-                // Bound the backlog defensively (≈1 s of audio).
-                if pending.len() > 48_000 * frame_bytes {
-                    pending.drain(..pending.len() - 48_000 * frame_bytes);
-                }
+            }
+
+            // Drift correction: anchor any backlog beyond ~40 ms down to a
+            // 10 ms watermark so latency stays bounded near the endpoint
+            // buffer instead of creeping upward permanently.
+            let max_backlog = 1920 * frame_bytes; // ≈40 ms @ 48 kHz
+            let watermark = 480 * frame_bytes; // ≈10 ms @ 48 kHz
+            if pending.len() > max_backlog {
+                pending.drain(..pending.len() - watermark);
             }
 
             let padding: u32 = match unsafe { audio_client.GetCurrentPadding() } {
@@ -1601,7 +1622,7 @@ fn raw_output_pump_shared(
                 Err(_) => break,
             };
             let available = buffer_frames.saturating_sub(padding);
-            if available >= 960 {
+            if available >= 480 {
                 if let Ok(ptr) = unsafe { render_client.GetBuffer(available) } {
                     if !ptr.is_null() {
                         let needed = available as usize * frame_bytes;
@@ -1628,7 +1649,7 @@ fn raw_output_pump_shared(
                 }
             }
 
-            thread::sleep(std::time::Duration::from_millis(8));
+            thread::sleep(std::time::Duration::from_millis(3));
         }
         let _ = unsafe { audio_client.Stop() };
         if let Ok(mut s) = status.lock() {

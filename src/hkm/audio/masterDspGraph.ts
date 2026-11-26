@@ -32,6 +32,11 @@ export interface SignalGraphReport {
  *     ─▶ masterOutputGain ─▶ outputSafetyLimiter (-0.3 dBFS brickwall) ─▶ postAnalyser
  *          ├──▶ postSplitter ─▶ postLAnalyser / postRAnalyser
  *          └──▶ [output node consumed by OutputRouter]
+ *
+ * Global `dsp.bypassed` additionally opens a TRUE bypass wire
+ *   busMixSum ─▶ bypassWire ─▶ postAnalyser
+ * (chain muted at `chainGate`) so the dry path skips every filter and the
+ * DynamicsCompressorNode lookahead latency entirely.
  */
 export class MasterDspGraph {
   private ctx: BaseAudioContext | null = null;
@@ -110,6 +115,15 @@ export class MasterDspGraph {
   private dynCompWired = false;
   private dynLimiterWired = false;
 
+  // TRUE whole-chain bypass: busMixSum -> bypassWire -> postAnalyser while the
+  // processing chain is muted at its input gate. Parameter-neutral "bypass"
+  // alone still routes audio through every BiquadFilter and each
+  // DynamicsCompressorNode (which adds ~6 ms lookahead latency even at ratio
+  // 1:1) — the wire makes bypass a genuine zero-latency dry path.
+  private chainGate!: GainNode;
+  private bypassWire!: GainNode;
+  private bypassActive = false;
+
   public masterOutputGainNode!: GainNode;
   public outputSafetyLimiter!: DynamicsCompressorNode;
   private postSplitter!: ChannelSplitterNode;
@@ -118,6 +132,11 @@ export class MasterDspGraph {
     node.channelCount = 2;
     node.channelCountMode = 'explicit';
     node.channelInterpretation = 'speakers';
+  }
+
+  /** True when the whole-chain bypass wire is carrying the signal. */
+  public isBypassed(): boolean {
+    return this.bypassActive;
   }
 
   public build(ctx: BaseAudioContext): void {
@@ -358,8 +377,19 @@ export class MasterDspGraph {
     this.busMixSum.connect(this.inputGain);
     this.inputGain.connect(this.preAnalyser);
 
+    // Whole-chain bypass wire + processing-chain input gate (see field docs).
+    this.chainGate = ctx.createGain();
+    this.chainGate.gain.value = 1;
+    this.enforceStereoBus(this.chainGate);
+    this.bypassWire = ctx.createGain();
+    this.bypassWire.gain.value = 0;
+    this.enforceStereoBus(this.bypassWire);
+    this.busMixSum.connect(this.bypassWire);
+    this.bypassWire.connect(this.postAnalyser);
+
     // Hum Notch Bank Input/Output splice (direct bypass wire when 'off', 3x Q=14 notch when '50hz'/'60hz')
-    this.preAnalyser.connect(this.subSonicNode);
+    this.preAnalyser.connect(this.chainGate);
+    this.chainGate.connect(this.subSonicNode);
     this.subSonicNode.connect(this.agcGainNode);
     this.humNotchFundamental.connect(this.humNotchHarmonic1);
     this.humNotchHarmonic1.connect(this.humNotchHarmonic2);
@@ -571,6 +601,12 @@ export class MasterDspGraph {
     if (!this.built || !this.ctx) return;
     const now = this.ctx.currentTime;
     const nyquist = this.ctx.sampleRate * 0.48;
+
+    // True wire bypass crossfade (10 ms constant-power-ish ramp, click-free).
+    // Runs in BOTH branches so toggling bypass never requires another apply.
+    this.bypassActive = dsp.bypassed === true;
+    this.chainGate.gain.setTargetAtTime(this.bypassActive ? 0 : 1, now, 0.01);
+    this.bypassWire.gain.setTargetAtTime(this.bypassActive ? 1 : 0, now, 0.01);
 
     const polaritySign = dsp.polarityInverted ? -1 : 1;
     const trimLinear = dsp.bypassed ? 1 : dbToLinear(dsp.inputTrimDb) * polaritySign;

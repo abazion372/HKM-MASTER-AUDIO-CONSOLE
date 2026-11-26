@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Lock, Unlock, VolumeX, RotateCcw, Info, AlertTriangle } from 'lucide-react';
+import { Lock, Unlock, VolumeX, RotateCcw, Info, AlertTriangle, Zap, ZapOff } from 'lucide-react';
 
 interface ConsoleBottomBarProps {
   engineRunning: boolean;
@@ -76,22 +76,18 @@ export const ConsoleBottomBar: React.FC<ConsoleBottomBarProps> = ({
             ACTIVE
           </span>
 
-          <button
-            type="button"
-            disabled={consoleLocked}
-            onClick={onToggleTotalBypass}
-            title="Toggle Global DSP Bypass"
-            className={`flex items-center gap-1 cursor-pointer disabled:opacity-60 ${
-              dspBypassed ? 'text-[#22D3EE]' : 'text-slate-500 hover:text-slate-300'
+          <span
+            className={`flex items-center gap-1 ${
+              dspBypassed ? 'text-amber-400' : 'text-slate-500'
             }`}
           >
             <span
               className={`w-2 h-2 rounded-full ${
-                dspBypassed ? 'bg-[#22D3EE] shadow-[0_0_6px_rgba(34,211,238,0.85)]' : 'bg-slate-600'
+                dspBypassed ? 'bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.85)]' : 'bg-slate-600'
               }`}
             />
             BYPASSED
-          </button>
+          </span>
 
           <span
             className={`flex items-center gap-1 ${
@@ -115,7 +111,7 @@ export const ConsoleBottomBar: React.FC<ConsoleBottomBarProps> = ({
         </div>
       </div>
 
-      {/* Center: 4 Chamfered 3D Brushed-Metal Console Buttons */}
+      {/* Center: 5 Chamfered 3D Brushed-Metal Console Buttons */}
       <div className="flex items-center gap-2 shrink-0 font-mono text-[10px] font-bold">
         <button
           type="button"
@@ -141,6 +137,25 @@ export const ConsoleBottomBar: React.FC<ConsoleBottomBarProps> = ({
         >
           <VolumeX className="w-3 h-3" />
           <span>{emergencyMuted ? 'UNMUTE ALL' : 'MUTE ALL'}</span>
+        </button>
+
+        <button
+          type="button"
+          disabled={consoleLocked}
+          onClick={onToggleTotalBypass}
+          title={
+            dspBypassed
+              ? 'DSP fully bypassed — raw dry pass-through. Click to restore the full processing chain.'
+              : 'One-click bypass of ALL DSP (channel EQ/comp/FX + master chain) for a zero-processing dry pass-through. Delay, EQ, compression and limiting are all offline while bypassed.'
+          }
+          className={`h-8 px-4 rounded flex items-center gap-1.5 tracking-wider uppercase cursor-pointer disabled:opacity-45 ${
+            dspBypassed
+              ? 'bg-amber-500 border border-amber-200 text-slate-950 shadow-[0_0_12px_rgba(245,158,11,0.5)]'
+              : 'hw-bevel-btn'
+          }`}
+        >
+          {dspBypassed ? <ZapOff className="w-3 h-3" /> : <Zap className="w-3 h-3" />}
+          <span>{dspBypassed ? 'DSP BYPASSED' : 'BYPASS DSP'}</span>
         </button>
 
         <button

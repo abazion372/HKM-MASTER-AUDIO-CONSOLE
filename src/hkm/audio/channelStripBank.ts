@@ -5,6 +5,10 @@ import { BUTTERWORTH_Q_DB, calcTimeStats, clamp, dbToLinear } from './audioUtils
 export interface ChannelStripNodes {
   index: number;
   preampGain: GainNode;
+  /** Input gate of the strip's processing chain (HPF→EQ→FX→comp); muted by global DSP bypass. */
+  dspGate: GainNode;
+  /** True dry wire preampGain→panner (skips HPF/EQ/FX/comp) opened by global DSP bypass. */
+  bypassWire: GainNode;
   hpfNode: BiquadFilterNode;
   eqLowNode: BiquadFilterNode;
   eqMidNode: BiquadFilterNode;
@@ -29,18 +33,22 @@ export interface ChannelStripMetersSnapshot {
 
 /**
  * Manages the per-channel console strip DSP bank:
- *   InputSource ─▶ preampGain ─▶ hpf ─▶ eqLow ─▶ eqMid ─▶ eqHigh ─▶ [FX RACK]
- *                ─▶ comp ─▶ panner ─▶ faderGain ─▶ busMixSum
+ *   InputSource ─▶ preampGain ─┬─▶ dspGate ─▶ hpf ─▶ eqLow ─▶ eqMid ─▶ eqHigh ─▶ [FX RACK]
+ *                             │              ─▶ comp ─▶ panner ─▶ faderGain ─▶ busMixSum
+ *                             └─▶ bypassWire ─▶ panner   (global DSP bypass dry path)
  *                       │
  *                       └──▶ analyser (pre-fader meter tap when strip is active)
  *
  * The FX rack is a real pedalboard insert: when it (or all pedals) is off it
- * is a pure unity passthrough with zero wet nodes in the graph.
+ * is a pure unity passthrough with zero wet nodes in the graph. Global DSP
+ * bypass opens `bypassWire` and mutes `dspGate` so only gain/polarity/pan/
+ * fader/mute/solo remain — a true zero-processing dry path.
  */
 export class ChannelStripBank {
   private strips: ChannelStripNodes[] = [];
   private ctx: BaseAudioContext | null = null;
   private busMixSum: GainNode | null = null;
+  private dspBypassActive = false;
 
   public attachContext(ctx: BaseAudioContext, busMixSum: GainNode): void {
     this.ctx = ctx;
@@ -116,8 +124,24 @@ export class ChannelStripBank {
       const fxRack = new ChannelFxRack();
       fxRack.attach(ctx, eqHighNode, compNode);
 
+      // Global DSP bypass nodes: gate the processing chain at its input and
+      // wire a dry preampGain→panner path (pan/fader still apply when bypassed).
+      const dspGate = ctx.createGain();
+      dspGate.channelCount = 2;
+      dspGate.channelCountMode = 'explicit';
+      dspGate.channelInterpretation = 'speakers';
+      dspGate.gain.value = this.dspBypassActive ? 0 : 1;
+      const bypassWire = ctx.createGain();
+      bypassWire.channelCount = 2;
+      bypassWire.channelCountMode = 'explicit';
+      bypassWire.channelInterpretation = 'speakers';
+      bypassWire.gain.value = this.dspBypassActive ? 1 : 0;
+
       // Complete contiguous strip signal chain (FX rack wires EQ→comp itself)
-      preampGain.connect(hpfNode);
+      preampGain.connect(dspGate);
+      dspGate.connect(hpfNode);
+      preampGain.connect(bypassWire);
+      bypassWire.connect(pannerNode);
       hpfNode.connect(eqLowNode);
       eqLowNode.connect(eqMidNode);
       eqMidNode.connect(eqHighNode);
@@ -127,6 +151,8 @@ export class ChannelStripBank {
       this.strips.push({
         index: idx,
         preampGain,
+        dspGate,
+        bypassWire,
         hpfNode,
         eqLowNode,
         eqMidNode,
@@ -140,6 +166,22 @@ export class ChannelStripBank {
         noiseFloorDb: -96,
         connectedToBus: false,
       });
+    }
+  }
+
+  /**
+   * Global DSP bypass for every strip: opens the dry preamp→panner wire and
+   * mutes the HPF/EQ/FX/comp chain (10 ms click-free crossfade). Gain,
+   * polarity, pan, fader, mute and solo keep working while bypassed.
+   */
+  public setDspBypass(bypassed: boolean): void {
+    if (this.dspBypassActive === bypassed) return;
+    this.dspBypassActive = bypassed;
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    for (const strip of this.strips) {
+      strip.dspGate.gain.setTargetAtTime(bypassed ? 0 : 1, now, 0.01);
+      strip.bypassWire.gain.setTargetAtTime(bypassed ? 1 : 0, now, 0.01);
     }
   }
 
@@ -291,6 +333,8 @@ export class ChannelStripBank {
     for (const strip of this.strips) {
       try {
         strip.preampGain.disconnect();
+        strip.dspGate.disconnect();
+        strip.bypassWire.disconnect();
         strip.hpfNode.disconnect();
         strip.eqLowNode.disconnect();
         strip.eqMidNode.disconnect();
