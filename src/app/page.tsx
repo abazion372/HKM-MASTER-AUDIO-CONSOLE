@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { ErrorBoundary } from '@/hkm/components/ErrorBoundary';
 
 const HKMAudioSystem = dynamic(() => import('@/hkm/App'), {
   ssr: false,
@@ -23,5 +24,9 @@ const HKMAudioSystem = dynamic(() => import('@/hkm/App'), {
 });
 
 export default function Home() {
-  return <HKMAudioSystem />;
+  return (
+    <ErrorBoundary>
+      <HKMAudioSystem />
+    </ErrorBoundary>
+  );
 }

@@ -7,6 +7,10 @@ import { calcTimeStats, clamp, computeFrequencyAxis, dbToLinear } from './audioU
 import type { ChannelStripBank } from './channelStripBank.ts';
 import type { MasterDspGraph } from './masterDspGraph.ts';
 
+/** How long a confirmed feedback-ring alert stays HELD after the ring stops,
+ * so the indicator is readable instead of strobing on/off per frame. */
+const RING_HOLD_SEC = 8;
+
 export interface SpectrumSnapshot {
   frequencies: Float32Array;
   preDb: Float32Array;
@@ -73,6 +77,12 @@ export class TelemetryAnalyzer {
   private persistentPeakBin = -1;
   private persistentPeakFrames = 0;
   private feedbackPersistenceSec = 0;
+  // Feedback-ring latch: once a ring is confirmed, the alert is HELD for a few
+  // seconds (steady, no strobing) so the operator can read the frequency.
+  // Without the latch the indicator pops on/off with every analysis frame that
+  // dips below the prominence threshold.
+  private ringHoldSec = 0;
+  private latchedRingHz: number | null = null;
   private clippingCount = 0;
   private noiseFloorDb = -96;
   private surgicalNotchMeta: { freqHz: number; cutDb: number; holdSec: number }[] = Array.from(
@@ -112,6 +122,8 @@ export class TelemetryAnalyzer {
     this.persistentPeakBin = -1;
     this.persistentPeakFrames = 0;
     this.feedbackPersistenceSec = 0;
+    this.ringHoldSec = 0;
+    this.latchedRingHz = null;
     this.clippingCount = 0;
     this.noiseFloorDb = -96;
     this.surgicalNotchMeta = Array.from({ length: 4 }, () => ({
@@ -269,7 +281,9 @@ export class TelemetryAnalyzer {
           channelLevels: [],
           feedbackRisk: {
             detected: false,
+            severity: 'clear',
             frequencyHz: null,
+            heldSec: 0,
             prominenceDb: 0,
             persistenceSec: 0,
             confidence: 0,
@@ -449,7 +463,26 @@ export class TelemetryAnalyzer {
     }
 
     const persistenceSec = Number(this.feedbackPersistenceSec.toFixed(1));
-    const feedbackDetected = this.feedbackPersistenceSec >= 0.6 && maxProminence > 11;
+    const feedbackActive = this.feedbackPersistenceSec >= 0.6 && maxProminence > 11;
+    if (feedbackActive) {
+      this.ringHoldSec = RING_HOLD_SEC;
+      this.latchedRingHz = maxPromBin > 0 ? Math.round(maxPromBin * binHz) : this.latchedRingHz;
+    } else if (this.ringHoldSec > 0) {
+      this.ringHoldSec = Math.max(0, this.ringHoldSec - deltaSec);
+    }
+    const feedbackDetected = feedbackActive || this.ringHoldSec > 0;
+    const feedbackSeverity: 'clear' | 'watch' | 'ring' = feedbackDetected
+      ? 'ring'
+      : this.feedbackPersistenceSec >= 0.25 || maxProminence > 9.5
+        ? 'watch'
+        : 'clear';
+    const feedbackHz = feedbackActive && maxPromBin > 0
+      ? Math.round(maxPromBin * binHz)
+      : feedbackDetected
+        ? this.latchedRingHz
+        : maxPromBin > 0 && feedbackSeverity === 'watch'
+          ? Math.round(maxPromBin * binHz)
+          : null;
 
     // 6. 50/60 Hz Mains Hum + Mud detectors
     const getBinDb = (hz: number) => {
@@ -625,7 +658,9 @@ export class TelemetryAnalyzer {
         channelLevels,
         feedbackRisk: {
           detected: feedbackDetected,
-          frequencyHz: maxPromBin > 0 ? Math.round(maxPromBin * binHz) : null,
+          severity: feedbackSeverity,
+          frequencyHz: feedbackHz,
+          heldSec: Number(this.ringHoldSec.toFixed(1)),
           prominenceDb: Number(maxProminence.toFixed(1)),
           persistenceSec,
           confidence: feedbackDetected ? Math.min(97, Math.round(68 + maxProminence * 1.4)) : 0,

@@ -19,8 +19,17 @@ class DesktopLoopbackProcessor extends AudioWorkletProcessor {
     this.readPos = 0;
     this.bufferedFrames = 0;
     this.prebuffered = false;
-    this.minPrebufferFrames = 480; // 10ms startup cushion @ 48kHz
-    this.maxLatencyFrames = 2400; // 50ms surge ceiling @ 48kHz — anything above is trimmed back to the cushion
+    // Adaptive startup cushion: starts at 10 ms (the Windows engine's packet
+    // cadence) and, once the feed proves healthy, decays frame-by-frame toward
+    // 4 ms (≈192 frames) — then grows back on any starvation so a bad machine
+    // self-heals instead of stuttering. The cushion is the dominant remaining
+    // JS-side latency of the loopback path, so it adapts to the minimum the
+    // environment sustains instead of sitting at a fixed worst case.
+    this.minPrebufferFrames = 480; // start: 10 ms cushion @ 48 kHz
+    this.floorPrebufferFrames = 192; // healthy floor: 4 ms @ 48 kHz
+    this.maxPrebufferFrames = 720; // ceiling: 15 ms @ 48 kHz (starved machines)
+    this.healthyProcessCycles = 0;
+    this.maxLatencyFrames = 1200; // 25 ms surge ceiling @ 48 kHz — trimmed back to the cushion
     this.lastL = 0;
     this.lastR = 0;
 
@@ -41,7 +50,6 @@ class DesktopLoopbackProcessor extends AudioWorkletProcessor {
         this.bufferedFrames -= skip;
         this.fracPhase = 0;
       }
-
       for (let i = 0; i < frameCount; i++) {
         this.ringL[this.writePos] = f32[i * 2];
         this.ringR[this.writePos] = f32[i * 2 + 1];
@@ -49,6 +57,32 @@ class DesktopLoopbackProcessor extends AudioWorkletProcessor {
       }
       this.bufferedFrames = Math.min(this.ringFrames, this.bufferedFrames + frameCount);
     };
+  }
+
+  /** Cushion adaptation: decay toward the healthy floor after sustained
+   * clean cycles; grow on starvation so jittery environments self-heal. */
+  noteHealthyCycle() {
+    this.healthyProcessCycles++;
+    if (
+      this.healthyProcessCycles >= 8 &&
+      this.minPrebufferFrames > this.floorPrebufferFrames
+    ) {
+      this.minPrebufferFrames = Math.max(
+        this.floorPrebufferFrames,
+        this.minPrebufferFrames - 16
+      );
+      this.healthyProcessCycles = 0;
+    }
+  }
+
+  noteStarved() {
+    this.healthyProcessCycles = 0;
+    if (this.minPrebufferFrames < this.maxPrebufferFrames) {
+      this.minPrebufferFrames = Math.min(
+        this.maxPrebufferFrames,
+        this.minPrebufferFrames + 96
+      );
+    }
   }
 
   process(_inputs, outputs) {
@@ -93,6 +127,7 @@ class DesktopLoopbackProcessor extends AudioWorkletProcessor {
           this.lastR = r;
         }
         this.bufferedFrames -= framesNeeded;
+        this.noteHealthyCycle();
       } else {
         for (let i = 0; i < framesNeeded; i++) {
           if (this.bufferedFrames > 0) {
@@ -109,6 +144,7 @@ class DesktopLoopbackProcessor extends AudioWorkletProcessor {
         }
         if (this.bufferedFrames === 0) {
           this.prebuffered = false;
+          this.noteStarved();
         }
       }
       return true;
@@ -142,6 +178,7 @@ class DesktopLoopbackProcessor extends AudioWorkletProcessor {
         if (outR !== outL) outR[i] = this.lastR;
         this.prebuffered = false;
         this.fracPhase = 0;
+        this.noteStarved();
       }
     }
 

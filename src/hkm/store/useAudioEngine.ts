@@ -41,7 +41,7 @@ export const INITIAL_TELEMETRY: SignalTelemetry = {
   gainReductionDb: 0,
   noiseFloorDb: -96,
   channelLevels: [],
-  feedbackRisk: { detected: false, frequencyHz: null, prominenceDb: 0, persistenceSec: 0, confidence: 0 },
+  feedbackRisk: { detected: false, severity: 'clear', frequencyHz: null, heldSec: 0, prominenceDb: 0, persistenceSec: 0, confidence: 0 },
   humRisk: { detected: false, fundamentalHz: null, harmonic100Db: -96, harmonic150Db: -96, confidence: 0 },
   mudRisk: { detected: false, bandEnergyDb: -96, centerHz: 220 },
   clippingEvents: 0,

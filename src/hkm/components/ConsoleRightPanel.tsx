@@ -535,20 +535,45 @@ export const ConsoleRightPanel: React.FC<ConsoleRightPanelProps> = ({
                 </div>
               </div>
 
-              {(telemetry.feedbackRisk.detected || telemetry.humRisk.detected) && (
-                <div className="flex items-center gap-1 pt-0.5 text-[8px]">
-                  {telemetry.feedbackRisk.detected && (
-                    <span className="px-1.5 py-0.5 rounded bg-red-600/30 border border-red-400 text-red-200 font-bold">
-                      RING {telemetry.feedbackRisk.frequencyHz}Hz
+              {(() => {
+                const fr = telemetry.feedbackRisk;
+                const sev = fr.severity ?? (fr.detected ? 'ring' : 'clear');
+                // Persistent slot: the chip is ALWAYS rendered in the same
+                // position (no layout pop-in/out) and transitions through
+                // severity states; the latch holds RING for several seconds
+                // after the ring stops so the operator can read the frequency.
+                return (
+                  <div className="flex items-center gap-1 pt-0.5 text-[8px]">
+                    <span
+                      className={`px-1.5 py-0.5 rounded border font-bold transition-colors duration-500 ${
+                        sev === 'ring'
+                          ? 'bg-red-600/25 border-red-500/80 text-red-100'
+                          : sev === 'watch'
+                            ? 'bg-amber-600/20 border-amber-500/50 text-amber-200'
+                            : 'bg-[#0C1117] border-[#222B37] text-slate-500'
+                      }`}
+                      title={
+                        sev === 'ring'
+                          ? `Feedback ring ${fr.frequencyHz ?? '?'} Hz · ${fr.prominenceDb} dB prominence`
+                          : sev === 'watch'
+                            ? `Persistent resonance building (${fr.prominenceDb} dB prominence)`
+                            : 'No feedback resonance detected'
+                      }
+                    >
+                      {sev === 'ring'
+                        ? `RING ${fr.frequencyHz ?? '—'}Hz`
+                        : sev === 'watch'
+                          ? `RING WATCH${fr.frequencyHz ? ` ${fr.frequencyHz}Hz` : ''}`
+                          : 'NO RING'}
                     </span>
-                  )}
-                  {telemetry.humRisk.detected && (
-                    <span className="px-1.5 py-0.5 rounded bg-amber-600/30 border border-amber-400 text-amber-200 font-bold">
-                      HUM {telemetry.humRisk.fundamentalHz}Hz
-                    </span>
-                  )}
-                </div>
-              )}
+                    {telemetry.humRisk.detected && (
+                      <span className="px-1.5 py-0.5 rounded bg-amber-600/30 border border-amber-400 text-amber-200 font-bold">
+                        HUM {telemetry.humRisk.fundamentalHz}Hz
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -763,15 +788,35 @@ export const ConsoleRightPanel: React.FC<ConsoleRightPanelProps> = ({
             </div>
 
             <div className="flex items-center gap-1">
-              <span
-                className={`flex-1 text-center py-0.5 rounded border text-[8.5px] font-bold ${
-                  telemetry.feedbackRisk.detected
-                    ? 'bg-red-600/30 border-red-400 text-red-200 animate-pulse'
-                    : 'bg-[#0C1117] border-[#222B37] text-slate-400'
-                }`}
-              >
-                {telemetry.feedbackRisk.detected ? `RING ${telemetry.feedbackRisk.frequencyHz}Hz` : 'NO RING'}
-              </span>
+              {(() => {
+                const fr = telemetry.feedbackRisk;
+                const sev = fr.severity ?? (fr.detected ? 'ring' : 'clear');
+                const held = sev === 'ring' && (fr.heldSec ?? 0) > 0 && fr.persistenceSec < 0.6;
+                return (
+                  <span
+                    className={`flex-1 text-center py-0.5 rounded border text-[8.5px] font-bold transition-colors duration-500 ${
+                      sev === 'ring'
+                        ? 'bg-red-600/25 border-red-500/80 text-red-100'
+                        : sev === 'watch'
+                          ? 'bg-amber-600/15 border-amber-500/50 text-amber-200'
+                          : 'bg-[#0C1117] border-[#222B37] text-slate-400'
+                    }`}
+                    title={
+                      sev === 'ring'
+                        ? `Feedback ring ${fr.frequencyHz ?? '?'} Hz · ${fr.prominenceDb} dB prominence${held ? ' · held' : ''}`
+                        : sev === 'watch'
+                          ? `Persistent resonance building (${fr.prominenceDb} dB prominence)`
+                          : 'No feedback resonance detected'
+                    }
+                  >
+                    {sev === 'ring'
+                      ? `RING ${fr.frequencyHz ?? '—'}Hz${held ? ' · HELD' : ''}`
+                      : sev === 'watch'
+                        ? `RING WATCH${fr.frequencyHz ? ` ${fr.frequencyHz}Hz` : ''}`
+                        : 'NO RING'}
+                  </span>
+                );
+              })()}
               <span
                 className={`flex-1 text-center py-0.5 rounded border text-[8.5px] font-bold ${
                   telemetry.humRisk.detected

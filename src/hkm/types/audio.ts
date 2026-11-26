@@ -438,7 +438,9 @@ export interface SignalTelemetry {
   channelLevels: ChannelSignalTelemetry[];
   feedbackRisk: {
     detected: boolean;
+    severity: 'clear' | 'watch' | 'ring';
     frequencyHz: number | null;
+    heldSec: number;
     prominenceDb: number;
     persistenceSec: number;
     confidence: number;

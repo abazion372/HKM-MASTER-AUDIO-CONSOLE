@@ -425,9 +425,22 @@ export const FeedbackAnalyzerModule: React.FC<FeedbackAnalyzerModuleProps> = ({
             onClick={() => setAutoGuardArmed(!autoGuardArmed)}
           />
           <ConsolePushButton
-            label={telemetry.feedbackRisk.detected ? `RING ${telemetry.feedbackRisk.frequencyHz} Hz` : 'SYSTEM STABLE'}
-            active={telemetry.feedbackRisk.detected}
-            tone={telemetry.feedbackRisk.detected ? 'red' : 'emerald'}
+            label={(() => {
+              const fr = telemetry.feedbackRisk;
+              const sev = fr.severity ?? (fr.detected ? 'ring' : 'clear');
+              if (sev === 'ring') return `RING ${fr.frequencyHz ?? '—'} Hz`;
+              if (sev === 'watch') return `RING WATCH${fr.frequencyHz ? ` ${fr.frequencyHz} Hz` : ''}`;
+              return 'SYSTEM STABLE';
+            })()}
+            active={(() => {
+              const fr = telemetry.feedbackRisk;
+              return (fr.severity ?? (fr.detected ? 'ring' : 'clear')) !== 'clear';
+            })()}
+            tone={(() => {
+              const fr = telemetry.feedbackRisk;
+              const sev = fr.severity ?? (fr.detected ? 'ring' : 'clear');
+              return sev === 'ring' ? 'red' : sev === 'watch' ? 'amber' : 'emerald';
+            })()}
             onClick={handleApplyNotchAndMeasure}
           />
         </div>
@@ -472,7 +485,14 @@ export const FeedbackAnalyzerModule: React.FC<FeedbackAnalyzerModuleProps> = ({
                 ? `Peak ${telemetry.feedbackRisk.frequencyHz} Hz`
                 : 'No Ringing'
             }
-            tone={telemetry.feedbackRisk.detected ? 'red' : 'emerald'}
+            tone={
+              (telemetry.feedbackRisk.severity ?? (telemetry.feedbackRisk.detected ? 'ring' : 'clear')) ===
+              'ring'
+                ? 'red'
+                : (telemetry.feedbackRisk.severity ?? 'clear') === 'watch'
+                  ? 'amber'
+                  : 'emerald'
+            }
           />
 
           <ArcGauge

@@ -408,17 +408,35 @@ export const MasterPreviewDock: React.FC<MasterPreviewDockProps> = ({
         </div>
 
         <div className="flex items-center gap-1">
-          <span
-            className={`flex-1 text-center py-0.5 rounded border text-[9px] font-bold ${
-              telemetry.feedbackRisk.detected
-                ? 'bg-red-600/30 border-red-400 text-red-200 animate-pulse'
-                : 'bg-slate-900 border-slate-800 text-slate-500'
-            }`}
-          >
-            {telemetry.feedbackRisk.detected
-              ? `RING ${telemetry.feedbackRisk.frequencyHz}Hz`
-              : 'NO RING'}
-          </span>
+          {(() => {
+            const fr = telemetry.feedbackRisk;
+            const sev = fr.severity ?? (fr.detected ? 'ring' : 'clear');
+            const held = sev === 'ring' && (fr.heldSec ?? 0) > 0 && fr.persistenceSec < 0.6;
+            return (
+              <span
+                className={`flex-1 text-center py-0.5 rounded border text-[9px] font-bold transition-colors duration-500 ${
+                  sev === 'ring'
+                    ? 'bg-red-600/25 border-red-500/80 text-red-100'
+                    : sev === 'watch'
+                      ? 'bg-amber-600/15 border-amber-500/50 text-amber-200'
+                      : 'bg-slate-900 border-slate-800 text-slate-500'
+                }`}
+                title={
+                  sev === 'ring'
+                    ? `Feedback ring ${fr.frequencyHz ?? '?'} Hz · ${fr.prominenceDb} dB prominence${held ? ' · held' : ''}`
+                    : sev === 'watch'
+                      ? `Persistent resonance building (${fr.prominenceDb} dB prominence)`
+                      : 'No feedback resonance detected'
+                }
+              >
+                {sev === 'ring'
+                  ? `RING ${fr.frequencyHz ?? '—'}Hz${held ? ' · HELD' : ''}`
+                  : sev === 'watch'
+                    ? `RING WATCH${fr.frequencyHz ? ` ${fr.frequencyHz}Hz` : ''}`
+                    : 'NO RING'}
+              </span>
+            );
+          })()}
           <span
             className={`flex-1 text-center py-0.5 rounded border text-[9px] font-bold ${
               telemetry.humRisk.detected
