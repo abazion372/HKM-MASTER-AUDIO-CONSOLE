@@ -18,18 +18,12 @@ import {
 } from 'lucide-react';
 import type {
   AudioSourceSimulation,
-  ChannelInputMode,
   InputChannel,
   SpeakerZone,
   SignalTelemetry,
 } from '../types/audio.ts';
 import { liveAudioEngine } from '../audio/liveAudioEngine.ts';
-import {
-  INPUT_MODES,
-  INPUT_MODE_ORDER,
-  clampGainForMode,
-  getInputMode,
-} from '../utils/inputMode.ts';
+import { INPUT_MODES, getInputMode } from '../utils/inputMode.ts';
 import type {
   SpecializedDesktopInterface,
   SystemAudioBridgeState,
@@ -47,8 +41,6 @@ import {
 } from '../utils/jackTopology.ts';
 import { isDesktopApp } from '../utils/appApi.ts';
 import { openWindowsSoundSettings } from '../utils/nativeDesktopAudio.ts';
-import { RotaryKnob } from './StudioControls.tsx';
-import { PrecisionVerticalFader } from './PrecisionVerticalFader.tsx';
 import { ChannelFxRackPanel } from './ChannelFxRack.tsx';
 import type { ChannelFxRackState } from '../types/audio.ts';
 
@@ -90,7 +82,7 @@ interface ConsoleLeftPanelProps {
   onToggleSimulatedSurroundCard?: () => void;
 }
 
-const SEGMENTS_10 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+const fmtDb = (v: number) => (v <= -60 ? '−∞' : v.toFixed(1));
 
 export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
   inputDevices = [],
@@ -128,7 +120,7 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
   const [activeTab, setActiveTab] = useState<'inputs' | 'outputs'>('inputs');
   const [collapsed, setCollapsed] = useState(false);
   const [scanning, setScanning] = useState(false);
-  const [patchTrayOpen, setPatchTrayOpen] = useState(true);
+  const [patchTrayOpen, setPatchTrayOpen] = useState(false);
   const [fastChRms, setFastChRms] = useState<number[]>([]);
   const [fastChPeak, setFastChPeak] = useState<number[]>([]);
   const [fastPostDb, setFastPostDb] = useState(-96);
@@ -454,10 +446,11 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
       </div>
 
       {/* =========================================================================
-          TAB 1: TAB-DRIVEN INPUT CHANNEL BAY — ONE REUSABLE SUPER INPUT STRIP
-          Channel tabs across the top; the full-size strip below rebinds to
-          whichever tab is selected (a real-world "selected channel edit" page:
-          Behringer X32 channel view / PreSonus Fat Channel style).
+          TAB 1: INPUT CHANNEL BAY — CHANNEL TABS + ALL-INPUTS LIVE OVERVIEW
+          Per-channel editing lives exactly once, in the central panel's
+          INPUT CONDITIONING card (selected channel). This bay gives the
+          whole input bank at a glance + click-to-focus (X32 channel-bay
+          routing view style).
           ========================================================================= */}
       {activeTab === 'inputs' && (
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -547,10 +540,15 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
             </div>
           </div>
 
-          {/* ---- SUPER INPUT STRIP: one full-size reusable control surface that
-                reloads with whichever channel tab is selected above ---- */}
+          {/* ---- SELECTED CHANNEL BAY ----
+              The old duplicated control strip (input source, preamp, fader,
+              48V/PAD/Ø, mute/solo, bus assigns) now lives exactly once, in
+              the central panel INPUT CONDITIONING card. This panel instead
+              shows the full input bank at a glance — one live row per
+              channel: meters, source, mode, gain/fader status and bus
+              assigns — plus quick per-row mute/solo, and click-to-focus. */}
           {selectedChannel ? (
-            <div className="flex-1 min-h-0 overflow-y-auto p-1.5 flex flex-col gap-1.5">
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               {(() => {
                 const ch = selectedChannel;
                 const globalIdx = channels.findIndex((c) => c.id === ch.id);
@@ -567,40 +565,11 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                     : -96;
                 const isHot =
                   isAssigned && ((engineRunning && !ch.mute && peakDb > -2.5) || ch.faderDb > 4.5 || ch.gainDb > 46);
-                const normMeter =
-                  isAssigned && engineRunning && !ch.mute ? Math.max(0, Math.min(1, (rmsDb + 54) / 54)) : 0;
-                const litSegments =
-                  isAssigned && engineRunning && !ch.mute && rmsDb > -53 ? Math.max(1, Math.round(normMeter * 10)) : 0;
-                const stripDisabled = Boolean(locked || !isAssigned);
-                const isMainPaAssigned = ch.mainPaAssign ?? true;
-                const isStreamAssigned = ch.streamAssign ?? true;
-                const isSubAssigned = ch.subAssign ?? false;
-                const fmtDb = (v: number) => (v <= -60 ? '−∞' : v.toFixed(1));
-
-                // Real-world console input section: MIC / LINE / INST source switch
-                const chMode = getInputMode(ch);
-                const modeSpec = INPUT_MODES[chMode];
-
-                const switchInputMode = (next: ChannelInputMode) => {
-                  const patch: Partial<InputChannel> = { inputMode: next };
-                  // Hardware interlock: +48V only exists on the mic domain — auto-disengage
-                  // exactly like smart consoles (sending phantom into a guitar/DI can destroy it).
-                  if (next !== 'mic' && ch.phantom48v) patch.phantom48v = false;
-                  // Re-scale stored preamp gain into the new mode's silkscreen range.
-                  patch.gainDb = clampGainForMode(ch.gainDb, next);
-                  onUpdateChannel(ch.id, patch);
-                };
-
-                const gainRangeNote =
-                  chMode === 'line'
-                    ? 'Trim −12..+12 dB · Unity 0 · Target −18 dBFS'
-                    : `Range +${modeSpec.gainMin}..+${modeSpec.gainMax} dB · Unity +${modeSpec.unityGainDb} · Target ${modeSpec.stagingTargetRmsDb} dBFS`;
-
                 return (
                   <>
-                    {/* ==== Section 1: Channel identity header ==== */}
+                    {/* ==== Selected channel identity header — anchors the bay ==== */}
                     <div
-                      className={`rounded-md border p-2 flex items-center gap-2.5 shrink-0 transition-all ${
+                      className={`mx-1.5 mt-1.5 rounded-md border p-2 flex items-center gap-2.5 shrink-0 transition-all ${
                         !isAssigned
                           ? 'border-dashed border-[#3A4B5E] bg-[#0F151D]/80'
                           : isHot
@@ -629,18 +598,23 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                         >
                           {ch.name}
                         </div>
-                        <div
-                          className="font-mono text-[8.5px] text-slate-400 truncate leading-tight mt-1"
-                          title={
-                            isAssigned
-                              ? `${ch.role} · ${ch.hardwareInputLabel || 'Engine Bridge'}`
-                              : 'Open Slot — assign a hardware input in the patch tray below'
-                          }
-                        >
-                          {isAssigned
-                            ? `${ch.role} · ${ch.hardwareInputLabel || (isBridgeSlot ? 'Engine Bridge' : ch.role)}`
-                            : 'OPEN SLOT — assign a hardware input below'}
-                        </div>
+                        {isAssigned ? (
+                          <div
+                            className="font-mono text-[8.5px] text-slate-400 truncate leading-tight mt-1"
+                            title={`${ch.role} · ${ch.hardwareInputLabel || 'Engine Bridge'}`}
+                          >
+                            {ch.role} · {ch.hardwareInputLabel || (isBridgeSlot ? 'Engine Bridge' : ch.role)}
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setPatchTrayOpen(true)}
+                            title="Open the hardware input patch tray below and route a live input into this channel"
+                            className="mt-1 font-mono text-[8.5px] text-cyan-300 hover:text-cyan-200 underline decoration-dotted underline-offset-2 cursor-pointer leading-tight block max-w-full truncate"
+                          >
+                            OPEN SLOT — tap to assign a hardware input
+                          </button>
+                        )}
                       </div>
                       {!isAssigned ? (
                         <span className="w-2 h-2 rounded-full bg-[#1B232E] shrink-0" />
@@ -664,424 +638,279 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                         />
                       )}
                     </div>
-
-                    {/* ==== Section 2: Input source — MIC / LINE / INST + 48V · PAD · Ø ==== */}
-                    <div
-                      className={`rounded-md border p-1.5 flex flex-col gap-1.5 shrink-0 ${
-                        !isAssigned
-                          ? 'border-[#232E3C] bg-[#0C1117]/70 opacity-80'
-                          : 'border-[#4B5D72] bg-gradient-to-b from-[#1E2732] to-[#131921] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between px-1 min-w-0">
-                        <span className="font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-slate-400 shrink-0">
-                          Input Source
-                        </span>
-                        <span
-                          className="font-mono text-[8px] text-slate-500 truncate"
-                          title={modeSpec.fullLabel}
-                        >
-                          {modeSpec.domainNote}
-                        </span>
-                      </div>
-
-                      {/* MIC / LINE / INST — 3-way hardware source selector */}
-                      <div
-                        className="grid grid-cols-3 gap-1"
-                        role="radiogroup"
-                        aria-label={`Channel ${ch.index} input source mode`}
-                      >
-                        {INPUT_MODE_ORDER.map((m) => {
-                          const active = chMode === m;
-                          const spec = INPUT_MODES[m];
-                          return (
-                            <button
-                              key={m}
-                              type="button"
-                              role="radio"
-                              aria-checked={active}
-                              disabled={locked}
-                              onClick={() => switchInputMode(m)}
-                              title={`${spec.fullLabel} — ${spec.domainNote}${
-                                m === 'inst'
-                                  ? ' · Guitar/bass via Hi-Z jack or DI. Phantom locked out.'
-                                  : m === 'line'
-                                    ? ' · Keys/playback submixers. No phantom on jacks.'
-                                    : ' · Condenser mics. +48V available.'
-                              }`}
-                              className={`h-8 rounded border font-mono text-[10px] font-bold tracking-wider transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-                                active
-                                  ? m === 'mic'
-                                    ? 'bg-cyan-500/25 border-cyan-300/70 text-cyan-200 shadow-[0_0_8px_rgba(34,211,238,0.4)]'
-                                    : m === 'line'
-                                      ? 'bg-emerald-500/25 border-emerald-300/70 text-emerald-200 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
-                                      : 'bg-fuchsia-500/25 border-fuchsia-300/70 text-fuchsia-200 shadow-[0_0_8px_rgba(217,70,239,0.45)]'
-                                  : 'bg-[#0A0F16] border-slate-700/80 text-slate-500 hover:text-slate-300'
-                              } ${m === 'inst' ? 'italic' : ''}`}
-                            >
-                              {m === 'inst' ? 'INST' : spec.shortLabel}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* 48V / PAD / Ø — hardware toggle row */}
-                      <div className="grid grid-cols-3 gap-1">
-                        <button
-                          type="button"
-                          disabled={stripDisabled || !modeSpec.phantomAllowed}
-                          onClick={() => onUpdateChannel(ch.id, { phantom48v: !ch.phantom48v })}
-                          title={
-                            !modeSpec.phantomAllowed
-                              ? chMode === 'inst'
-                                ? '+48V LOCKED — never send phantom power into an instrument or unprotected DI (auto-disengaged)'
-                                : '+48V unavailable on LINE jacks (mic domain only)'
-                              : ch.phantom48v
-                                ? '+48V Phantom ON — disengage'
-                                : '+48V Phantom Power (condenser mics)'
-                          }
-                          className={`h-8 rounded border font-mono text-[10px] font-bold transition cursor-pointer disabled:cursor-not-allowed ${
-                            ch.phantom48v && modeSpec.phantomAllowed
-                              ? 'bg-rose-600 border-rose-300 text-white shadow-[0_0_8px_rgba(244,63,94,0.6)]'
-                              : modeSpec.phantomAllowed
-                                ? 'hw-top-btn text-slate-300'
-                                : 'bg-[#0A0E14] border-[#1F2937] text-slate-700'
-                          } ${stripDisabled ? 'opacity-45' : ''}`}
-                        >
-                          48V
-                        </button>
-                        <button
-                          type="button"
-                          disabled={stripDisabled}
-                          onClick={() => onUpdateChannel(ch.id, { padDb: !ch.padDb })}
-                          title={
-                            ch.padDb
-                              ? '−20 dB Pad IN — disengage'
-                              : '−20 dB Pad — protect preamp from hot active pickups / line sources'
-                          }
-                          className={`h-8 rounded border font-mono text-[10px] font-bold transition cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
-                            ch.padDb
-                              ? 'bg-amber-500 border-amber-200 text-slate-950 shadow-[0_0_8px_rgba(245,158,11,0.55)]'
-                              : 'hw-top-btn text-slate-300'
-                          }`}
-                        >
-                          PAD
-                        </button>
-                        <button
-                          type="button"
-                          disabled={stripDisabled}
-                          onClick={() => onUpdateChannel(ch.id, { polarityInverted: !ch.polarityInverted })}
-                          title={
-                            ch.polarityInverted
-                              ? 'Polarity Ø INVERTED (180°) — restore'
-                              : 'Polarity Ø Invert (180°) — fix DI/cabinet phase issues'
-                          }
-                          className={`h-8 rounded border font-mono text-[11px] font-bold transition cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
-                            ch.polarityInverted
-                              ? 'bg-sky-500 border-sky-300 text-slate-950 shadow-[0_0_8px_rgba(56,189,248,0.55)]'
-                              : 'hw-top-btn text-slate-300'
-                          }`}
-                        >
-                          Ø
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* ==== Section 3: Preamp gain — full-size rotary ==== */}
-                    <div
-                      className={`rounded-md border p-2 flex items-center gap-3 shrink-0 ${
-                        !isAssigned
-                          ? 'border-[#232E3C] bg-[#0C1117]/70 opacity-80'
-                          : 'border-[#4B5D72] bg-gradient-to-b from-[#1E2732] to-[#131921] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]'
-                      }`}
-                    >
-                      <RotaryKnob
-                        label=""
-                        value={isAssigned ? clampGainForMode(ch.gainDb, chMode) : modeSpec.unityGainDb}
-                        min={modeSpec.gainMin}
-                        max={modeSpec.gainMax}
-                        step={1}
-                        defaultValue={modeSpec.unityGainDb}
-                        unit="dB"
-                        size={68}
-                        disabled={stripDisabled}
-                        accent={!isAssigned ? 'slate' : isHot ? 'amber' : 'sky'}
-                        formatValue={isAssigned ? modeSpec.formatGain : () => '--'}
-                        onChange={(next) => onUpdateChannel(ch.id, { gainDb: next })}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-slate-400 truncate">
-                            {chMode === 'line' ? 'Line Trim' : chMode === 'inst' ? 'Hi-Z Gain' : 'Mic Preamp'}
-                          </span>
-                          <span
-                            className={`font-mono text-[7.5px] px-1 py-0.5 rounded border shrink-0 ${
-                              chMode === 'inst'
-                                ? 'text-fuchsia-300 border-fuchsia-500/40 bg-fuchsia-950/40'
-                                : chMode === 'line'
-                                  ? 'text-emerald-300 border-emerald-500/40 bg-emerald-950/40'
-                                  : 'text-cyan-300 border-cyan-500/40 bg-cyan-950/40'
-                            }`}
-                          >
-                            {chMode === 'inst' ? 'INST 1MΩ' : chMode === 'line' ? 'LINE TRS' : 'MIC XLR'}
-                          </span>
-                        </div>
-                        <div className="font-mono text-[19px] font-bold tabular-nums leading-none mt-1.5 text-slate-100">
-                          {isAssigned ? modeSpec.formatGain(clampGainForMode(ch.gainDb, chMode)) : '--'}
-                          <span className="text-[10px] text-slate-500 font-semibold ml-1">dB</span>
-                        </div>
-                        <div
-                          className="font-mono text-[7.5px] text-slate-500 mt-1.5 truncate"
-                          title={gainRangeNote}
-                        >
-                          {gainRangeNote}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* ==== Section 4: THE SUPER FADER — tall calibrated throw,
-                          oversized cap, PPM tower and RMS/PEAK readouts ==== */}
-                    <div
-                      className={`rounded-md border p-2 flex flex-col gap-1 shrink-0 ${
-                        !isAssigned
-                          ? 'border-[#232E3C] bg-[#0C1117]/70 opacity-80'
-                          : isHot
-                            ? 'border-amber-400 bg-gradient-to-b from-[#241C12] to-[#171009] shadow-[0_0_12px_rgba(245,158,11,0.25)]'
-                            : 'border-[#2DD4BF]/60 bg-gradient-to-b from-[#142328] to-[#0E181D] shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between px-0.5">
-                        <span className="font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                          Channel Fader
-                        </span>
-                        <span
-                          className={`font-mono text-[15px] font-bold tabular-nums leading-none ${
-                            !isAssigned
-                              ? 'text-slate-600'
-                              : ch.faderDb > 0.05
-                                ? 'text-cyan-300'
-                                : ch.faderDb < -0.05
-                                  ? 'text-amber-400'
-                                  : 'text-slate-200'
-                          }`}
-                        >
-                          {!isAssigned ? '--' : ch.faderDb > 0 ? `+${ch.faderDb.toFixed(1)}` : ch.faderDb.toFixed(1)}
-                          <span className="text-[9px] text-slate-500 font-semibold ml-0.5">dB</span>
-                        </span>
-                      </div>
-
-                      <div className="flex items-start justify-between gap-2 px-0.5">
-                        {/* Calibrated decibel scale */}
-                        <div className="mt-10 h-[216px] 2xl:h-[252px] flex flex-col justify-between items-end font-mono text-[8px] text-slate-500 tabular-nums select-none pr-1 shrink-0">
-                          <span className={isAssigned ? 'text-rose-400 font-semibold' : 'text-slate-600'}>+10</span>
-                          <span>+5</span>
-                          <span className={isAssigned ? 'text-slate-300 font-bold' : 'text-slate-600'}>0</span>
-                          <span>−10</span>
-                          <span>−20</span>
-                          <span>−30</span>
-                          <span>−40</span>
-                          <span className="text-slate-600">−∞</span>
-                        </div>
-
-                        {/* The super fader itself */}
-                        <PrecisionVerticalFader
-                          value={isAssigned ? ch.faderDb : -48}
-                          min={-48}
-                          max={10}
-                          step={0.5}
-                          large
-                          disabled={stripDisabled}
-                          trackHeightClass="h-[216px] 2xl:h-[252px]"
-                          accent={!isAssigned || ch.mute ? 'slate' : 'cyan'}
-                          onChange={(next) => onUpdateChannel(ch.id, { faderDb: next })}
-                        />
-
-                        {/* 10-segment console PPM tower */}
-                        <div
-                          className="mt-10 h-[216px] 2xl:h-[252px] w-4 rounded-[3px] bg-[#080C10] border border-slate-800/90 p-[2px] flex flex-col justify-between gap-[2px] shrink-0 overflow-hidden"
-                          aria-label={`Channel ${ch.index} Level`}
-                        >
-                          {SEGMENTS_10.slice()
-                            .reverse()
-                            .map((segIdx) => {
-                              const lit = isAssigned && !ch.mute && segIdx < litSegments;
-                              const color =
-                                segIdx >= 8
-                                  ? lit
-                                    ? isHot
-                                      ? 'bg-amber-400 shadow-[0_0_5px_rgba(251,191,36,0.9)]'
-                                      : 'bg-rose-500 shadow-[0_0_5px_rgba(244,63,94,0.85)]'
-                                    : 'bg-[#1D161A]'
-                                  : segIdx >= 6
-                                    ? lit
-                                      ? 'bg-amber-400'
-                                      : 'bg-[#1C1E1B]'
-                                    : lit
-                                      ? 'bg-[#4ADE80] shadow-[0_0_5px_rgba(74,222,128,0.65)]'
-                                      : 'bg-[#101C18]';
-                              return <div key={segIdx} className={`w-full flex-1 rounded-[1px] ${color}`} />;
-                            })}
-                        </div>
-
-                        {/* RMS / PEAK telemetry column */}
-                        <div className="mt-10 h-[216px] 2xl:h-[252px] flex flex-col justify-between items-end shrink-0 py-0.5">
-                          <div className="text-right">
-                            <div className="font-mono text-[7.5px] uppercase tracking-wider text-slate-500">RMS</div>
-                            <div
-                              className={`font-mono text-[11px] font-bold tabular-nums leading-tight ${
-                                isAssigned && rmsDb > -18 ? 'text-emerald-300' : 'text-slate-300'
-                              }`}
-                            >
-                              {isAssigned && !ch.mute ? fmtDb(rmsDb) : '--'}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-mono text-[7.5px] uppercase tracking-wider text-slate-500">PEAK</div>
-                            <div
-                              className={`font-mono text-[11px] font-bold tabular-nums leading-tight ${
-                                isAssigned && peakDb > -2.5 ? 'text-rose-400' : 'text-slate-300'
-                              }`}
-                            >
-                              {isAssigned && !ch.mute ? fmtDb(peakDb) : '--'}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            {isHot ? (
-                              <span className="font-mono text-[9px] font-bold tracking-[0.18em] text-amber-400">
-                                LIMIT
-                              </span>
-                            ) : ch.mute && isAssigned ? (
-                              <span className="font-mono text-[9px] font-bold tracking-[0.18em] text-rose-400">
-                                MUTED
-                              </span>
-                            ) : (
-                              <span className="font-mono text-[8px] text-slate-600 tracking-[0.18em]">PPM</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* ==== Section 4.5: GUITAR FX RACK — the real-world
-                          pedalboard the user can engage on this input ==== */}
-                    {onUpdateChannelFx && (
-                      <ChannelFxRackPanel
-                        channel={ch}
-                        engineRunning={engineRunning}
-                        onUpdateChannelFx={onUpdateChannelFx}
-                      />
-                    )}
-
-                    {/* ==== Section 5: MUTE / SOLO — full-width finger-size keys ==== */}
-                    <div className="grid grid-cols-2 gap-1.5 shrink-0">
-                      <button
-                        type="button"
-                        disabled={stripDisabled}
-                        onClick={() => onUpdateChannel(ch.id, { mute: !ch.mute })}
-                        aria-pressed={ch.mute}
-                        title={
-                          !isAssigned
-                            ? 'Open Slot — Unassigned'
-                            : ch.mute
-                              ? `CH${ch.index} input MUTED — no signal leaves this channel. Click to unmute.`
-                              : `Mute CH${ch.index} input channel`
-                        }
-                        className={`relative h-11 rounded-md border font-mono text-[11px] font-bold tracking-[0.18em] transition cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed overflow-hidden ${
-                          !isAssigned
-                            ? 'bg-[#0A0E14] border-[#1F2937] text-slate-600'
-                            : ch.mute
-                              ? 'hw-pill-muted hw-mute-breath border-rose-300'
-                              : 'hw-top-btn text-slate-200'
-                        }`}
-                      >
-                        {isAssigned && ch.mute && (
-                          <span
-                            aria-hidden="true"
-                            className="hw-mute-stripes absolute inset-0 pointer-events-none"
-                          />
-                        )}
-                        <span className="relative flex items-center justify-center gap-1.5">
-                          {isAssigned && ch.mute && (
-                            <VolumeX className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                          )}
-                          MUTE
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        disabled={stripDisabled}
-                        onClick={() => onUpdateChannel(ch.id, { solo: !ch.solo })}
-                        title={
-                          !isAssigned ? 'Open Slot — Unassigned' : ch.solo ? 'Clear Solo' : 'Solo Channel'
-                        }
-                        className={`h-11 rounded-md border font-mono text-[11px] font-bold tracking-[0.18em] transition cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
-                          !isAssigned
-                            ? 'bg-[#0A0E14] border-[#1F2937] text-slate-600'
-                            : ch.solo
-                              ? 'bg-amber-400 border-amber-200 text-slate-950 shadow-[0_0_10px_rgba(245,158,11,0.55)]'
-                              : 'hw-top-btn text-slate-200'
-                        }`}
-                      >
-                        SOLO
-                      </button>
-                    </div>
-
-                    {/* ==== Section 6: Mix bus assign keys ==== */}
-                    <div className="flex flex-col gap-1 shrink-0">
-                      <span className="px-1 font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                        Mix Bus Assigns
-                      </span>
-                      <div className="grid grid-cols-3 gap-1.5">
-                        <button
-                          type="button"
-                          disabled={stripDisabled}
-                          title={!isAssigned ? 'Open Slot — Unassigned' : 'Assign to Main PA Mix'}
-                          onClick={() => onUpdateChannel(ch.id, { mainPaAssign: !isMainPaAssigned })}
-                          className={`h-9 rounded-md border font-mono text-[9.5px] font-bold tracking-wider transition cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
-                            !isAssigned
-                              ? 'bg-[#070A10] border-slate-800/80 text-slate-600'
-                              : isMainPaAssigned
-                                ? 'bg-emerald-500/25 border-emerald-400 text-emerald-200 shadow-[0_0_8px_rgba(16,185,129,0.35)]'
-                                : 'bg-[#0A0F1A] border-slate-700/80 text-slate-500 hover:text-slate-300'
-                          }`}
-                        >
-                          MAIN PA
-                        </button>
-                        <button
-                          type="button"
-                          disabled={stripDisabled}
-                          title={!isAssigned ? 'Open Slot — Unassigned' : 'Assign to Live Stream / OBS Mix'}
-                          onClick={() => onUpdateChannel(ch.id, { streamAssign: !isStreamAssigned })}
-                          className={`h-9 rounded-md border font-mono text-[9.5px] font-bold tracking-wider transition cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
-                            !isAssigned
-                              ? 'bg-[#070A10] border-slate-800/80 text-slate-600'
-                              : isStreamAssigned
-                                ? 'bg-emerald-500/25 border-emerald-400 text-emerald-200 shadow-[0_0_8px_rgba(16,185,129,0.35)]'
-                                : 'bg-[#0A0F1A] border-slate-700/80 text-slate-500 hover:text-slate-300'
-                          }`}
-                        >
-                          STREAM
-                        </button>
-                        <button
-                          type="button"
-                          disabled={stripDisabled}
-                          title={!isAssigned ? 'Open Slot — Unassigned' : 'Assign to Subwoofer Bus'}
-                          onClick={() => onUpdateChannel(ch.id, { subAssign: !isSubAssigned })}
-                          className={`h-9 rounded-md border font-mono text-[9.5px] font-bold tracking-wider transition cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
-                            !isAssigned
-                              ? 'bg-[#070A10] border-slate-800/80 text-slate-600'
-                              : isSubAssigned
-                                ? 'bg-fuchsia-500/25 border-fuchsia-400 text-fuchsia-200 shadow-[0_0_8px_rgba(217,70,239,0.4)]'
-                                : 'bg-[#0A0F1A] border-slate-700/80 text-slate-500 hover:text-slate-300'
-                          }`}
-                        >
-                          SUB
-                        </button>
-                      </div>
-                    </div>
                   </>
                 );
               })()}
+
+              {/* ==== CHANNEL BAY — all-inputs live overview. The old strip's
+                  freed space now shows the whole input bank at once: live
+                  meter + source + mode + gain/fader + bus-assign status per
+                  channel, quick per-row MUTE/SOLO, click a row to focus that
+                  channel on the central console. ==== */}
+              <div className="flex-1 min-h-[110px] flex flex-col px-1.5 pt-1.5">
+                <div className="flex items-center justify-between px-0.5 pb-1 font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-slate-400 shrink-0">
+                  <span>Channel Bay</span>
+                  <span
+                    className="text-slate-500 tabular-nums normal-case tracking-normal"
+                    title="Live (assigned and unmuted) inputs / total input strips"
+                  >
+                    {channels.filter(
+                      (c) =>
+                        !c.mute &&
+                        (Boolean(c.hardwareInputId) ||
+                          (c.index === 1 && (audioSource === 'desktop-audio' || audioSource === 'pink-noise')))
+                    ).length}
+                    /{channels.length} live
+                  </span>
+                </div>
+                <div
+                  className="flex-1 min-h-0 overflow-y-auto pr-0.5 flex flex-col gap-1"
+                  aria-label="All input channels overview"
+                >
+                  {channels.map((ch, i) => {
+                    const bridge =
+                      ch.index === 1 && (audioSource === 'desktop-audio' || audioSource === 'pink-noise');
+                    const assigned = Boolean(ch.hardwareInputId) || bridge;
+                    const isSelected = ch.id === selectedChannel.id;
+                    const rDb =
+                      assigned && engineRunning && !ch.mute
+                        ? fastChRms[i] ?? telemetry.channelLevels?.[i]?.rmsDb ?? -96
+                        : -96;
+                    const pDb =
+                      assigned && engineRunning && !ch.mute
+                        ? fastChPeak[i] ?? telemetry.channelLevels?.[i]?.peakDb ?? -96
+                        : -96;
+                    const rNorm = Math.max(0, Math.min(1, (rDb + 54) / 54));
+                    const pNorm = Math.max(0, Math.min(1, (pDb + 54) / 54));
+                    const rowHot = assigned && pDb > -2.5;
+                    const mode = getInputMode(ch);
+                    const mSpec = INPUT_MODES[mode];
+                    const sourceLabel = ch.hardwareInputLabel || (bridge ? 'Engine Bridge' : 'Open Slot');
+                    const paOn = ch.mainPaAssign ?? true;
+                    const stOn = ch.streamAssign ?? true;
+                    const sbOn = ch.subAssign ?? false;
+                    return (
+                      <div
+                        key={ch.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={isSelected}
+                        onClick={() => onSelectChannel(ch.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            onSelectChannel(ch.id);
+                          }
+                        }}
+                        title={`Focus CH${ch.index} — ${ch.name}${assigned ? ` (${sourceLabel})` : ' · Open Slot'} · full input strip loads in the central INPUT CONDITIONING card`}
+                        className={`group rounded-md border p-1.5 flex items-center gap-2 cursor-pointer transition-all ${
+                          isSelected
+                            ? 'border-teal-300 bg-[#17282D] ring-1 ring-[#2DD4BF]/45 shadow-[0_0_8px_rgba(45,212,191,0.3)]'
+                            : assigned
+                              ? rowHot
+                                ? 'border-amber-400/80 bg-gradient-to-b from-[#2A2015] to-[#161009]'
+                                : ch.mute
+                                  ? 'border-rose-500/60 bg-gradient-to-b from-[#2A1518] to-[#160D0F]'
+                                  : 'border-[#4B5D72] bg-gradient-to-b from-[#1E2732] to-[#131921] hover:border-[#687F99]'
+                              : 'border-dashed border-[#2A3544] bg-[#0D1219]/70'
+                        }`}
+                      >
+                        {/* channel number chip — console scribble strip */}
+                        <div
+                          className={`w-7 h-10 rounded flex flex-col items-center justify-center gap-0.5 shrink-0 font-mono ${
+                            !assigned
+                              ? 'border border-[#222C39] bg-[#0B1017] text-slate-600'
+                              : ch.mute
+                                ? 'border border-rose-500/50 bg-[#1A0E12] text-rose-300'
+                                : isSelected
+                                  ? 'border border-teal-300/50 bg-[#0E2A2E] text-[#5EEAD4]'
+                                  : 'border border-[#2E3A4A] bg-[#0C1218] text-slate-300'
+                          }`}
+                          aria-label={`Channel ${ch.index}`}
+                        >
+                          <span className="text-[13px] font-bold leading-none">{ch.index}</span>
+                          {ch.solo && assigned && (
+                            <span
+                              title="Solo engaged"
+                              className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_4px_rgba(251,191,36,0.9)]"
+                            />
+                          )}
+                          {ch.mute && assigned && (
+                            <span
+                              title="Muted"
+                              className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_4px_rgba(244,63,94,0.9)]"
+                            />
+                          )}
+                        </div>
+
+                        {/* live strip: name, source, meter, mode/gain/fader/bus */}
+                        <div className="flex-1 min-w-0 flex flex-col gap-[3px]">
+                          <div className="flex items-baseline justify-between gap-1.5 min-w-0">
+                            <span
+                              className={`text-[10.5px] font-semibold truncate leading-none ${
+                                !assigned ? 'text-slate-500' : ch.mute ? 'text-rose-200' : 'text-slate-200'
+                              }`}
+                              title={`CH${ch.index} — ${ch.name}`}
+                            >
+                              {ch.name}
+                            </span>
+                            <span
+                              className={`font-mono text-[7.5px] tabular-nums shrink-0 leading-none ${
+                                !assigned
+                                  ? 'text-slate-600'
+                                  : ch.mute
+                                    ? 'text-rose-400'
+                                    : rowHot
+                                      ? 'text-rose-300'
+                                      : rDb > -18
+                                        ? 'text-emerald-300'
+                                        : 'text-slate-400'
+                              }`}
+                            >
+                              {!assigned ? '--' : ch.mute ? 'MUTED' : fmtDb(rDb)}
+                            </span>
+                          </div>
+                          <div
+                            className={`font-mono text-[7.5px] truncate leading-none ${
+                              assigned ? 'text-slate-500' : 'text-slate-600'
+                            }`}
+                            title={assigned ? sourceLabel : 'Open Slot — assign a hardware input in the patch tray below'}
+                          >
+                            {assigned ? sourceLabel : 'open slot'}
+                          </div>
+                          {/* live horizontal meter with peak tick */}
+                          <div
+                            className="relative h-1.5 rounded-[2px] bg-[#0A0F15] border border-[#1E2836] overflow-hidden"
+                            aria-label={`Channel ${ch.index} level meter`}
+                          >
+                            {assigned && !ch.mute && rNorm > 0.005 && (
+                              <span
+                                className={`absolute inset-y-0 left-0 rounded-[1px] transition-[width] duration-75 ${
+                                  rNorm > 0.93
+                                    ? 'bg-rose-500'
+                                    : rNorm > 0.8
+                                      ? 'bg-amber-400'
+                                      : 'bg-emerald-400'
+                                }`}
+                                style={{ width: `${Math.round(rNorm * 100)}%` }}
+                              />
+                            )}
+                            {assigned && !ch.mute && pNorm > 0.02 && pNorm > rNorm && (
+                              <span
+                                className={`absolute top-0 bottom-0 w-[2px] ${
+                                  pNorm > 0.93 ? 'bg-rose-300' : 'bg-slate-300/80'
+                                }`}
+                                style={{ left: `calc(${Math.min(99, pNorm * 100)}% - 2px)` }}
+                              />
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between gap-2 min-w-0">
+                            <span className="flex items-center gap-1 min-w-0">
+                              <span
+                                className={`px-1 rounded border font-mono text-[6.5px] font-bold tracking-wider shrink-0 ${
+                                  mode === 'inst'
+                                    ? 'text-fuchsia-300 border-fuchsia-500/40 bg-fuchsia-950/40'
+                                    : mode === 'line'
+                                      ? 'text-emerald-300 border-emerald-500/40 bg-emerald-950/40'
+                                      : 'text-cyan-300 border-cyan-500/40 bg-cyan-950/40'
+                                }`}
+                              >
+                                {mSpec.shortLabel}
+                              </span>
+                              <span
+                                className="font-mono text-[7px] text-slate-500 tabular-nums truncate"
+                                title={`Preamp ${mSpec.formatGain(ch.gainDb)} dB · Fader ${ch.faderDb > 0 ? '+' : ''}${ch.faderDb.toFixed(1)} dB`}
+                              >
+                                G{mSpec.formatGain(ch.gainDb)} F{ch.faderDb > 0 ? '+' : ''}
+                                {ch.faderDb.toFixed(0)}
+                              </span>
+                            </span>
+                            <span
+                              className="flex items-center gap-[3px] shrink-0"
+                              title={`Mix bus assigns · PA ${paOn ? 'ON' : 'off'} · Stream ${stOn ? 'ON' : 'off'} · Sub ${sbOn ? 'ON' : 'off'}`}
+                            >
+                              <span
+                                aria-hidden="true"
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  paOn ? 'bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.8)]' : 'bg-[#1B232E]'
+                                }`}
+                              />
+                              <span
+                                aria-hidden="true"
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  stOn ? 'bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.8)]' : 'bg-[#1B232E]'
+                                }`}
+                              />
+                              <span
+                                aria-hidden="true"
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  sbOn ? 'bg-fuchsia-400 shadow-[0_0_4px_rgba(232,121,249,0.8)]' : 'bg-[#1B232E]'
+                                }`}
+                              />
+                              <span className="sr-only">
+                                {`CH${ch.index} mix bus assigns: Main PA ${paOn ? 'on' : 'off'}, stream ${stOn ? 'on' : 'off'}, sub ${sbOn ? 'on' : 'off'}`}
+                              </span>
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* quick per-row MUTE / SOLO keys */}
+                        <div className="flex flex-col gap-1 shrink-0">
+                          <button
+                            type="button"
+                            disabled={!assigned || locked}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onUpdateChannel(ch.id, { mute: !ch.mute });
+                            }}
+                            aria-pressed={assigned ? Boolean(ch.mute) : undefined}
+                            aria-label={`Channel ${ch.index} mute — currently ${ch.mute ? 'MUTED' : 'active'} (click to ${ch.mute ? 'unmute' : 'mute'})`}
+                            title={ch.mute ? `Unmute CH${ch.index}` : `Mute CH${ch.index}`}
+                            className={`w-[22px] h-[22px] rounded border font-mono text-[9px] font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                              assigned && ch.mute
+                                ? 'bg-rose-600 border-rose-300 text-white shadow-[0_0_6px_rgba(244,63,94,0.6)]'
+                                : 'hw-top-btn text-slate-300'
+                            }`}
+                          >
+                            M
+                          </button>
+                          <button
+                            type="button"
+                            disabled={!assigned || locked}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onUpdateChannel(ch.id, { solo: !ch.solo });
+                            }}
+                            aria-pressed={assigned ? Boolean(ch.solo) : undefined}
+                            aria-label={`Channel ${ch.index} solo — currently ${ch.solo ? 'SOLOED' : 'off'} (click to ${ch.solo ? 'clear solo' : 'solo'})`}
+                            title={ch.solo ? `Clear solo CH${ch.index}` : `Solo CH${ch.index}`}
+                            className={`w-[22px] h-[22px] rounded border font-mono text-[9px] font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                              assigned && ch.solo
+                                ? 'bg-amber-400 border-amber-200 text-slate-950 shadow-[0_0_6px_rgba(245,158,11,0.55)]'
+                                : 'hw-top-btn text-slate-300'
+                            }`}
+                          >
+                            S
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ==== GUITAR FX RACK — the selected channel's pedalboard
+                    insert (kept from the old strip; per-channel, not repeated
+                    anywhere else on the console) ==== */}
+              {onUpdateChannelFx && (
+                <div className="shrink min-h-0 max-h-[42%] overflow-y-auto px-1.5 pb-1.5 pt-1">
+                  <ChannelFxRackPanel
+                    channel={selectedChannel}
+                    engineRunning={engineRunning}
+                    onUpdateChannelFx={onUpdateChannelFx}
+                  />
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex-1 min-h-0 flex items-center justify-center p-3">

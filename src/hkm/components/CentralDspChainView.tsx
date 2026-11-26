@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 
 import { Copy, Check, RotateCcw, Plus, VolumeX } from 'lucide-react';
 import type {
   AudioSourceSimulation,
+  ChannelInputMode,
   DriverBackend,
   DspConfig,
   HardwareDevice,
@@ -11,6 +12,12 @@ import type {
   SpeakerZone,
 } from '../types/audio.ts';
 import { liveAudioEngine } from '../audio/liveAudioEngine.ts';
+import {
+  INPUT_MODES,
+  INPUT_MODE_ORDER,
+  clampGainForMode,
+  getInputMode,
+} from '../utils/inputMode.ts';
 import { computeFilterCurveDb, generateCamillaDspYaml } from '../utils/camillaDsp.ts';
 import { RotaryKnob } from './StudioControls.tsx';
 import { StereoGraphicEqModule } from './StereoGraphicEqModule.tsx';
@@ -431,9 +438,33 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
     };
   }, [engineRunning]);
 
-  // Preamp arc geometry (Col 1)
+  // Input source mode (Col 1) — the real-world MIC / LINE / INST hardware
+  // domain selector, moved here from the left panel so the INPUT CONDITIONING
+  // column is the single complete input strip for the selected channel.
+  const chMode = getInputMode(selectedChannel);
+  const modeSpec = INPUT_MODES[chMode];
+  const modeGainDb = clampGainForMode(selectedChannel.gainDb, chMode);
+  const gainRangeNote =
+    chMode === 'line'
+      ? 'Trim −12..+12 dB · Unity 0'
+      : `Range +${modeSpec.gainMin}..+${modeSpec.gainMax} dB · Unity +${modeSpec.unityGainDb}`;
+
+  const switchInputMode = (next: ChannelInputMode) => {
+    const patch: Partial<InputChannel> = { inputMode: next };
+    // Hardware interlock: +48V only exists on the mic domain — auto-disengage
+    // exactly like smart consoles (sending phantom into a guitar/DI can destroy it).
+    if (next !== 'mic' && selectedChannel.phantom48v) patch.phantom48v = false;
+    // Re-scale stored preamp gain into the new mode's silkscreen range.
+    patch.gainDb = clampGainForMode(selectedChannel.gainDb, next);
+    onUpdateChannel(selectedChannel.id, patch);
+  };
+
+  // Preamp arc geometry (Col 1) — mode-aware silkscreen scale
   const trimEquivDb = selectedChannel.gainDb - 24;
-  const gainArcNorm = Math.max(0, Math.min(1, selectedChannel.gainDb / 60));
+  const gainArcNorm = Math.max(
+    0,
+    Math.min(1, (selectedChannel.gainDb - modeSpec.gainMin) / (modeSpec.gainMax - modeSpec.gainMin))
+  );
   const arcR = 32;
   const arcCx = 44;
   const arcCy = 42;
@@ -692,9 +723,64 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                 )}
               </div>
 
-              <div className="flex-1 min-h-0 p-1.5 2xl:p-2 pb-2 2xl:pb-2.5 flex flex-col items-center justify-between gap-1.5">
+              <div className="flex-1 min-h-0 p-1.5 2xl:p-2 pb-2 2xl:pb-2.5 flex flex-col items-center justify-between gap-1">
+                {/* INPUT SOURCE — MIC / LINE / INST hardware domain selector
+                    (moved from the left panel so this card is the one complete
+                    input strip for the selected channel) */}
+                <div className="w-full flex flex-col gap-1 shrink-0">
+                  <div className="flex items-center justify-between gap-1 px-0.5 min-w-0">
+                    <span className="font-mono text-[7px] font-bold uppercase tracking-[0.14em] text-slate-400 shrink-0">
+                      Input Source
+                    </span>
+                    <span
+                      className="font-mono text-[6.5px] text-slate-500 truncate"
+                      title={modeSpec.fullLabel}
+                    >
+                      {modeSpec.domainNote}
+                    </span>
+                  </div>
+                  <div
+                    className="grid grid-cols-3 gap-1"
+                    role="radiogroup"
+                    aria-label={`Channel ${selectedChannel.index} input source mode`}
+                  >
+                    {INPUT_MODE_ORDER.map((m) => {
+                      const active = chMode === m;
+                      const spec = INPUT_MODES[m];
+                      return (
+                        <button
+                          key={m}
+                          type="button"
+                          role="radio"
+                          aria-checked={active}
+                          disabled={locked}
+                          onClick={() => switchInputMode(m)}
+                          title={`${spec.fullLabel} — ${spec.domainNote}${
+                            m === 'inst'
+                              ? ' · Guitar/bass via Hi-Z jack or DI. Phantom locked out.'
+                              : m === 'line'
+                                ? ' · Keys/playback submixers. No phantom on jacks.'
+                                : ' · Condenser mics. +48V available.'
+                          }`}
+                          className={`h-6 rounded border font-mono text-[8.5px] font-bold tracking-wider transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                            active
+                              ? m === 'mic'
+                                ? 'bg-cyan-500/25 border-cyan-300/70 text-cyan-200 shadow-[0_0_8px_rgba(34,211,238,0.4)]'
+                                : m === 'line'
+                                  ? 'bg-emerald-500/25 border-emerald-300/70 text-emerald-200 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+                                  : 'bg-fuchsia-500/25 border-fuchsia-300/70 text-fuchsia-200 shadow-[0_0_8px_rgba(217,70,239,0.45)]'
+                              : 'bg-[#0A0F16] border-slate-700/80 text-slate-500 hover:text-slate-300'
+                          }`}
+                        >
+                          {spec.shortLabel}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {/* Green/Amber Semi-Circular Preamp Gain Arc */}
-                <svg viewBox="0 0 88 50" className="w-[88px] h-[46px] shrink-0">
+                <svg viewBox="0 0 88 50" className="w-[84px] h-[42px] shrink-0">
                   <defs>
                     <linearGradient id={`inArc-${uid}`} x1="0%" y1="0%" x2="100%" y2="0%">
                       <stop offset="0%" stopColor="#22C55E" />
@@ -752,31 +838,63 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                   )}
                 </svg>
 
-                <div className={selectedChannel.mute ? '-mt-1 shrink-0 opacity-60' : '-mt-1 shrink-0'}>
+                <div className={selectedChannel.mute ? 'shrink-0 opacity-60' : 'shrink-0'}>
                   <RotaryKnob
                     label="PREAMP"
-                    value={chAssigned ? selectedChannel.gainDb : 0}
-                    min={0}
-                    max={60}
+                    value={chAssigned ? modeGainDb : modeSpec.unityGainDb}
+                    min={modeSpec.gainMin}
+                    max={modeSpec.gainMax}
                     step={1}
-                    defaultValue={24}
+                    defaultValue={modeSpec.unityGainDb}
                     unit="dB"
                     size={44}
                     disabled={locked || !chAssigned}
                     accent={chAssigned && !selectedChannel.mute ? 'emerald' : 'slate'}
-                    formatValue={!chAssigned ? () => '--' : undefined}
+                    formatValue={!chAssigned ? () => '--' : modeSpec.formatGain}
                     onChange={(next) => onUpdateChannel(selectedChannel.id, { gainDb: next })}
                   />
                 </div>
 
-                {/* Micro Stage Switches (+48V, -20dB, Ø) */}
+                {/* Input-domain silkscreen badge + mode gain range (moved from the
+                    left panel strip) */}
+                <div className="w-full flex flex-col items-center shrink-0">
+                  <span
+                    className={`font-mono text-[7px] px-1 py-0.5 rounded border leading-none ${
+                      chMode === 'inst'
+                        ? 'text-fuchsia-300 border-fuchsia-500/40 bg-fuchsia-950/40'
+                        : chMode === 'line'
+                          ? 'text-emerald-300 border-emerald-500/40 bg-emerald-950/40'
+                          : 'text-cyan-300 border-cyan-500/40 bg-cyan-950/40'
+                    }`}
+                  >
+                    {chMode === 'inst' ? 'INST 1MΩ' : chMode === 'line' ? 'LINE TRS' : 'MIC XLR'}
+                  </span>
+                  <span
+                    className="font-mono text-[6.5px] text-slate-500 text-center w-full truncate leading-none mt-0.5"
+                    title={gainRangeNote}
+                  >
+                    {gainRangeNote}
+                  </span>
+                </div>
+
+                {/* Micro Stage Switches (+48V, -20dB, Ø) — 48V carries the
+                    mic-domain hardware interlock (locked out on LINE/INST) */}
                 <div className="w-full grid grid-cols-3 gap-1 font-mono text-[8px] shrink-0">
                   <button
                     type="button"
-                    disabled={locked || !chAssigned}
+                    disabled={locked || !chAssigned || !modeSpec.phantomAllowed}
                     onClick={() => onUpdateChannel(selectedChannel.id, { phantom48v: !selectedChannel.phantom48v })}
+                    title={
+                      !modeSpec.phantomAllowed
+                        ? chMode === 'inst'
+                          ? '+48V LOCKED — never send phantom power into an instrument or unprotected DI'
+                          : '+48V unavailable on LINE jacks (mic domain only)'
+                        : selectedChannel.phantom48v
+                          ? '+48V Phantom ON — disengage'
+                          : '+48V Phantom Power (condenser mics)'
+                    }
                     className={`py-1 rounded font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-                      chAssigned && selectedChannel.phantom48v
+                      chAssigned && selectedChannel.phantom48v && modeSpec.phantomAllowed
                         ? 'bg-red-600 border border-red-300 text-white'
                         : 'hw-top-btn'
                     }`}
@@ -811,57 +929,149 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                   </button>
                 </div>
 
-                <button
-                  type="button"
-                  disabled={locked || !chAssigned}
-                  onClick={() => onUpdateChannel(selectedChannel.id, { mute: !selectedChannel.mute })}
-                  aria-pressed={chAssigned ? Boolean(selectedChannel.mute) : undefined}
-                  aria-label={
-                    chAssigned
-                      ? `Channel ${selectedChannel.index} mute — currently ${selectedChannel.mute ? 'MUTED' : 'active'} (click to ${selectedChannel.mute ? 'unmute' : 'mute'})`
-                      : `Channel ${selectedChannel.index} is an open slot`
-                  }
-                  title={
-                    !chAssigned
-                      ? 'Open Slot — assign a hardware input to enable this channel'
-                      : selectedChannel.mute
-                        ? `CH${selectedChannel.index} input MUTED — no signal leaves this channel. Click to unmute.`
-                        : `CH${selectedChannel.index} active — click to MUTE this input channel.`
-                  }
-                  className={`relative w-[88%] py-1.5 rounded-[5px] text-[10px] font-mono font-bold uppercase tracking-wider shrink-0 overflow-hidden transition-all duration-200 ${
-                    !chAssigned
-                      ? 'bg-[#121821] border border-[#334155] text-slate-500 cursor-not-allowed'
-                      : chActive
-                        ? 'hw-pill-active cursor-pointer disabled:opacity-45'
-                        : 'hw-pill-muted hw-mute-breath cursor-pointer disabled:opacity-45'
-                  }`}
-                >
-                  {chAssigned && !chActive && (
-                    /* "Red tape over the fader" — diagonal mute-tape stripes, the way
-                       engineers physically mark muted channels on real consoles. */
-                    <span
-                      aria-hidden="true"
-                      className="hw-mute-stripes absolute inset-0 pointer-events-none"
-                    />
-                  )}
-                  <span className="relative flex items-center justify-center gap-1">
-                    {chAssigned && !chActive && <VolumeX className="w-3 h-3 shrink-0" aria-hidden="true" />}
-                    {!chAssigned ? 'OPEN SLOT' : chActive ? 'ACTIVE' : 'MUTED'}
-                  </span>
-                </button>
+                {/* ACTIVE (mute) + SOLO — full-width finger-size channel keys */}
+                <div className="w-[96%] grid grid-cols-2 gap-1 shrink-0">
+                  <button
+                    type="button"
+                    disabled={locked || !chAssigned}
+                    onClick={() => onUpdateChannel(selectedChannel.id, { mute: !selectedChannel.mute })}
+                    aria-pressed={chAssigned ? Boolean(selectedChannel.mute) : undefined}
+                    aria-label={
+                      chAssigned
+                        ? `Channel ${selectedChannel.index} mute — currently ${selectedChannel.mute ? 'MUTED' : 'active'} (click to ${selectedChannel.mute ? 'unmute' : 'mute'})`
+                        : `Channel ${selectedChannel.index} is an open slot`
+                    }
+                    title={
+                      !chAssigned
+                        ? 'Open Slot — assign a hardware input to enable this channel'
+                        : selectedChannel.mute
+                          ? `CH${selectedChannel.index} input MUTED — no signal leaves this channel. Click to unmute.`
+                          : `CH${selectedChannel.index} active — click to MUTE this input channel.`
+                    }
+                    className={`relative py-1.5 rounded-[5px] text-[10px] font-mono font-bold uppercase tracking-wider shrink-0 overflow-hidden transition-all duration-200 ${
+                      !chAssigned
+                        ? 'bg-[#121821] border border-[#334155] text-slate-500 cursor-not-allowed'
+                        : chActive
+                          ? 'hw-pill-active cursor-pointer disabled:opacity-45'
+                          : 'hw-pill-muted hw-mute-breath cursor-pointer disabled:opacity-45'
+                    }`}
+                  >
+                    {chAssigned && !chActive && (
+                      /* "Red tape over the fader" — diagonal mute-tape stripes, the way
+                         engineers physically mark muted channels on real consoles. */
+                      <span
+                        aria-hidden="true"
+                        className="hw-mute-stripes absolute inset-0 pointer-events-none"
+                      />
+                    )}
+                    <span className="relative flex items-center justify-center gap-1">
+                      {chAssigned && !chActive && <VolumeX className="w-3 h-3 shrink-0" aria-hidden="true" />}
+                      {!chAssigned ? 'OPEN SLOT' : chActive ? 'ACTIVE' : 'MUTED'}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={locked || !chAssigned}
+                    onClick={() => onUpdateChannel(selectedChannel.id, { solo: !selectedChannel.solo })}
+                    aria-pressed={chAssigned ? Boolean(selectedChannel.solo) : undefined}
+                    aria-label={
+                      chAssigned
+                        ? `Channel ${selectedChannel.index} solo — currently ${selectedChannel.solo ? 'SOLOED' : 'off'} (click to ${selectedChannel.solo ? 'clear solo' : 'solo'})`
+                        : `Channel ${selectedChannel.index} is an open slot`
+                    }
+                    title={
+                      !chAssigned
+                        ? 'Open Slot — assign a hardware input to enable this channel'
+                        : selectedChannel.solo
+                          ? `CH${selectedChannel.index} SOLO engaged — only this channel is audible. Click to clear.`
+                          : `Solo CH${selectedChannel.index} — isolate this input in the monitor bus`
+                    }
+                    className={`py-1.5 rounded-[5px] text-[10px] font-mono font-bold uppercase tracking-wider shrink-0 transition-all duration-200 ${
+                      !chAssigned
+                        ? 'bg-[#121821] border border-[#334155] text-slate-500 cursor-not-allowed'
+                        : selectedChannel.solo
+                          ? 'bg-amber-400 border border-amber-200 text-slate-950 shadow-[0_0_10px_rgba(245,158,11,0.55)] cursor-pointer'
+                          : 'hw-top-btn text-slate-200 cursor-pointer'
+                    }`}
+                  >
+                    SOLO
+                  </button>
+                </div>
 
-                <ColumnSlider
-                  ariaLabel={`Channel ${selectedChannel.index} Fader`}
-                  value={chAssigned ? selectedChannel.faderDb : -48}
-                  min={-48}
-                  max={10}
-                  step={0.5}
-                  defaultValue={0}
-                  ticks={['+10', '0', '-20', '-48']}
-                  accent={chAssigned && !selectedChannel.mute ? 'green' : 'slate'}
-                  disabled={locked || !chAssigned}
-                  onChange={(next) => onUpdateChannel(selectedChannel.id, { faderDb: next })}
-                />
+                {/* Fader — wrapped with bottom breathing room so the cap at its
+                    minimum position never grazes the mix-bus keys below */}
+                <div className="w-full flex-1 flex flex-col pb-1">
+                  <ColumnSlider
+                    ariaLabel={`Channel ${selectedChannel.index} Fader`}
+                    value={chAssigned ? selectedChannel.faderDb : -48}
+                    min={-48}
+                    max={10}
+                    step={0.5}
+                    defaultValue={0}
+                    ticks={['+10', '0', '-20', '-48']}
+                    accent={chAssigned && !selectedChannel.mute ? 'green' : 'slate'}
+                    disabled={locked || !chAssigned}
+                    onChange={(next) => onUpdateChannel(selectedChannel.id, { faderDb: next })}
+                  />
+                </div>
+
+                {/* Mix Bus Assigns — MAIN PA / STREAM / SUB routing keys
+                    (moved from the left panel strip) */}
+                <div
+                  className="w-full grid grid-cols-3 gap-1 font-mono text-[7.5px] font-bold shrink-0"
+                  role="group"
+                  aria-label={`Channel ${selectedChannel.index} mix bus assigns`}
+                >
+                  <span className="sr-only">Mix bus assigns</span>
+                  <button
+                    type="button"
+                    disabled={locked || !chAssigned}
+                    onClick={() => onUpdateChannel(selectedChannel.id, { mainPaAssign: !(selectedChannel.mainPaAssign ?? true) })}
+                    aria-pressed={chAssigned ? Boolean(selectedChannel.mainPaAssign ?? true) : undefined}
+                    title={!chAssigned ? 'Open Slot — Unassigned' : 'Assign to Main PA Mix'}
+                    className={`py-1 rounded border tracking-normal transition cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
+                      !chAssigned
+                        ? 'bg-[#070A10] border-slate-800/80 text-slate-600'
+                        : selectedChannel.mainPaAssign ?? true
+                          ? 'bg-emerald-500/25 border-emerald-400 text-emerald-200 shadow-[0_0_8px_rgba(16,185,129,0.35)]'
+                          : 'bg-[#0A0F1A] border-slate-700/80 text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    MAIN PA
+                  </button>
+                  <button
+                    type="button"
+                    disabled={locked || !chAssigned}
+                    onClick={() => onUpdateChannel(selectedChannel.id, { streamAssign: !(selectedChannel.streamAssign ?? true) })}
+                    aria-pressed={chAssigned ? Boolean(selectedChannel.streamAssign ?? true) : undefined}
+                    title={!chAssigned ? 'Open Slot — Unassigned' : 'Assign to Live Stream / OBS Mix'}
+                    className={`py-1 rounded border tracking-normal transition cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
+                      !chAssigned
+                        ? 'bg-[#070A10] border-slate-800/80 text-slate-600'
+                        : selectedChannel.streamAssign ?? true
+                          ? 'bg-emerald-500/25 border-emerald-400 text-emerald-200 shadow-[0_0_8px_rgba(16,185,129,0.35)]'
+                          : 'bg-[#0A0F1A] border-slate-700/80 text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    STREAM
+                  </button>
+                  <button
+                    type="button"
+                    disabled={locked || !chAssigned}
+                    onClick={() => onUpdateChannel(selectedChannel.id, { subAssign: !selectedChannel.subAssign })}
+                    aria-pressed={chAssigned ? Boolean(selectedChannel.subAssign) : undefined}
+                    title={!chAssigned ? 'Open Slot — Unassigned' : 'Assign to Subwoofer Bus'}
+                    className={`py-1 rounded border tracking-normal transition cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
+                      !chAssigned
+                        ? 'bg-[#070A10] border-slate-800/80 text-slate-600'
+                        : selectedChannel.subAssign
+                          ? 'bg-fuchsia-500/25 border-fuchsia-400 text-fuchsia-200 shadow-[0_0_8px_rgba(217,70,239,0.4)]'
+                          : 'bg-[#0A0F1A] border-slate-700/80 text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    SUB
+                  </button>
+                </div>
               </div>
             </div>
 
