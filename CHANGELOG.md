@@ -5,6 +5,28 @@ All notable changes to HKM Audio System are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-11-26 — Zero Unintended Latency & True Whole-DSP Bypass
+
+System audio is now in tight sync with the source everywhere — the only delay left in the signal path is delay you configure on purpose (zone alignment / user delayMs). Full audit of the capture → DSP → render chain removed every buffer that silently added latency by default.
+
+### Fixed
+
+- **End-to-end system audio latency (the "everything is delayed" default)**:
+  - Shared raw output kept a **200 ms endpoint buffer permanently topped off** — every block sat ~200 ms before the DAC even at idle. Now a 40 ms buffer with a 10 ms top-up threshold and 3 ms polling: the buffer drains toward the watermark instead of staying full, so steady-state latency is only the watermark.
+  - **No drift correction anywhere**: the producer (Web Audio) and consumer (WASAPI) clocks are independent, so jitter accumulated a backlog that persisted up to 1 s (256-deep mpsc queue + 1 s pending caps). Both render pumps now anchor backlog to a small watermark (shared: 10 ms beyond the 40 ms buffer; exclusive: one period beyond two periods) and continuously drain to it, and the PCM queue is 16-deep drop-on-full so a backlog can never persist.
+  - Exclusive WASAPI period 30 ms → **20 ms**.
+  - Capture pump poll 8 ms → **2 ms** (was adding up to 8 ms jitter per packet).
+  - AudioContext `latencyHint` `'balanced'` → **`'interactive'`** (balanced silently added 20–50 ms of graph latency).
+  - Desktop loopback worklet surge ceiling 80 ms → **50 ms** (the intentional 10 ms cushion is kept).
+
+### Added
+
+- **True one-button whole-DSP bypass (footer BYPASS DSP)**: previously `dsp.bypassed` only neutralized parameters, so audio still flowed through every biquad and each `DynamicsCompressorNode` (~6 ms lookahead each even at 1:1). Bypass now rewires the console into a genuine pass-through: the master bus sum routes straight to the post analyser and each channel strip gets a dry preamp→panner wire, so bypass is **zero-processing**. Gain, polarity, pan, faders, mute/solo, zone delays and routing keep working while bypassed; intentional zone delays remain exactly where they are configured. Amber button state, the TOTAL SIGNAL BYPASS banner and the RESTORE DSP button wire up automatically.
+
+### Changed
+
+- Repository line endings normalized for `*.bat`/`*.cmd`/`*.ps1` per `.gitattributes` (stored LF, checked out CRLF on Windows) — ends a perpetual phantom-diff on `mobile-app/android/gradlew.bat`.
+
 ## [1.1.0] - 2026-11-25 — N-Channel Jacks, Native Jack Metadata, Companion Live-Sync & Android App
 
 Unifies the v1.0.4 stability line with the sandbox engineering track: every v1.0.1–v1.0.4 fix is included (this is a superset of v1.0.4 — no regression), plus the features below.

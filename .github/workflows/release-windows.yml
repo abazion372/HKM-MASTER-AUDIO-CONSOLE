@@ -62,21 +62,24 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'HKM Audio System ${{ github.ref_name }}'
           releaseBody: |
-            ## HKM Audio System — v1.1.0 · N-Channel Jacks, Native Jack Metadata, Companion Live-Sync & Android App
+            ## HKM Audio System — v1.1.1 · Zero Unintended Latency & True Whole-DSP Bypass
 
-            Superset of v1.0.4 — every v1.0.1–v1.0.4 fix included, plus:
+            System audio is now in tight sync with the source everywhere — the only delay left in the signal path is delay you configure on purpose (zone alignment / user delayMs).
 
-            ### New in v1.1.0
-            - **>8-channel discrete jack routing (Dante / MADI / pro PCIe cards)** — probe cap lifted to 32 channels; cards beyond 7.1 expose the 4 named HDA jacks plus generated AUX n L/R pairs (teal/violet), manual-assign only. Layout badges show 10-CH / 16-CH etc.
-            - **Real jack metadata (IKsJackDescription)** — the Rust shell reads physical jack colour / connector / panel from the Windows Device Topology API, and the Discrete Jack Bay shows the card's actual silkscreen colours.
-            - **Exclusive WASAPI per-jack output (v2 native engine)** — bit-perfect per-jack delivery in AUDCLNT_SHAREMODE_EXCLUSIVE with event-driven streams and 16-bit PCM fallback; N-channel WAVEFORMATEXTENSIBLE support.
-            - **Phone companion live-sync** — speaker-zone level/mute/jack changes made on the phone apply to the desktop in real time (zone:patch over the WebSocket relay) with permission enforcement.
-            - **Android companion app — HKM FOH Companion** — real installable APK (Capacitor 7): pair with the desktop console, then run the PA from your phone anywhere on the LAN. APK attached to this release; PWA also supported.
-
-            ### Fixed
-            - **In-app updater repaired** — previous releases' `latest.json` carried a UTF-8 BOM that the updater cannot parse, so installed apps never saw updates. Manifests are now pipeline-generated clean JSON; installed v1.0.x apps will auto-update to this release.
-            - Desktop→companion live sync never fired (relay `/internal/*` bodies were never awaited).
+            ### Fixed in v1.1.1
+            - **End-to-end system audio latency eliminated** — a full audit of the capture → DSP → render chain removed every buffer that silently added latency by default:
+              - Shared raw output: the 200 ms permanently-full endpoint buffer is now a 40 ms buffer that drains to a 10 ms watermark (blocks no longer sit ~200 ms before the DAC).
+              - Drift correction added to both WASAPI render pumps — producer/consumer clock mismatch can no longer accumulate a persistent backlog (was up to 1 s); the PCM queue is now 16-deep drop-on-full.
+              - Exclusive WASAPI period 30 ms → 20 ms; capture pump poll 8 ms → 2 ms.
+              - Web Audio `latencyHint` `'balanced'` → `'interactive'` (balanced silently added 20–50 ms of graph latency); loopback worklet surge ceiling 80 ms → 50 ms.
             - Jack probe audit message now reports true multi-channel card counts.
+
+            ### Added in v1.1.1
+            - **True one-button whole-DSP bypass (footer BYPASS DSP)** — bypass used to only neutralize parameters, so audio still flowed through every biquad and compressor (~6 ms lookahead each). It now rewires the console into a genuine zero-processing pass-through while gain, polarity, pan, faders, mute/solo, zone delays and routing keep working. Amber state + TOTAL SIGNAL BYPASS banner + RESTORE DSP.
+
+            ### Also in this release (from v1.1.0)
+            - >8-channel discrete jack routing (Dante / MADI / pro PCIe cards, up to 32 channels), real jack metadata from the Windows Device Topology API, exclusive WASAPI per-jack output, phone companion live-sync, and the Android HKM FOH Companion APK — every v1.0.1–v1.0.4 fix included.
+            - In-app updater repaired (previous releases' `latest.json` carried a UTF-8 BOM the updater cannot parse); installed v1.0.x/v1.1.0 apps will auto-update to this release.
           releaseDraft: false
           prerelease: false
 
