@@ -5,6 +5,22 @@ All notable changes to HKM Audio System are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2026-11-26 — Deep Latency Pass & Fast-Browser Update Path
+
+Second latency pass after 1.1.1's audit: a full stage-by-stage ledger showed the shared path still carried ~40 ms and the exclusive path 20–40 ms by design of the pumps, plus 10 ms of batching in the raw tap. Everything controllable is now at its floor.
+
+### Fixed
+
+- **Shared raw output still sat ~40 ms before the DAC**: the pump kept the 40 ms endpoint buffer topped off eagerly (same disease as the old 200 ms bug, smaller dose). New adaptive writer holds the endpoint at a small padding target (starts ≈5 ms) and writes only what is needed to reach it; on a proven underrun the target grows by 5 ms steps up to half the buffer, so jittery machines self-heal instead of glitching. Startup prefill is the target, not the whole buffer. Poll 3 → 2 ms; pending backlog anchor tightened (cap 40 → 20 ms, watermark 10 → 2 ms).
+- **Exclusive WASAPI period 20 ms → 10 ms** (the period is the latency — one period is always queued), with a new period/format ladder that auto-falls back to 20 ms f32 / 10 ms pcm16 / 20 ms pcm16 when a device rejects the floor, so arming can no longer fail on period pickiness. Pending anchor: >2 periods → 1 period (20–40 ms queued) becomes >1.5 periods → half a period (≈5 ms).
+- **Raw output tap batching 10 ms → 2.7 ms** (128 frames — one render quantum per post); the PCM queue's worst transient drops from 160 ms to 43 ms.
+- Net: output-side controllable latency ~50–90 ms → ~8–15 ms worst case (≈8 ms typical). The remaining floor is structural: the Windows engine's 10 ms packet cadence (the loopback cushion is cadence-matched to it — cutting it causes rhythmic stutter) and the source application's own output latency, which no downstream app can remove.
+
+### Added
+
+- **Update dialog: live speed / ETA / MB progress** — the in-app download now shows real throughput instead of a bare percentage.
+- **"Download in Browser (fast)"** — diagnosis showed the fast few-second updates of the v0.2.x/v1.0.x era were actually the browser fallback (BOM'd manifests made the in-app updater no-op); now that manifests are clean the in-app Rust downloader runs, and on networks where non-browser processes are throttled (AV HTTPS inspection / DPI / proxies) it crawls while the browser is fast. The dialog auto-detects sustained slow downloads (<250 KB/s) and offers the browser path, plus an always-available Browser button. Same installer, same signature, same auto-update behaviour.
+
 ## [1.1.1] - 2026-11-26 — Zero Unintended Latency & True Whole-DSP Bypass
 
 System audio is now in tight sync with the source everywhere — the only delay left in the signal path is delay you configure on purpose (zone alignment / user delayMs). Full audit of the capture → DSP → render chain removed every buffer that silently added latency by default.
