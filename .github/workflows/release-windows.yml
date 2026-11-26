@@ -62,22 +62,18 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'HKM Audio System ${{ github.ref_name }}'
           releaseBody: |
-            ## HKM Audio System — v1.1.2 · Deep Latency Pass & Fast-Browser Update Path
+            ## HKM Audio System — v1.1.3 · Persistent Ring Indicator, Zero-Default Delays & Crash Containment
 
-            Second latency pass on top of v1.1.1: every remaining controllable millisecond in the live chain is now at its floor — system audio tracks the source as tightly as Windows physically allows.
+            ### Fixed in v1.1.3
+            - **The red RING badge no longer pops on/off** — a confirmed feedback ring now latches for 8 seconds (steady, readable, keeps its frequency), severity escalates CLEAR → WATCH → RING with smooth color transitions, and every badge site is a persistent slot. No more strobing or flicker.
+            - **100% input/output sync out of the box** — zone/crossover alignment delays no longer ship pre-applied (sub 4.5 ms, high 0.8 ms, rear 48.1 ms, foyer 64.1 ms defaults all → 0). Alignment delay is strictly opt-in per zone. These hidden defaults were the bulk of the remaining milliseconds.
+            - **Adaptive loopback cushion** — starts at 10 ms, decays toward a 4 ms floor on healthy feeds, self-heals upward on jittery machines; surge ceiling 50 → 25 ms.
 
-            ### Fixed in v1.1.2
-            - **Shared raw output no longer sits ~40 ms before the DAC** — an adaptive writer holds the endpoint at a ≈5 ms padding target (growing in 5 ms steps only when your machine proves it needs more headroom), the startup prefill no longer queues the first block behind a full silent buffer, and the backlog anchor tightened to a 2 ms watermark.
-            - **Exclusive WASAPI period 20 ms → 10 ms** with automatic device fallbacks (20 ms f32 / 10 ms PCM16 / 20 ms PCM16) so arming never fails on period pickiness; queued backlog anchored at half a period (≈5 ms).
-            - **Raw output tap batching 10 ms → 2.7 ms** (one render quantum per post).
-            - Net: output-side controllable latency ~50–90 ms → ~8–15 ms worst case (≈8 ms typical). What remains is structural — the Windows engine's 10 ms packet cadence and the source app's own output latency — which no downstream app can remove.
+            ### Added in v1.1.3
+            - **Crash containment** — a fault in any console module now shows a recovery card instead of a dead white screen; one-click reload restores the full mix from the persisted session, with copy-diagnostics for support.
 
-            ### Added in v1.1.2
-            - **Update dialog: live download speed / ETA / MB progress.**
-            - **"Download in Browser (fast)"** — on networks where the in-app downloader is throttled, the dialog detects the slow transfer and offers the browser path (usually full-speed on the same network). Also available any time via the Browser button.
-
-            ### Also in this release (from v1.1.0/v1.1.1)
-            - True one-button whole-DSP bypass (footer BYPASS DSP) with genuine zero-processing pass-through; >8-channel discrete jack routing (Dante / MADI / pro PCIe cards); real jack metadata from the Windows Device Topology API; exclusive WASAPI per-jack output; phone companion live-sync; Android HKM FOH Companion APK — every v1.0.1–v1.0.4 fix included, in-app updater repaired (installed v1.0.x+ apps auto-update to this release).
+            ### Also in this release (v1.1.0–v1.1.2)
+            - Deep latency pass (adaptive ≈5 ms shared endpoint target, 10 ms exclusive period, 2.7 ms raw tap), true one-button whole-DSP bypass, >8-channel discrete jack routing, real jack metadata, exclusive WASAPI per-jack output, phone companion live-sync, Android HKM FOH Companion APK, update dialog with live speed/ETA + Download-in-Browser fast path — every v1.0.1–v1.0.4 fix included; installed apps auto-update to this release.
           releaseDraft: false
           prerelease: false
 

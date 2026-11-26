@@ -5,6 +5,18 @@ All notable changes to HKM Audio System are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.3] - 2026-11-26 — Persistent Ring Indicator, Zero-Default Delays & Crash Containment
+
+### Fixed
+
+- **The red RING badge no longer pops on/off**: it strobed (`animate-pulse`) and vanished/reappeared with every analysis frame that dipped below the detection threshold. Redesigned per alert-UI best practice: a confirmed ring **latches for 8 s** after it stops (steady, readable, keeps its frequency), severity escalates through **CLEAR → WATCH → RING** (gray NO RING → amber resonance-building → solid red) with smooth 500 ms color transitions, and every badge site is a **persistent slot** — always present in the same position, no layout pop-in. Console right panel (both tabs), feedback analyzer header + confidence gauge, sidebar badge and FFT critical-frequency markers all ride the same latched state.
+- **Zone/crossover alignment delays no longer ship pre-applied**: sub 4.5 ms, high 0.8 ms, zone-sub 1.2 ms, rear balcony 48.1 ms and foyer 64.1 ms defaults are all now 0 — input and output are 100 % time-aligned out of the box. Alignment delay is strictly opt-in per zone (the distance-based tools remain). These pre-applied defaults were the bulk of the "remaining few ms" listeners could still hear.
+- **Loopback worklet cushion is adaptive**: starts at 10 ms (the Windows engine's packet cadence), decays toward a 4 ms floor after sustained clean cycles, and grows +2 ms on starvation up to 15 ms so jittery machines self-heal instead of stuttering. Surge ceiling 50 → 25 ms.
+
+### Added
+
+- **Crash containment (ErrorBoundary)**: a render crash in any console module used to leave a dead white screen mid-service. The app root now catches the fault, keeps a recovery card alive with the failing component stack, and offers one-click reload — the persisted session restores the full mix — plus copy-diagnostics. Global `window.onerror` / `unhandledrejection` capture feeds the support log.
+
 ## [1.1.2] - 2026-11-26 — Deep Latency Pass & Fast-Browser Update Path
 
 Second latency pass after 1.1.1's audit: a full stage-by-stage ledger showed the shared path still carried ~40 ms and the exclusive path 20–40 ms by design of the pumps, plus 10 ms of batching in the raw tap. Everything controllable is now at its floor.
