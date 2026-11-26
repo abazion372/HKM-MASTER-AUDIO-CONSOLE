@@ -1,12 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { audioStore, type PersistedState } from '@/lib/hkm-store';
+import { audioStore, CURRENT_SCHEMA_VERSION, type PersistedState } from '@/lib/hkm-store';
 import { wsBroadcast } from '@/lib/hkm-relay';
 
 export const dynamic = 'force-dynamic';
 
 export async function PUT(req: NextRequest) {
+  // A malformed body must be a visible failure, not a fake success: the old
+  // behaviour coerced garbage JSON to {} and still answered {ok:true}, which
+  // made the client's dedup think the state was safely on disk.
+  let body: Partial<PersistedState>;
+  try {
+    body = (await req.json()) as Partial<PersistedState>;
+  } catch {
+    return NextResponse.json({ ok: false, error: 'Invalid JSON body' }, { status: 400 });
+  }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return NextResponse.json({ ok: false, error: 'Body must be a JSON object' }, { status: 400 });
+  }
+
   const state = audioStore.ensureStore();
-  const body = (await req.json().catch(() => ({}))) as Partial<PersistedState>;
 
   if (body.venue && typeof body.venue === 'object') {
     state.venue = { ...state.venue, ...body.venue };
@@ -25,6 +37,10 @@ export async function PUT(req: NextRequest) {
   if (body.bassDi && typeof body.bassDi === 'object') state.bassDi = body.bassDi;
   if (typeof body.emergencyMuted === 'boolean') state.emergencyMuted = body.emergencyMuted;
   if (Array.isArray(body.findings)) state.findings = body.findings;
+  if (typeof body.firstRunCompleted === 'boolean') {
+    state.firstRunCompleted = body.firstRunCompleted;
+  }
+  state.schemaVersion = CURRENT_SCHEMA_VERSION;
 
   audioStore.saveStore(state);
   await wsBroadcast({

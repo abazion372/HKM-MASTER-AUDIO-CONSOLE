@@ -42,6 +42,8 @@ import { appFetch, isDesktopApp } from '../utils/appApi.ts';
 import { saveLastActiveHardwareId } from '../utils/hardwareCacheDb.ts';
 import { buildRelayWsUrls } from '../utils/wsUrls.ts';
 import { liveAudioEngine } from '../audio/liveAudioEngine.ts';
+import { toastBackgroundWarning, toastPersistFailure, toastSuccess, toastError } from '../utils/hkmToast.ts';
+import { diagError, diagInfo } from '../utils/diagnosticsLog.ts';
 import {
   sanitizeAndAutoNameChannels,
   deriveAutoChannelNameAndRole,
@@ -170,6 +172,15 @@ export function useConsoleSession({
   const desktopWsRef = useRef<WebSocket | null>(null);
   const hydratedRef = useRef<boolean>(false);
   const [hydrated, setHydrated] = useState<boolean>(false);
+  // First-run guide: shown once on fresh installs (no firstRunCompleted flag
+  // in the persisted store) so a new operator is oriented instead of being
+  // dropped into the sample console blind.
+  const [firstRunGuideOpen, setFirstRunGuideOpen] = useState<boolean>(false);
+  const firstRunCompletedRef = useRef<boolean>(false);
+  const dismissFirstRunGuide = useCallback(() => {
+    setFirstRunGuideOpen(false);
+    firstRunCompletedRef.current = true;
+  }, []);
   const channelsRef = useRef<InputChannel[]>(channels);
   channelsRef.current = channels;
   const activeDeviceRef = useRef<HardwareDevice>(activeDevice);
@@ -228,7 +239,11 @@ export function useConsoleSession({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(evt),
-      }).catch(() => {});
+      }).catch(() => {
+        // The audit trail is secondary to the live mix — a dead server is
+        // already raising the state-sync toast, so this stays a quiet note.
+        toastBackgroundWarning('Audit trail event could not be persisted.', 'persist:audit');
+      });
     },
     []
   );
@@ -255,6 +270,25 @@ export function useConsoleSession({
         if (!active) return;
         const data = stateRes.status === 'fulfilled' ? stateRes.value : null;
         if (data) {
+          // Corrupt-store recovery: the server preserved the damaged file as
+          // db/hkm-state.corrupt-*.bak and reseeded defaults. The operator
+          // must know their saved mix was reset — silently showing a fresh
+          // console would look exactly like catastrophic data loss.
+          if (data.recoveredFromCorrupt === true) {
+            diagError(
+              'persist',
+              'State file was corrupt — reseeded from defaults. The damaged file was preserved as db/hkm-state.corrupt-*.bak.'
+            );
+            toastError(
+              'Saved console state was corrupt — defaults restored',
+              'The damaged file was preserved as db/hkm-state.corrupt-*.bak for recovery. Any unsaved changes are lost; re-save your mix once configured.'
+            );
+          }
+          if (data.firstRunCompleted !== true) {
+            setFirstRunGuideOpen(true);
+          } else {
+            firstRunCompletedRef.current = true;
+          }
           suppressSyncCountRef.current += 1;
           if (data.venue && typeof data.venue === 'object') {
             if (typeof data.venue.venueName === 'string') setVenueName(data.venue.venueName);
@@ -516,7 +550,42 @@ export function useConsoleSession({
   // equal contents, OBS service updates, etc.) must not translate into a
   // ~250KB full-state upload + server-side file rewrite. Only real content
   // changes reach the disk.
+  //
+  // Failure visibility: a failed PUT used to be swallowed — the operator's
+  // mix lived only in memory with no warning. Now the failure raises a toast
+  // with Retry, the dedup body is rolled back so the next change retries
+  // automatically, and recovery (success after a failure) is confirmed.
   const lastSyncBodyRef = useRef<string | null>(null);
+  const syncFailedRef = useRef(false);
+
+  const runStateSync = useCallback((body: string) => {
+    appFetch('/api/state/sync', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (syncFailedRef.current) {
+          syncFailedRef.current = false;
+          toastSuccess('Console state saved', 'Persistence recovered — your mix is safe on disk again.');
+        }
+      })
+      .catch((err) => {
+        syncFailedRef.current = true;
+        // Roll back dedup so any subsequent state change retries by itself.
+        lastSyncBodyRef.current = null;
+        diagError('persist', `Console state sync failed (${String(err)}) — rolling back dedup so the next change retries.`);
+        toastPersistFailure({
+          what: 'console state',
+          key: 'persist:state-sync',
+          retry: () => {
+            void runStateSync(body);
+          },
+        });
+      });
+  }, []);
+
   useEffect(() => {
     if (remoteCompanionToken || !hydratedRef.current) return;
     if (suppressSyncCountRef.current > 0) {
@@ -546,14 +615,11 @@ export function useConsoleSession({
           bassDi,
           emergencyMuted,
           findings,
+          firstRunCompleted: firstRunCompletedRef.current,
         });
       if (body === lastSyncBodyRef.current) return;
       lastSyncBodyRef.current = body;
-      appFetch('/api/state/sync', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body,
-      }).catch(() => {});
+      void runStateSync(body);
     }, 220);
 
     return () => window.clearTimeout(timer);
@@ -573,6 +639,7 @@ export function useConsoleSession({
     platform,
     remoteCompanionToken,
     roomName,
+    runStateSync,
     sampleRate,
     venueName,
     zones,
@@ -647,7 +714,12 @@ export function useConsoleSession({
             bufferSize: bufferSizeRef.current,
             driver: curDriver,
           }),
-        }).catch(() => {});
+        }).catch(() => {
+          toastBackgroundWarning(
+            `Previous device profile (${prevDevId}) could not be saved.`,
+            'persist:device-profile'
+          );
+        });
       }
 
       setActiveDevice(dev);
@@ -714,7 +786,21 @@ export function useConsoleSession({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newPreset),
-      }).catch(() => {});
+      }).catch(() => {
+        toastPersistFailure({
+          what: `preset "${name}"`,
+          key: 'persist:preset',
+          retry: () => {
+            appFetch('/api/presets', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(newPreset),
+            }).catch(() => {
+              toastPersistFailure({ what: `preset "${name}"`, key: 'persist:preset' });
+            });
+          },
+        });
+      });
       logAudit('Created Service Preset', `${name} based on current live mix`, 'operator');
     },
     [logAudit]
@@ -748,7 +834,21 @@ export function useConsoleSession({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(snapshot),
-      }).catch(() => {});
+      }).catch(() => {
+        toastPersistFailure({
+          what: `configuration snapshot ${snapshot.version}`,
+          key: 'persist:version',
+          retry: () => {
+            appFetch('/api/versions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(snapshot),
+            }).catch(() => {
+              toastPersistFailure({ what: `snapshot ${snapshot.version}`, key: 'persist:version' });
+            });
+          },
+        });
+      });
       logAudit('Saved Configuration Snapshot', `${snapshot.version}: ${summary}`, 'operator');
     },
     [logAudit]
@@ -1356,6 +1456,8 @@ export function useConsoleSession({
     handleReconcileLiveInputs,
     handleAddChannel,
     hydrated,
+    firstRunGuideOpen,
+    dismissFirstRunGuide,
     handleRemoveChannel,
     handleAddEqBand,
     handleRemoveEqBand,

@@ -22,6 +22,7 @@ import {
 } from '../plugins/pluginManager.ts';
 import { isDesktopApp } from '../utils/appApi.ts';
 import { getSystemCpuPercent } from '../utils/systemMetrics.ts';
+import { diagError } from '../utils/diagnosticsLog.ts';
 
 export const INITIAL_TELEMETRY: SignalTelemetry = {
   source: 'live-mic',
@@ -101,7 +102,14 @@ export function useAudioEngine({
   const [audioSource, setAudioSource] = useState<AudioSourceSimulation>('live-mic');
   const [engineRunning, setEngineRunning] = useState(false);
   const [monitorAudible, setMonitorAudible] = useState(false);
-  const [audioError, setAudioError] = useState<string | null>(null);
+  const [audioError, setAudioErrorState] = useState<string | null>(null);
+  // Every engine failure that reaches the operator's error banner also lands
+  // in the flight recorder, so System Info → Support Log tells the full story
+  // of a mid-service incident (what failed, when, in which order).
+  const setAudioError = useCallback((message: string | null) => {
+    if (message) diagError('engine', message);
+    setAudioErrorState(message);
+  }, []);
   const [telemetry, setTelemetry] = useState<SignalTelemetry>(INITIAL_TELEMETRY);
   const [spectrum, setSpectrum] = useState<SpectrumSnapshot>(INITIAL_SPECTRUM);
   const [systemCpuPercent, setSystemCpuPercent] = useState<number | null>(null);

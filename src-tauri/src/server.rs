@@ -15,12 +15,14 @@
 //! starts a background self-healing watchdog thread, and hands the live base URL back.
 
 use std::fs::OpenOptions;
+use std::io::Write;
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use crate::chrono_local_timestamp;
 use tauri::{AppHandle, Manager};
 
 const DEFAULT_PORT: u16 = 37741;
@@ -197,9 +199,24 @@ fn spawn_server_child(cfg: &ServerSpawnConfig) -> Result<Child, String> {
     if let Ok(log_file) = OpenOptions::new()
         .create(true)
         .write(true)
-        .truncate(true)
+        .append(true)
         .open(&cfg.log_path)
     {
+        // Rotate by size so a crash-looping server cannot grow the boot log
+        // unbounded across respawns: past 256 KB, restart the file fresh.
+        // Appending (not truncating) means a respawn keeps the evidence of
+        // WHY the previous child died — the old truncate(true) erased it.
+        if log_file.metadata().map(|m| m.len() > 256 * 1024).unwrap_or(false) {
+            let _ = std::fs::write(
+                &cfg.log_path,
+                format!(
+                    "---- rotated {} (previous boot log exceeded 256 KB) ----\n",
+                    chrono_local_timestamp()
+                ),
+            );
+        }
+        let mut log_file = log_file;
+        let _ = writeln!(log_file, "---- server spawn @ {} ----", chrono_local_timestamp());
         let err_file = log_file.try_clone().ok();
         cmd.stdout(Stdio::from(log_file));
         if let Some(err) = err_file {

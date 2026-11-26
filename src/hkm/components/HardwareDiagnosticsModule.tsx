@@ -52,6 +52,115 @@ import type {
   SystemAudioCaptureMethod,
 } from '../audio/systemAudioBridge.ts';
 import { ArcGauge, ConsolePushButton } from './StudioControls.tsx';
+import {
+  getDiagEvents,
+  getDiagnosticsReport,
+  subscribeDiagEvents,
+  type DiagEvent,
+} from '../utils/diagnosticsLog.ts';
+
+/**
+ * Support Log panel — live view of the session's flight recorder with a
+ * one-click "Copy Support Log" (full report: version, platform, uptime and
+ * every recorded event). Rendered inside the WATCHDOG tab.
+ */
+const SupportLogPanel: React.FC = () => {
+  const [events, setEvents] = useState<readonly DiagEvent[]>(() => getDiagEvents());
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = subscribeDiagEvents(() => {
+      setEvents(getDiagEvents());
+    });
+    return unsubscribe;
+  }, []);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(getDiagnosticsReport('support log'));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard denied — the log is still visible in the panel itself.
+    }
+  };
+
+  const errorCount = events.filter((e) => e.level === 'error').length;
+  const warnCount = events.filter((e) => e.level === 'warn').length;
+
+  return (
+    <div className="rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 space-y-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
+        <div className="font-mono text-xs font-semibold text-white uppercase flex items-center gap-2">
+          Support Log — This Session
+          <span
+            className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${
+              errorCount > 0
+                ? 'bg-red-500/15 border-red-500/50 text-red-300'
+                : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+            }`}
+          >
+            {errorCount > 0 ? `${errorCount} ERRORS` : 'CLEAN'}
+          </span>
+          {warnCount > 0 && (
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold border bg-amber-500/15 border-amber-500/50 text-amber-300">
+              {warnCount} WARNINGS
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="px-2.5 py-1 rounded border border-sky-500/40 bg-sky-500/15 hover:bg-sky-500/30 text-sky-200 text-[10px] font-bold flex items-center gap-1.5 cursor-pointer"
+        >
+          {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+          {copied ? 'COPIED' : 'COPY SUPPORT LOG'}
+        </button>
+      </div>
+
+      <div
+        className="max-h-64 overflow-y-auto font-mono text-[10.5px] leading-relaxed divide-y divide-slate-800/60"
+        aria-label="Session support log events"
+      >
+        {events.length === 0 ? (
+          <div className="py-3 text-slate-500">
+            No events recorded this session — the console has not hit any errors, warnings or
+            notable system events since launch.
+          </div>
+        ) : (
+          [...events].reverse().map((e, i) => (
+            <div key={`${e.ts}-${i}`} className="py-1.5 flex items-start gap-2">
+              <span className="text-slate-600 shrink-0 tabular-nums">
+                {new Date(e.ts).toLocaleTimeString()}
+              </span>
+              <span
+                className={`shrink-0 font-bold w-10 ${
+                  e.level === 'error'
+                    ? 'text-red-400'
+                    : e.level === 'warn'
+                      ? 'text-amber-400'
+                      : 'text-sky-400'
+                }`}
+              >
+                {e.level.toUpperCase()}
+              </span>
+              <span className="text-slate-500 shrink-0">[{e.source}]</span>
+              <span className={e.level === 'error' ? 'text-red-200' : 'text-slate-300'}>
+                {e.message}
+              </span>
+            </div>
+          ))
+        )}
+      </div>
+      <p className="text-[10px] text-slate-500">
+        The log is kept in memory for this session only (last 250 events). &ldquo;Copy Support
+        Log&rdquo; includes the app version, platform and uptime — paste it when reporting an
+        issue.
+      </p>
+    </div>
+  );
+};
+
 
 interface HardwareDiagnosticsModuleProps {
   devices: HardwareDevice[];
@@ -1490,7 +1599,10 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                   },
                   { label: 'Buffer Quantum', val: `${bufferSize} samples (${latencyMs} ms)` },
                   { label: 'Clipping Incidents', val: `${telemetry.clippingEvents} events` },
-                  { label: 'Local Persistence', val: 'SQLite WAL + JSON Backup + WS Sync' },
+                  {
+                    label: 'Local Persistence',
+                    val: 'Atomic JSON Store (tmp+rename, SHA1 dedup) + WS Sync',
+                  },
                 ].map((row) => (
                   <div key={row.label} className="py-2.5 flex items-center justify-between">
                     <span className="text-slate-400">{row.label}</span>
@@ -1523,6 +1635,11 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
               </div>
             </div>
           </div>
+
+          {/* Support Log — the in-memory flight recorder (errors, warnings and
+              key system events captured this session). This is what support
+              asks for first when something went wrong mid-service. */}
+          <SupportLogPanel />
         </div>
       )}
     </div>

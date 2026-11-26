@@ -390,6 +390,33 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
         </div>
       </div>
 
+      {/* OBS connection failure surfacing — the service already computes
+          human-readable disconnect reasons (wrong password, OBS not running,
+          unreachable host); showing them turns a silent dead button into an
+          actionable message. */}
+      {!obsState.connected && obsState.error && (
+        <div
+          role="alert"
+          className="px-3.5 py-2 rounded-lg border border-amber-500/40 bg-amber-950/30 text-amber-200 text-xs font-mono flex flex-wrap items-center justify-between gap-2"
+        >
+          <span className="flex items-center gap-2">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+            <span>
+              OBS CONNECTION:{' '}
+              <strong className="text-amber-100">{obsState.error}</strong>
+              {obsState.authRequired && ' — open WS CONFIG below and verify the password.'}
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={handleConnectObs}
+            className="px-2.5 py-1 rounded border border-amber-400/60 bg-amber-500/20 hover:bg-amber-500/35 text-amber-100 font-bold text-[10px] cursor-pointer shrink-0"
+          >
+            RETRY CONNECT
+          </button>
+        </div>
+      )}
+
       {/* Expandable OBS WebSocket Configuration Drawer */}
       {showSettings && (
         <div className="p-3.5 rounded-lg border border-slate-700 bg-[#0B0F19] text-xs font-mono space-y-3">

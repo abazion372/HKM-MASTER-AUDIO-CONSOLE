@@ -2,6 +2,7 @@
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, ClipboardCopy, ShieldCheck } from 'lucide-react';
+import { diagError, getDiagnosticsReport } from '../utils/diagnosticsLog.ts';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -35,7 +36,13 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Full diagnostics to the console for support extraction.
+    // Full diagnostics to the console + flight recorder for support extraction.
+    diagError(
+      'ui',
+      `Console render crash contained: ${error.message}${
+        errorInfo.componentStack ? ` — component stack recorded` : ''
+      }`
+    );
     console.error('[HKM] Console render crash contained:', error, errorInfo.componentStack);
     this.setState((s) => ({
       info: errorInfo.componentStack ?? null,
@@ -54,11 +61,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   private handleWindowError(event: ErrorEvent) {
-    console.error('[HKM] Uncaught error:', event.message, event.error ?? '');
+    diagError('window', `Uncaught error: ${event.message} @ ${event.filename ?? '?'}:${event.lineno ?? '?'}`);
   }
 
   private handleRejection(event: PromiseRejectionEvent) {
-    console.error('[HKM] Unhandled promise rejection:', event.reason ?? '');
+    const reason = event.reason instanceof Error ? `${event.reason.message}` : String(event.reason ?? 'unknown');
+    diagError('promise', `Unhandled promise rejection: ${reason.slice(0, 300)}`);
   }
 
   private handleReload = () => {
@@ -68,10 +76,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   private handleCopyDiagnostics = async () => {
     const { error, info, errorCount } = this.state;
     const diagnostics = [
-      'HKM Audio System — crash diagnostics',
-      `version: ${typeof window !== 'undefined' ? window.location.href : 'n/a'}`,
-      `occurrences: ${errorCount}`,
+      getDiagnosticsReport('crash diagnostics'),
       '',
+      `--- crash card ---`,
+      `occurrences: ${errorCount}`,
       `error: ${error?.message ?? 'n/a'}`,
       error?.stack ?? '',
       '',

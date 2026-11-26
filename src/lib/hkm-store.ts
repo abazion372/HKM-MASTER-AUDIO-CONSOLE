@@ -23,6 +23,9 @@ export interface RemoteAccessState {
 }
 
 export interface PersistedState {
+  /** Store format version — bump on breaking shape changes so hydration
+   * code can migrate deliberately instead of guessing. */
+  schemaVersion?: number;
   venue: {
     organization: string;
     venueName: string;
@@ -52,7 +55,14 @@ export interface PersistedState {
   keyboardShortcuts?: Array<Record<string, unknown>>;
   customPresets?: Array<Record<string, unknown>>;
   deviceProfiles?: Record<string, Record<string, unknown>>;
+  /** Set once the operator dismisses the first-run guide. Absent = fresh
+   * install (or pre-guide upgrade) → guide should be shown once. */
+  firstRunCompleted?: boolean;
 }
+
+/** Current persisted-state schema. 1 = everything before this field existed;
+ * 2 = schemaVersion + firstRunCompleted introduced (v1.2.0). */
+export const CURRENT_SCHEMA_VERSION = 2;
 
 export function generateToken(): string {
   return crypto.randomBytes(12).toString('base64url');
@@ -149,6 +159,7 @@ export function hydrateWithDefaults(raw: Partial<PersistedState>): PersistedStat
   return {
     ...defaults,
     ...raw,
+    schemaVersion: Math.min(Number(raw.schemaVersion ?? 1) || 1, CURRENT_SCHEMA_VERSION),
     venue,
     channels,
     dsp: raw.dsp && typeof raw.dsp === 'object' ? raw.dsp : defaults.dsp,
@@ -194,6 +205,9 @@ interface StoreCache {
   mtimeMs: number;
   /** Digest of the last payload actually written to disk (write dedup). */
   lastWrittenHash: string | null;
+  /** Set when the last ensureStore() had to recover from a corrupt file —
+   * surfaced once via /api/state so the operator is told, never silently. */
+  lastLoadCorrupt: boolean;
 }
 
 const globalStore = globalThis as unknown as { __hkmStoreCache?: StoreCache };
@@ -201,6 +215,7 @@ const cache: StoreCache = globalStore.__hkmStoreCache ?? {
   state: null,
   mtimeMs: 0,
   lastWrittenHash: null,
+  lastLoadCorrupt: false,
 };
 globalStore.__hkmStoreCache = cache;
 
@@ -264,19 +279,42 @@ class LocalAudioStore {
         const hydrated = hydrateWithDefaults(raw);
         cache.state = hydrated;
         cache.mtimeMs = stat.mtimeMs;
+        cache.lastLoadCorrupt = false;
         // Another process (audio-ws mini-service) may have rewritten the file;
         // reset our write-dedup digest so the next save is not incorrectly
         // considered identical to our own previous payload.
         cache.lastWrittenHash = null;
         return hydrated;
       } catch {
-        // Corrupt file → fall through to reseed
+        // Corrupt file — preserve the evidence before reseeding. The previous
+        // behaviour (silent overwrite with defaults) destroyed the operator's
+        // only copy of a mid-service mix with no trace and no warning.
+        cache.lastLoadCorrupt = true;
+        try {
+          const backupPath = path.join(
+            DATA_DIR,
+            `hkm-state.corrupt-${new Date().toISOString().replace(/[:.]/g, '-')}.bak`
+          );
+          fs.copyFileSync(STATE_FILE, backupPath);
+        } catch {
+          // Even the backup failing must not block recovery — reseeding still
+          // gives the operator a working console instead of a dead one.
+        }
       }
     }
 
     const seeded = buildDefaultState();
-    writeAtomic(seeded);
+    seeded.schemaVersion = CURRENT_SCHEMA_VERSION;
+    writeAtomic(seeded, true);
     return seeded;
+  }
+
+  /** True exactly once after a corrupt-file recovery; the state route relays
+   * it so the console can warn the operator and point at the .bak file. */
+  public consumeCorruptFlag(): boolean {
+    const flag = cache.lastLoadCorrupt;
+    cache.lastLoadCorrupt = false;
+    return flag;
   }
 
   public saveStore(state: PersistedState): void {
@@ -338,6 +376,7 @@ class LocalAudioStore {
     return {
       engine: 'json-store+ws-sync',
       storeFile: 'db/hkm-state.json',
+      schemaVersion: state.schemaVersion ?? 1,
       fileBytes,
       channelsCount: state.channels.length,
       zonesCount: state.zones.length,

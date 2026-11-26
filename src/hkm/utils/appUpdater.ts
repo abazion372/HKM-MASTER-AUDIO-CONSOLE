@@ -1,4 +1,5 @@
 import { isDesktopApp } from './appApi.ts';
+import { diagError, diagInfo, diagWarn } from './diagnosticsLog.ts';
 
 /** Live throughput telemetry for an in-app update download. */
 export interface UpdateDownloadStats {
@@ -164,6 +165,7 @@ export async function openUpdateDownloadInBrowser(targetVersion?: string): Promi
     url = 'https://github.com/abazion372/HKM-MASTER-AUDIO-CONSOLE/releases/latest';
   }
   const opened = await openUrlInSystemBrowser(url);
+  diagInfo('updater', `Opened update download in system browser: ${url}`);
   return { opened, url };
 }
 
@@ -190,6 +192,8 @@ export async function checkDesktopUpdate(): Promise<{
     if (!update) {
       return { available: false };
     }
+
+    diagInfo('updater', `Update v${update.version} available (signed manifest).`);
 
     return {
       available: true,
@@ -266,9 +270,11 @@ export async function checkDesktopUpdate(): Promise<{
     };
   } catch {
     try {
+      diagWarn('updater', 'Signed updater check failed — falling back to the GitHub Releases API.');
       return await checkGithubLatestReleaseFallback();
     } catch (fallbackErr) {
       const message = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+      diagError('updater', `Update check failed: ${message}`);
       return { available: false, error: message };
     }
   }

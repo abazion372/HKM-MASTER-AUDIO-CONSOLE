@@ -45,6 +45,8 @@ import { SignalJourneyModal } from './components/SignalJourneyModal.tsx';
 import { MultitrackRecorderModule } from './components/MultitrackRecorderModule.tsx';
 import { UniversalRoutingModule } from './components/UniversalRoutingModule.tsx';
 import { validateDspConfig } from './utils/camillaDsp.ts';
+import { Toaster } from '@/components/ui/sonner';
+import { FirstRunGuide } from './components/FirstRunGuide.tsx';
 
 export default function App() {
   // Phone-companion mode (`?mode=remote`) is tracked separately from the
@@ -764,6 +766,23 @@ export default function App() {
 
   return (
     <div className="h-screen flex flex-col hw-chassis text-slate-100 overflow-hidden">
+      {/* Unified operator feedback layer — failures that silently vanished
+          before (persistence loss, engine faults, update errors) surface here. */}
+      <Toaster
+        theme="dark"
+        position="bottom-right"
+        offset="72px"
+        closeButton
+        toastOptions={{
+          style: {
+            background: '#0D1219',
+            border: '1px solid #2A3646',
+            color: '#E2E8F0',
+            fontFamily: 'var(--font-mono), ui-monospace, monospace',
+            fontSize: '12px',
+          },
+        }}
+      />
       <AppMenuBar
         appVersion={appVersion}
         isDesktop={isDesktopApp()}
@@ -858,6 +877,12 @@ export default function App() {
           dockPosition={session.navDockPosition}
           onChangeDockPosition={session.setNavDockPosition}
         />
+      )}
+
+      {/* One-time orientation for fresh installs — clarifies the sample setup
+          and walks the first three operator actions. Dismissal is persisted. */}
+      {session.firstRunGuideOpen && (
+        <FirstRunGuide onDismiss={session.dismissFirstRunGuide} />
       )}
 
       {(session.emergencyMuted || session.dsp.bypassed) && (

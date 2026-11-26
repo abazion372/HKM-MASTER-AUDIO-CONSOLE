@@ -297,6 +297,102 @@ fn fatal_message(app: &AppHandle, message: &str) {
     let _ = app;
 }
 
+// ---------------------------------------------------------------------------
+// Crash recorder — a native panic used to abort the process silently (the
+// window simply vanished mid-service). The hook below still runs before the
+// abort: it appends the panic payload to a crash log next to the state store
+// and shows a native dialog so the operator knows what happened and where the
+// evidence lives. The next launch surfaces the crash log (frontend support log
+// complements this with the webview-side story).
+// ---------------------------------------------------------------------------
+
+fn crash_log_path() -> std::path::PathBuf {
+    // Prefer the per-user local app data dir (same neighbourhood as the
+    // Tauri app-data dir) so the file survives reinstalls; temp as fallback.
+    #[cfg(windows)]
+    {
+        if let Ok(local) = std::env::var("LOCALAPPDATA") {
+            let dir = std::path::PathBuf::from(local).join("HKM.Audio.System");
+            let _ = std::fs::create_dir_all(&dir);
+            return dir.join("hkm-crash.log");
+        }
+    }
+    std::env::temp_dir().join("hkm-audio-system-crash.log")
+}
+
+fn install_crash_hook() {
+    std::panic::set_hook(Box::new(|info| {
+        let timestamp = chrono_local_timestamp();
+        eprintln!("[hkm-audio] panic: {}", info);
+        let report = format!(
+            "---- crash {} ----\npanic: {}\nlocation: {}\n\n",
+            timestamp,
+            info,
+            info.location()
+                .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
+                .unwrap_or_else(|| "unknown".into())
+        );
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(crash_log_path())
+        {
+            use std::io::Write;
+            let _ = file.write_all(report.as_bytes());
+        }
+        #[cfg(windows)]
+        {
+            use windows::core::PCWSTR;
+            use windows::Win32::UI::WindowsAndMessaging::{
+                MB_ICONERROR, MB_OK, MessageBoxW,
+            };
+            let message = format!(
+                "HKM Audio System crashed (native panic)\n\n{}\n\nTime: {}\n\nA full report was written to:\n{}",
+                info,
+                timestamp,
+                crash_log_path().display()
+            );
+            let text: Vec<u16> = format!("{}\0", message).encode_utf16().collect();
+            let caption: Vec<u16> = "HKM Audio System — Crash Report\0".encode_utf16().collect();
+            unsafe {
+                MessageBoxW(
+                    None,
+                    PCWSTR(text.as_ptr()),
+                    PCWSTR(caption.as_ptr()),
+                    MB_OK | MB_ICONERROR,
+                );
+            }
+        }
+    }));
+}
+
+/// Local-time timestamp without pulling a chrono dependency (the build stays
+/// dependency-free; seconds precision is plenty for a crash/boot log).
+pub(crate) fn chrono_local_timestamp() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    // Days since epoch -> civil date (Howard Hinnant's algorithm).
+    let days = (secs / 86_400) as i64;
+    let rem = secs % 86_400;
+    let (h, m, s) = (rem / 3600, (rem % 3600) / 60, rem % 60);
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let mo = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if mo <= 2 { y + 1 } else { y };
+    format!(
+        "{:04}-{:02}-{:02} {:02}:{:02}:{:02} UTC",
+        y, mo, d, h, m, s
+    )
+}
+
 fn shutdown_everything(app: &AppHandle) {
     if let Some(state) = app.try_state::<DesktopState>() {
         state.captures.stop_all();
@@ -314,6 +410,10 @@ fn shutdown_everything(app: &AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // First thing: native panics must leave evidence (crash log + dialog),
+    // not silently abort the process mid-service.
+    install_crash_hook();
+
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
