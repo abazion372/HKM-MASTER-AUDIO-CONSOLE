@@ -19,6 +19,31 @@
 //! COM (manual vtables + runtime `GetProcAddress` loading) so the exotic parts do
 //! not depend on windows-rs codegen; everything else uses windows-rs.
 //!
+//! # End-to-end latency ledger (final audit, v1.1.3)
+//!
+//! Every stage between "sound exists digitally" and "sound leaves the DAC",
+//! with its floor and why it cannot go lower on Windows:
+//!
+//! | Stage | Floor | Why it is the floor |
+//! |---|---|---|
+//! | Source app output | 0–30 ms+ | The OTHER app's own buffer (browser/video player) — outside our control. |
+//! | Loopback capture cushion | 4–10 ms (adaptive) | Windows delivers loopback packets on the ~10 ms render cadence, so playback starts at a 10 ms cushion; once the feed proves healthy it decays toward a 4 ms floor and regrows on starvation (15 ms ceiling). The start value is cadence-matched — starting lower starves between packets (rhythmic stutter — measured). |
+//! | Web Audio worklet quantum | 2.7 ms (128 f) | The AudioWorklet spec fixes the render quantum at 128 frames. |
+//! | IPC handoff (Channel) | ~0.1–0.5 ms | Tauri IPC raw-byte channel; negligible. |
+//! | Console DSP (worklets) | one quantum | In-place processing inside the same 128-frame callback. |
+//! | Output tap → Rust queue | 0 ms | mpsc is pull-based; no added sleep. |
+//! | Shared-mode writer target | 5 ms (240 f) | Adaptive cushion: tolerates ~5 ms of producer stall (browser jank/IPC). The write-to-target discipline makes playback time = handoff + target regardless of poll interval, so this cushion IS the shared-mode floor. Grows +5 ms only on a proven underrun, then stays. |
+//! | Windows shared engine | ~10 ms | The shared-mode mixer engine's own scheduling quantum — bypassed only by exclusive mode. |
+//! | Exclusive-mode period | 5 ms (pro DACs) / 10 ms (default) | One period is always queued in the endpoint. Ladder tries 5 ms first, falls back 10 → 20 ms; PCM16 fallbacks for integer-only endpoints. |
+//! | DAC/analogue | ~1 ms | Hardware group delay. |
+//!
+//! **Totals**: desktop-audio → speakers ≈ 18 ms shared (5 target + ~10 engine +
+//! worklet cadence), ≈ 8–13 ms exclusive on a 5 ms-capable DAC. Mic/line →
+//! speakers ≈ 8 ms shared / ≈ 1–6 ms exclusive beyond the browser's own input
+//! buffer (Chrome-governed, ~10–20 ms, not app-controllable). Anything below
+//! these figures on Windows requires kernel-mode audio (ASIO-class drivers),
+//! which is outside a WASAPI application's reach.
+//!
 //! NOTE for maintainers: windows-rs occasionally moves WAVEFORMATEX-family types
 //! between `Win32::Media::Audio` and `Win32::Media::Multimedia` across versions.
 //! If a `use` path fails to resolve on your windows crate version, adjust the
@@ -1314,8 +1339,8 @@ fn initialize_exclusive_stream(
 
     // Exclusive event-driven streams require hnsPeriodicity == hnsBufferDuration.
     // The period IS the exclusive-mode latency (one period is always queued in
-    // the endpoint); the caller ladders down from the pro-grade 10 ms floor and
-    // falls back to 20 ms for devices that reject it.
+    // the endpoint); the caller ladders down from the 5 ms pro-DAC floor through
+    // the 10 ms default to 20 ms for devices that reject both.
     let mut duration_100ns: i64 = period_100ns;
     let mut attempts = 0u8;
     loop {
@@ -1390,12 +1415,14 @@ fn raw_output_pump_exclusive(
 ) -> Result<(), String> {
     sys::init_com_mta()?;
 
-    // Negotiate the exclusive format with a period/format ladder: 10 ms f32
-    // (pro-grade floor) → 20 ms f32 (devices with a larger minimum period) →
+    // Negotiate the exclusive format with a period/format ladder: 5 ms f32
+    // (pro DACs — halves the exclusive latency floor) → 10 ms f32 (pro-grade
+    // default floor) → 20 ms f32 (devices with a larger minimum period) →
     // 10 ms 16-bit PCM (integer-only endpoints) → 20 ms 16-bit PCM. First
     // success wins; every failure message is preserved for the error report.
     let (audio_client, buffer_frames, bits_per_sample, period_label) = {
-        let attempts: [(i64, bool, &str); 4] = [
+        let attempts: [(i64, bool, &str); 5] = [
+            (50_000, false, "5ms f32"),
             (100_000, false, "10ms f32"),
             (200_000, false, "20ms f32"),
             (100_000, true, "10ms pcm16"),

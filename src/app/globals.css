@@ -121,7 +121,8 @@ button:disabled {
   aside,
   main,
   button:not(:disabled),
-  .console-push-btn::after {
+  .console-push-btn::after,
+  .hw-mute-breath {
     transition: none !important;
     animation: none !important;
   }
@@ -952,6 +953,45 @@ input[type="range"].studio-slider::-webkit-slider-thumb:hover {
   color: #ffffff;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   box-shadow: 0 0 12px rgba(34, 211, 238, 0.42), inset 0 1px 1px rgba(255, 255, 255, 0.36);
+}
+
+/* Muted-input state pill — universal console convention: MUTED = RED.
+   Deliberately NOT the app accent (cyan/teal reads as "active/engaged"). */
+.hw-pill-muted {
+  background: linear-gradient(180deg, #f87171 0%, #dc2626 48%, #991b1b 100%);
+  border: 1.5px solid #fca5a5;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.45);
+}
+
+/* Slow "breathing" glow for latched critical states (muted inputs, emergency
+   mute). Calm 2.6s cycle — reads as a steady status lamp, not an alarm strobe.
+   Killed by prefers-reduced-motion below. */
+@keyframes hw-mute-breath {
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.85), inset 0 1px 1px rgba(255, 255, 255, 0.45);
+  }
+}
+
+.hw-mute-breath {
+  animation: hw-mute-breath 2.6s ease-in-out infinite;
+}
+
+/* "Red tape over the fader" — the way engineers physically mark muted
+   channels on real consoles. Diagonal dark stripes layered on the muted pill. */
+.hw-mute-stripes {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent 0px,
+    transparent 7px,
+    rgba(0, 0, 0, 0.32) 7px,
+    rgba(0, 0, 0, 0.32) 10px
+  );
 }
 
 .hw-bevel-btn {

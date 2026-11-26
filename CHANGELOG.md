@@ -5,6 +5,26 @@ All notable changes to HKM Audio System are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.4] - 2026-11-26 — Unmistakable Mute States & the 5 ms Exclusive Floor
+
+### Fixed
+
+- **A muted input no longer looks "engaged".** The channel MUTE pill in the Central DSP Chain (INPUT CONDITIONING column) rendered its MUTED state as a **cyan glowing pill** — the same colour family the console uses for *active/selected*, so a silenced channel read as highlighted. Muted is now unmissable by hardware-console convention: a **solid red pill** with speaker-X icon, diagonal "red-tape" stripes (the way engineers physically tape over muted faders), a steady breathing glow, a red **MUTED** badge beside *Selected CH#* in the column header, an **INPUT MUTED** readout in the gain arc, a **red routing seam** under the column, and a dimmed preamp/fader so the whole column reads as a dead channel. ACTIVE stays green; OPEN SLOT stays gray.
+- **The left-console channel strip now tells the same story**: the MUTE key latches red with the icon + stripes, the channel identity header tints red with a pulsing speaker-X status, the super fader goes dark (a muted channel is a dead channel — like real consoles), and the channel tab in the rail carries a red strike-through and base bar so muted channels are identifiable at a glance from the tab rail alone.
+- **Footer MUTE ALL and BYPASS DSP are now persistent latching console switches** instead of popping buttons: constant silkscreen labels (no more MUTE ALL ↔ UNMUTE ALL or BYPASS DSP ↔ DSP BYPASSED text swaps), hardware state LEDs (dark = live, glowing = engaged), fixed label widths (measured 140/156 px in both states — zero layout shift), smooth 200 ms transitions and a calm breathing glow when engaged. The same pattern is applied to SAFE MUTE in the top bar, the Master Preview dock, the right telemetry panel and the DSP engine module, so every master-mute control in the app behaves identically.
+- **Every state toggle is now a first-class switch for assistive tech**: `aria-pressed` plus descriptive labels ("Channel 1 mute — currently MUTED (click to unmute)") on the chain pill, strip MUTE key, channel tabs and all master-mute buttons; the breathing glow is disabled under `prefers-reduced-motion`.
+- **Pre-existing lint blocker removed**: the session store's state-sync retry closure captured its own `useCallback` binding (react-hooks/immutability). Rewritten as a local attempt function — retry semantics unchanged.
+
+### Changed
+
+- **Exclusive-mode latency floor 10 ms → 5 ms**: the WASAPI period/format ladder now attempts a 5 ms f32 period first — on DACs that accept it, exclusive mode's queued period (and therefore its latency) is halved. Devices that reject it fall through the existing 10 → 20 ms / PCM16 ladder automatically, and the armed period remains visible in the status line (`exclusive 2ch/32bit · 5ms f32 (240 frames/period)`).
+- **Final zero-latency audit — every remaining millisecond accounted for**: the shared-mode adaptive target (5 ms) was re-verified as the true floor (the write-to-target discipline makes playback time independent of poll interval, so only underrun tolerance is at stake — and it is already sized to the measured browser/IPC jitter); the loopback cushion's adaptive start (10 ms → 4 ms floor) was re-verified against the Windows 10 ms packet cadence; the output tap remains at the 128-frame render-quantum spec floor. The complete stage-by-stage ledger is now documented in the `win_audio.rs` module docs.
+
+### Added
+
+- **`docs/AUDIO-LATENCY.md`** — a user-facing guide: the latency table for every path (shared/exclusive, desktop-audio vs mic), where each millisecond lives and why it cannot be lower on Windows, how to reach the floor (exclusive mode, zero alignment delays, direct monitoring), and how to judge sync correctly (clap-and-listen, not video lips — the video decoder adds its own delay that no audio app can match).
+- **Crash-recovery, diagnostics and update tooling re-audited** as part of a maturity pass (loopback-only local server, token-gated remote companion, persisted-session recovery and diagnostics export all confirmed in place).
+
 ## [1.1.3] - 2026-11-26 — Persistent Ring Indicator, Zero-Default Delays & Crash Containment
 
 ### Fixed

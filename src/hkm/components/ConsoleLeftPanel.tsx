@@ -14,6 +14,7 @@ import {
   Speaker,
   Check,
   Cable,
+  VolumeX,
 } from 'lucide-react';
 import type {
   AudioSourceSimulation,
@@ -501,7 +502,8 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                             ? 'border-amber-400/80 bg-gradient-to-b from-[#2A2015] to-[#161009] text-amber-200'
                             : 'border-[#4B5D72] bg-gradient-to-b from-[#1E2732] to-[#131921] text-slate-200 hover:border-[#687F99] hover:text-white'
                           : 'border-dashed border-[#2A3544] bg-[#0D1219]/70 text-slate-500 hover:text-slate-200'
-                    } ${ch.mute && tabAssigned ? 'text-rose-300' : ''}`}
+                    } ${ch.mute && tabAssigned ? 'text-rose-300 border-rose-500/70' : ''}`}
+                    aria-label={`Channel ${ch.index} tab${ch.mute && tabAssigned ? ' (muted)' : ''}`}
                   >
                     {/* live mini level fill rising from the bottom of the tab */}
                     {tabAssigned && !ch.mute && tNorm > 0.02 && (
@@ -526,10 +528,18 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                       />
                     )}
                     {ch.mute && tabAssigned && (
-                      <span
-                        title="Muted"
-                        className="absolute top-0 right-0 w-1.5 h-1.5 rounded-bl bg-rose-500 z-10 pointer-events-none"
-                      />
+                      <>
+                        {/* Muted channel tab: full-width red base bar + diagonal
+                            strike-through — readable even at this 32px tab size. */}
+                        <span
+                          title="Muted"
+                          className="absolute bottom-0 left-0 right-0 h-1 bg-rose-500 z-10 pointer-events-none"
+                        />
+                        <span
+                          aria-hidden="true"
+                          className="absolute left-[10%] right-[10%] top-1/2 h-[2px] -translate-y-1/2 rotate-[-32deg] bg-rose-400 z-10 pointer-events-none shadow-[0_0_4px_rgba(244,63,94,0.8)]"
+                        />
+                      </>
                     )}
                   </button>
                 );
@@ -595,7 +605,9 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                           ? 'border-dashed border-[#3A4B5E] bg-[#0F151D]/80'
                           : isHot
                             ? 'border-amber-400 bg-gradient-to-b from-[#2A2015] to-[#1A130D] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_0_10px_rgba(245,158,11,0.3)]'
-                            : 'border-[#2DD4BF]/70 bg-gradient-to-b from-[#17282D] to-[#111D22] shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_0_10px_rgba(45,212,191,0.22)]'
+                            : ch.mute
+                              ? 'border-rose-500/60 bg-gradient-to-b from-[#2A1518] to-[#160D0F] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_10px_rgba(244,63,94,0.22)]'
+                              : 'border-[#2DD4BF]/70 bg-gradient-to-b from-[#17282D] to-[#111D22] shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_0_10px_rgba(45,212,191,0.22)]'
                       }`}
                     >
                       <div
@@ -637,14 +649,17 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                           className="w-4 h-4 text-amber-400 animate-pulse shrink-0"
                           aria-label="Signal hot — near limit"
                         />
+                      ) : ch.mute ? (
+                        <VolumeX
+                          className="w-4 h-4 text-rose-400 shrink-0 animate-pulse"
+                          aria-label="Channel muted"
+                        />
                       ) : (
                         <span
                           className={`w-2 h-2 rounded-full shrink-0 ${
-                            ch.mute
-                              ? 'bg-rose-500'
-                              : engineRunning && rmsDb > -52
-                                ? 'bg-[#4ADE80] shadow-[0_0_6px_rgba(74,222,128,0.85)]'
-                                : 'bg-slate-600'
+                            engineRunning && rmsDb > -52
+                              ? 'bg-[#4ADE80] shadow-[0_0_6px_rgba(74,222,128,0.85)]'
+                              : 'bg-slate-600'
                           }`}
                         />
                       )}
@@ -877,7 +892,7 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                           large
                           disabled={stripDisabled}
                           trackHeightClass="h-[216px] 2xl:h-[252px]"
-                          accent={!isAssigned ? 'slate' : ch.mute ? 'amber' : 'cyan'}
+                          accent={!isAssigned || ch.mute ? 'slate' : 'cyan'}
                           onChange={(next) => onUpdateChannel(ch.id, { faderDb: next })}
                         />
 
@@ -963,18 +978,34 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                         type="button"
                         disabled={stripDisabled}
                         onClick={() => onUpdateChannel(ch.id, { mute: !ch.mute })}
+                        aria-pressed={ch.mute}
                         title={
-                          !isAssigned ? 'Open Slot — Unassigned' : ch.mute ? 'Unmute Channel' : 'Mute Channel'
+                          !isAssigned
+                            ? 'Open Slot — Unassigned'
+                            : ch.mute
+                              ? `CH${ch.index} input MUTED — no signal leaves this channel. Click to unmute.`
+                              : `Mute CH${ch.index} input channel`
                         }
-                        className={`h-11 rounded-md border font-mono text-[11px] font-bold tracking-[0.18em] transition cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
+                        className={`relative h-11 rounded-md border font-mono text-[11px] font-bold tracking-[0.18em] transition cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed overflow-hidden ${
                           !isAssigned
                             ? 'bg-[#0A0E14] border-[#1F2937] text-slate-600'
                             : ch.mute
-                              ? 'bg-rose-600 border-rose-300 text-white shadow-[0_0_10px_rgba(244,63,94,0.55)]'
+                              ? 'hw-pill-muted hw-mute-breath border-rose-300'
                               : 'hw-top-btn text-slate-200'
                         }`}
                       >
-                        MUTE
+                        {isAssigned && ch.mute && (
+                          <span
+                            aria-hidden="true"
+                            className="hw-mute-stripes absolute inset-0 pointer-events-none"
+                          />
+                        )}
+                        <span className="relative flex items-center justify-center gap-1.5">
+                          {isAssigned && ch.mute && (
+                            <VolumeX className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                          )}
+                          MUTE
+                        </span>
                       </button>
                       <button
                         type="button"

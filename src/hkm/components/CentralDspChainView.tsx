@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Copy, Check, RotateCcw, Plus } from 'lucide-react';
+import { Copy, Check, RotateCcw, Plus, VolumeX } from 'lucide-react';
 import type {
   AudioSourceSimulation,
   DriverBackend,
@@ -66,7 +66,15 @@ const SignalRoutingOverlay = React.memo<SignalRoutingOverlayProps>(
   }) => {
     const busColor = (active: boolean) =>
       emergencyMuted ? '#EF4444' : active && !dspBypassed ? '#4ADE80' : '#2DD4BF';
-    const seam1Color = chAssigned ? busColor(chActive) : '#334155';
+    // The input seam tells the channel's truth: green = signal flowing, teal = dry
+    // (DSP bypassed) — and RED when the channel itself is muted (input dead).
+    const seam1Color = !chAssigned
+      ? '#334155'
+      : emergencyMuted || !chActive
+        ? '#EF4444'
+        : dspBypassed
+          ? '#2DD4BF'
+          : '#4ADE80';
     const seam1Opacity = chAssigned ? 0.92 : 0.45;
     const agcColor = busColor(agcActive);
     const eqColor = busColor(anyEqEnabled);
@@ -666,7 +674,7 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                   INPUT CONDITIONING
                 </span>
               </div>
-              <div className="hw-card-subheader h-[21px] px-1.5 flex items-center justify-center text-center shrink-0">
+              <div className="hw-card-subheader h-[21px] px-1.5 flex items-center justify-center text-center shrink-0 gap-1">
                 <span
                   className={`text-[8.5px] font-mono font-semibold truncate ${
                     chAssigned ? 'text-[#99F6E4]' : 'text-slate-400'
@@ -674,6 +682,14 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                 >
                   {chAssigned ? `Selected CH${selectedChannel.index}` : `Open Slot CH${selectedChannel.index}`}
                 </span>
+                {chAssigned && selectedChannel.mute && (
+                  <span
+                    className="px-1 rounded bg-red-600/90 border border-red-300/70 text-white text-[7px] font-mono font-bold tracking-[0.14em] shrink-0"
+                    title="This input channel is MUTED — no signal leaves the channel"
+                  >
+                    MUTED
+                  </span>
+                )}
               </div>
 
               <div className="flex-1 min-h-0 p-1.5 2xl:p-2 pb-2 2xl:pb-2.5 flex flex-col items-center justify-between gap-1.5">
@@ -693,7 +709,7 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                     strokeWidth="7"
                     strokeLinecap="round"
                   />
-                  {chAssigned && (
+                  {chAssigned && !selectedChannel.mute && (
                     <path
                       d={`M ${arcCx - arcR} ${arcCy} A ${arcR} ${arcR} 0 0 1 ${arcCx + arcR} ${arcCy}`}
                       fill="none"
@@ -707,7 +723,9 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                     x={arcCx}
                     y={arcCy - 4}
                     textAnchor="middle"
-                    fill={chAssigned ? '#4ADE80' : '#64748B'}
+                    fill={
+                      !chAssigned ? '#64748B' : selectedChannel.mute ? '#F87171' : '#4ADE80'
+                    }
                     fontSize="11"
                     fontWeight="700"
                     fontFamily="JetBrains Mono"
@@ -718,9 +736,23 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                         ? `+${trimEquivDb.toFixed(1)}`
                         : trimEquivDb.toFixed(1)}
                   </text>
+                  {chAssigned && selectedChannel.mute && (
+                    <text
+                      x={arcCx}
+                      y={arcCy + 10}
+                      textAnchor="middle"
+                      fill="#EF4444"
+                      fontSize="6.5"
+                      fontWeight="700"
+                      fontFamily="JetBrains Mono"
+                      letterSpacing="1.2"
+                    >
+                      INPUT MUTED
+                    </text>
+                  )}
                 </svg>
 
-                <div className="-mt-1 shrink-0">
+                <div className={selectedChannel.mute ? '-mt-1 shrink-0 opacity-60' : '-mt-1 shrink-0'}>
                   <RotaryKnob
                     label="PREAMP"
                     value={chAssigned ? selectedChannel.gainDb : 0}
@@ -731,7 +763,7 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                     unit="dB"
                     size={44}
                     disabled={locked || !chAssigned}
-                    accent={chAssigned ? 'emerald' : 'slate'}
+                    accent={chAssigned && !selectedChannel.mute ? 'emerald' : 'slate'}
                     formatValue={!chAssigned ? () => '--' : undefined}
                     onChange={(next) => onUpdateChannel(selectedChannel.id, { gainDb: next })}
                   />
@@ -783,15 +815,39 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                   type="button"
                   disabled={locked || !chAssigned}
                   onClick={() => onUpdateChannel(selectedChannel.id, { mute: !selectedChannel.mute })}
-                  className={`w-[88%] py-1.5 rounded-[5px] text-[10px] font-mono font-bold uppercase tracking-wider shrink-0 ${
+                  aria-pressed={chAssigned ? Boolean(selectedChannel.mute) : undefined}
+                  aria-label={
+                    chAssigned
+                      ? `Channel ${selectedChannel.index} mute — currently ${selectedChannel.mute ? 'MUTED' : 'active'} (click to ${selectedChannel.mute ? 'unmute' : 'mute'})`
+                      : `Channel ${selectedChannel.index} is an open slot`
+                  }
+                  title={
+                    !chAssigned
+                      ? 'Open Slot — assign a hardware input to enable this channel'
+                      : selectedChannel.mute
+                        ? `CH${selectedChannel.index} input MUTED — no signal leaves this channel. Click to unmute.`
+                        : `CH${selectedChannel.index} active — click to MUTE this input channel.`
+                  }
+                  className={`relative w-[88%] py-1.5 rounded-[5px] text-[10px] font-mono font-bold uppercase tracking-wider shrink-0 overflow-hidden transition-all duration-200 ${
                     !chAssigned
                       ? 'bg-[#121821] border border-[#334155] text-slate-500 cursor-not-allowed'
                       : chActive
                         ? 'hw-pill-active cursor-pointer disabled:opacity-45'
-                        : 'hw-pill-bypass cursor-pointer disabled:opacity-45'
+                        : 'hw-pill-muted hw-mute-breath cursor-pointer disabled:opacity-45'
                   }`}
                 >
-                  {!chAssigned ? 'OPEN SLOT' : chActive ? 'ACTIVE' : 'MUTED'}
+                  {chAssigned && !chActive && (
+                    /* "Red tape over the fader" — diagonal mute-tape stripes, the way
+                       engineers physically mark muted channels on real consoles. */
+                    <span
+                      aria-hidden="true"
+                      className="hw-mute-stripes absolute inset-0 pointer-events-none"
+                    />
+                  )}
+                  <span className="relative flex items-center justify-center gap-1">
+                    {chAssigned && !chActive && <VolumeX className="w-3 h-3 shrink-0" aria-hidden="true" />}
+                    {!chAssigned ? 'OPEN SLOT' : chActive ? 'ACTIVE' : 'MUTED'}
+                  </span>
                 </button>
 
                 <ColumnSlider
@@ -802,7 +858,7 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                   step={0.5}
                   defaultValue={0}
                   ticks={['+10', '0', '-20', '-48']}
-                  accent={chAssigned ? 'green' : 'slate'}
+                  accent={chAssigned && !selectedChannel.mute ? 'green' : 'slate'}
                   disabled={locked || !chAssigned}
                   onChange={(next) => onUpdateChannel(selectedChannel.id, { faderDb: next })}
                 />

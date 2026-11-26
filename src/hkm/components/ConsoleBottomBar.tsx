@@ -129,33 +129,60 @@ export const ConsoleBottomBar: React.FC<ConsoleBottomBarProps> = ({
         <button
           type="button"
           onClick={onToggleEmergencyMute}
-          className={`h-8 px-4 rounded flex items-center gap-1.5 tracking-wider uppercase cursor-pointer ${
+          aria-pressed={emergencyMuted}
+          title={
             emergencyMuted
-              ? 'bg-red-600 border border-red-300 text-white shadow-[0_0_14px_rgba(239,68,68,0.65)]'
+              ? 'EMERGENCY MUTE ENGAGED — all PA & stream outputs are silenced. Click to unmute all outputs.'
+              : 'Emergency mute all PA & stream outputs (hardware console master mute).'
+          }
+          className={`relative h-8 px-4 rounded flex items-center gap-1.5 tracking-wider uppercase cursor-pointer transition-all duration-200 ${
+            emergencyMuted
+              ? 'bg-red-600 border border-red-300 text-white shadow-[0_0_14px_rgba(239,68,68,0.65)] hw-mute-breath'
               : 'hw-bevel-btn'
           }`}
         >
-          <VolumeX className="w-3 h-3" />
-          <span>{emergencyMuted ? 'UNMUTE ALL' : 'MUTE ALL'}</span>
+          {/* Persistent state LED — dark red when live, glowing white-red when muted.
+              Hardware-console convention: the silkscreen label never changes; the
+              lamp tells you the state. No label swap = no width pop. */}
+          <span
+            aria-hidden="true"
+            className={`w-2 h-2 rounded-full shrink-0 transition-colors duration-200 ${
+              emergencyMuted
+                ? 'bg-red-100 shadow-[0_0_6px_rgba(255,255,255,0.95)]'
+                : 'bg-red-900 border border-red-500/50'
+            }`}
+          />
+          <VolumeX className="w-3 h-3 shrink-0" aria-hidden="true" />
+          <span className="w-[4.6rem] text-left">MUTE ALL</span>
         </button>
 
         <button
           type="button"
           disabled={consoleLocked}
           onClick={onToggleTotalBypass}
+          aria-pressed={dspBypassed}
           title={
             dspBypassed
               ? 'DSP fully bypassed — raw dry pass-through. Click to restore the full processing chain.'
               : 'One-click bypass of ALL DSP (channel EQ/comp/FX + master chain) for a zero-processing dry pass-through. Delay, EQ, compression and limiting are all offline while bypassed.'
           }
-          className={`h-8 px-4 rounded flex items-center gap-1.5 tracking-wider uppercase cursor-pointer disabled:opacity-45 ${
+          className={`relative h-8 px-4 rounded flex items-center gap-1.5 tracking-wider uppercase cursor-pointer disabled:opacity-45 transition-all duration-200 ${
             dspBypassed
               ? 'bg-amber-500 border border-amber-200 text-slate-950 shadow-[0_0_12px_rgba(245,158,11,0.5)]'
               : 'hw-bevel-btn'
           }`}
         >
-          {dspBypassed ? <ZapOff className="w-3 h-3" /> : <Zap className="w-3 h-3" />}
-          <span>{dspBypassed ? 'DSP BYPASSED' : 'BYPASS DSP'}</span>
+          {/* Persistent state LED — dark amber when chain live, glowing when bypassed */}
+          <span
+            aria-hidden="true"
+            className={`w-2 h-2 rounded-full shrink-0 transition-colors duration-200 ${
+              dspBypassed
+                ? 'bg-amber-100 shadow-[0_0_6px_rgba(255,255,255,0.95)]'
+                : 'bg-amber-900 border border-amber-500/50'
+            }`}
+          />
+          {dspBypassed ? <ZapOff className="w-3 h-3 shrink-0" aria-hidden="true" /> : <Zap className="w-3 h-3 shrink-0" aria-hidden="true" />}
+          <span className="w-[5.6rem] text-left">BYPASS DSP</span>
         </button>
 
         <button

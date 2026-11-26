@@ -751,14 +751,28 @@ const TopBarInner: React.FC<TopBarProps> = ({
                     <button
                       type="button"
                       onClick={onToggleEmergencyMute}
-                      className={`h-7 rounded border text-[10px] font-bold flex items-center justify-center gap-1 cursor-pointer ${
+                      aria-pressed={emergencyMuted}
+                      title={
                         emergencyMuted
-                          ? 'bg-red-600 text-white border-red-300'
+                          ? 'EMERGENCY MUTE ENGAGED — all PA & stream outputs silenced. Click to unmute.'
+                          : 'Emergency mute all PA & stream outputs'
+                      }
+                      className={`relative h-7 rounded border text-[10px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-all duration-200 ${
+                        emergencyMuted
+                          ? 'bg-red-600 text-white border-red-300 shadow-[0_0_10px_rgba(239,68,68,0.55)] hw-mute-breath'
                           : 'bg-red-950/40 border-red-500/50 text-red-300 hover:bg-red-600/25'
                       }`}
                     >
-                      <ShieldAlert className="w-3 h-3" />
-                      <span>{emergencyMuted ? 'MUTED' : 'SAFE MUTE'}</span>
+                      <span
+                        aria-hidden="true"
+                        className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors duration-200 ${
+                          emergencyMuted
+                            ? 'bg-red-100 shadow-[0_0_5px_rgba(255,255,255,0.95)]'
+                            : 'bg-red-900 border border-red-500/50'
+                        }`}
+                      />
+                      <ShieldAlert className="w-3 h-3 shrink-0" aria-hidden="true" />
+                      <span>SAFE MUTE</span>
                     </button>
                   </div>
                 </div>

@@ -551,14 +551,31 @@ export const MasterPreviewDock: React.FC<MasterPreviewDockProps> = ({
         <button
           type="button"
           onClick={onToggleEmergencyMute}
-          className={`w-full py-1.5 rounded border font-bold text-[10px] flex items-center justify-center gap-1.5 cursor-pointer ${
+          aria-pressed={emergencyMuted}
+          title={
             emergencyMuted
-              ? 'bg-red-600 border-red-300 text-white shadow-[0_0_10px_rgba(239,68,68,0.6)]'
+              ? 'EMERGENCY MUTE ENGAGED — all PA & stream outputs silenced. Click to unmute.'
+              : 'Emergency mute all PA & stream outputs'
+          }
+          className={`relative w-full py-1.5 rounded border font-bold text-[10px] flex items-center justify-center gap-1.5 cursor-pointer transition-all duration-200 overflow-hidden ${
+            emergencyMuted
+              ? 'bg-red-600 border-red-300 text-white shadow-[0_0_10px_rgba(239,68,68,0.6)] hw-mute-breath'
               : 'bg-red-950/40 border-red-500/50 text-red-300 hover:bg-red-600/25'
           }`}
         >
-          <ShieldAlert className="w-3.5 h-3.5" />
-          {emergencyMuted ? 'PA & STREAM MUTED' : 'EMERGENCY SAFE MUTE'}
+          {emergencyMuted && (
+            <span aria-hidden="true" className="hw-mute-stripes absolute inset-0 pointer-events-none" />
+          )}
+          <span
+            aria-hidden="true"
+            className={`relative w-2 h-2 rounded-full shrink-0 transition-colors duration-200 ${
+              emergencyMuted
+                ? 'bg-red-100 shadow-[0_0_5px_rgba(255,255,255,0.95)]'
+                : 'bg-red-900 border border-red-500/50'
+            }`}
+          />
+          <ShieldAlert className="relative w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+          <span className="relative">{emergencyMuted ? 'ALL OUTPUTS MUTED — CLICK TO UNMUTE' : 'EMERGENCY SAFE MUTE'}</span>
         </button>
       </div>
 

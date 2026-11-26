@@ -559,31 +559,37 @@ export function useConsoleSession({
   const syncFailedRef = useRef(false);
 
   const runStateSync = useCallback((body: string) => {
-    appFetch('/api/state/sync', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body,
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        if (syncFailedRef.current) {
-          syncFailedRef.current = false;
-          toastSuccess('Console state saved', 'Persistence recovered — your mix is safe on disk again.');
-        }
+    // Local named attempt fn — the toast retry closes over THIS invocation's
+    // attempt, so a retry re-runs the same payload without capturing the
+    // outer useCallback binding (react-hooks/immutability safe).
+    const attempt = (payload: string): void => {
+      appFetch('/api/state/sync', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
       })
-      .catch((err) => {
-        syncFailedRef.current = true;
-        // Roll back dedup so any subsequent state change retries by itself.
-        lastSyncBodyRef.current = null;
-        diagError('persist', `Console state sync failed (${String(err)}) — rolling back dedup so the next change retries.`);
-        toastPersistFailure({
-          what: 'console state',
-          key: 'persist:state-sync',
-          retry: () => {
-            void runStateSync(body);
-          },
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          if (syncFailedRef.current) {
+            syncFailedRef.current = false;
+            toastSuccess('Console state saved', 'Persistence recovered — your mix is safe on disk again.');
+          }
+        })
+        .catch((err) => {
+          syncFailedRef.current = true;
+          // Roll back dedup so any subsequent state change retries by itself.
+          lastSyncBodyRef.current = null;
+          diagError('persist', `Console state sync failed (${String(err)}) — rolling back dedup so the next change retries.`);
+          toastPersistFailure({
+            what: 'console state',
+            key: 'persist:state-sync',
+            retry: () => {
+              attempt(payload);
+            },
+          });
         });
-      });
+    };
+    attempt(body);
   }, []);
 
   useEffect(() => {

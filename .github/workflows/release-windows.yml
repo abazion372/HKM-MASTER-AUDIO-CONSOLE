@@ -62,18 +62,22 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'HKM Audio System ${{ github.ref_name }}'
           releaseBody: |
-            ## HKM Audio System — v1.1.3 · Persistent Ring Indicator, Zero-Default Delays & Crash Containment
+            ## HKM Audio System — v1.1.4 · Unmistakable Mute States & the 5 ms Exclusive Floor
 
-            ### Fixed in v1.1.3
-            - **The red RING badge no longer pops on/off** — a confirmed feedback ring now latches for 8 seconds (steady, readable, keeps its frequency), severity escalates CLEAR → WATCH → RING with smooth color transitions, and every badge site is a persistent slot. No more strobing or flicker.
-            - **100% input/output sync out of the box** — zone/crossover alignment delays no longer ship pre-applied (sub 4.5 ms, high 0.8 ms, rear 48.1 ms, foyer 64.1 ms defaults all → 0). Alignment delay is strictly opt-in per zone. These hidden defaults were the bulk of the remaining milliseconds.
-            - **Adaptive loopback cushion** — starts at 10 ms, decays toward a 4 ms floor on healthy feeds, self-heals upward on jittery machines; surge ceiling 50 → 25 ms.
+            ### Fixed in v1.1.4
+            - **A muted input no longer looks "engaged"** — the channel MUTE pill used to glow cyan (the console's "active" colour) when muted. Muted is now unmissable: solid red pill with speaker-X icon, diagonal red-tape stripes, steady breathing glow, a red MUTED badge in the column header, an INPUT MUTED readout, a red routing seam, and a dimmed preamp/fader so the whole channel reads as dead. ACTIVE stays green, OPEN SLOT stays gray.
+            - **The channel strip and tab rail tell the same story** — latching red MUTE key with stripes, red-tinted channel header with pulsing speaker-X, dead-dark super fader, and a red strike-through across the muted channel's tab.
+            - **MUTE ALL and BYPASS DSP are now persistent latching switches** — constant labels (no more text swaps), hardware state LEDs, zero layout shift, calm breathing glow when engaged. Every master-mute control in the app (top bar, preview dock, right panel, DSP module) behaves identically, and every state toggle is a proper switch for screen readers (aria-pressed).
 
-            ### Added in v1.1.3
-            - **Crash containment** — a fault in any console module now shows a recovery card instead of a dead white screen; one-click reload restores the full mix from the persisted session, with copy-diagnostics for support.
+            ### Changed in v1.1.4
+            - **Exclusive-mode latency floor 10 ms → 5 ms** — the WASAPI period ladder now tries a 5 ms period first on pro DACs (halving exclusive latency where supported), falling back automatically to 10/20 ms.
+            - **Final zero-latency audit** — every remaining millisecond is now documented and verified at its floor; the full stage-by-stage ledger lives in the engine docs.
 
-            ### Also in this release (v1.1.0–v1.1.2)
-            - Deep latency pass (adaptive ≈5 ms shared endpoint target, 10 ms exclusive period, 2.7 ms raw tap), true one-button whole-DSP bypass, >8-channel discrete jack routing, real jack metadata, exclusive WASAPI per-jack output, phone companion live-sync, Android HKM FOH Companion APK, update dialog with live speed/ETA + Download-in-Browser fast path — every v1.0.1–v1.0.4 fix included; installed apps auto-update to this release.
+            ### Added in v1.1.4
+            - **docs/AUDIO-LATENCY.md** — a user guide to the latency table, the floor for every path, how to reach it (exclusive mode, zero alignment delays), and how to judge sync correctly (clap-and-listen, not video lips).
+
+            ### Also in this release (v1.1.0–v1.1.3)
+            - Deep latency pass (adaptive ≈5 ms shared target, 10 ms exclusive period, 2.7 ms raw tap), true one-button whole-DSP bypass, >8-channel discrete jack routing, exclusive WASAPI per-jack output, phone companion live-sync, Android companion APK, update dialog with live speed/ETA + Download-in-Browser fast path, persistent latched feedback-ring indicator, zero-default alignment delays, adaptive loopback cushion, crash containment — every v1.0.1–v1.1.3 fix included; installed apps auto-update to this release.
           releaseDraft: false
           prerelease: false
 

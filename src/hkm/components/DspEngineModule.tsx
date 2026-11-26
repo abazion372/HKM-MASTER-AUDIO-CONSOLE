@@ -1137,14 +1137,28 @@ export const DspEngineModule: React.FC<DspEngineModuleProps> = ({
           <button
             type="button"
             onClick={onToggleEmergencyMute}
-            className={`px-3 py-1 rounded border font-semibold flex items-center gap-1 ${
+            aria-pressed={emergencyMuted}
+            title={
               emergencyMuted
-                ? 'border-red-400 bg-red-600 text-white'
+                ? 'EMERGENCY MUTE ENGAGED — all outputs silenced. Click to unmute.'
+                : 'Emergency mute all outputs'
+            }
+            className={`relative px-3 py-1 rounded border font-semibold flex items-center gap-1.5 transition-all duration-200 ${
+              emergencyMuted
+                ? 'border-red-400 bg-red-600 text-white shadow-[0_0_10px_rgba(239,68,68,0.55)] hw-mute-breath'
                 : 'border-red-500/50 bg-red-950/40 text-red-300 hover:bg-red-600/25'
             }`}
           >
-            <ShieldAlert className="w-3 h-3" />
-            <span>{emergencyMuted ? 'UNMUTE ALL' : 'MUTE ALL'}</span>
+            <span
+              aria-hidden="true"
+              className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors duration-200 ${
+                emergencyMuted
+                  ? 'bg-red-100 shadow-[0_0_5px_rgba(255,255,255,0.95)]'
+                  : 'bg-red-900 border border-red-500/50'
+              }`}
+            />
+            <ShieldAlert className="w-3 h-3 shrink-0" aria-hidden="true" />
+            <span>MUTE ALL</span>
           </button>
           <button
             type="button"
