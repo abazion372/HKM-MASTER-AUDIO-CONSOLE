@@ -294,7 +294,7 @@ const ColumnSlider: React.FC<ColumnSliderProps> = ({
         className="relative w-5 flex items-center justify-center touch-none"
       >
         {/* Recessed Track Slot */}
-        <div className="w-1.5 h-full rounded-full bg-[#090D12] border border-[#334355] shadow-inner relative overflow-hidden">
+        <div className="w-1.5 h-full rounded-full hw-fader-slot relative overflow-hidden">
           <div
             className="absolute bottom-0 inset-x-0 rounded-full transition-all duration-75"
             style={{
@@ -340,11 +340,10 @@ const ColumnSlider: React.FC<ColumnSliderProps> = ({
           </div>
         ) : (
           <div
-            className="absolute left-0 right-0 h-3 rounded-[2px] border border-slate-400/75 shadow-[0_2px_6px_rgba(0,0,0,0.9)] flex items-center justify-center pointer-events-none"
+            className="absolute left-0 right-0 h-3 hw-fader-cap flex items-center justify-center pointer-events-none"
             style={{
               top: `${topPct}%`,
               transform: 'translateY(-50%)',
-              background: 'linear-gradient(180deg, #64748B 0%, #2D3748 48%, #1A202C 100%)',
             }}
           >
             <div
@@ -541,15 +540,26 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
       <div className="h-8 shrink-0 px-3 hw-card-header border-b border-[#4D5F74] flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <span
+            className={`hw-lamp shrink-0 ${chAssigned ? '' : 'opacity-60'}`}
+            data-on={chAssigned ? (chActive ? 'green' : 'red') : undefined}
+            style={{ width: 6, height: 6 }}
+            aria-hidden="true"
+          />
+          <span
             className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded border truncate max-w-[140px] ${
               chAssigned
                 ? 'bg-[#0D2126] border-teal-400/70 text-teal-200'
                 : 'bg-[#111720] border-[#334155] text-slate-400'
             }`}
+            title={
+              chAssigned
+                ? `CH${selectedChannel.index} — ${selectedChannel.name}`
+                : `CH${selectedChannel.index} is an open slot — assign a hardware input to enable it`
+            }
           >
-            CH{selectedChannel.index} · {chAssigned ? selectedChannel.name : 'Open Slot'}
+            CH{selectedChannel.index} · {chAssigned ? selectedChannel.name : 'OPEN'}
           </span>
-          <h1 className="font-display text-xs font-bold tracking-[0.14em] text-slate-100 uppercase truncate hidden sm:block">
+          <h1 className="font-display text-xs font-bold tracking-[0.14em] hw-engraved uppercase truncate hidden sm:block">
             CENTRAL DSP PROCESSING CHAIN
           </h1>
         </div>
@@ -655,8 +665,11 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
       {subView === 'yaml' && (
         <div className="flex-1 min-h-0 flex flex-col p-3 gap-2 font-mono text-xs">
           <div className="flex items-center justify-between">
-            <span className="text-slate-300 font-bold uppercase tracking-wider">
-              Generated CamillaDSP Pipeline Configuration
+            <span
+              className="hw-engraved font-bold uppercase tracking-wider"
+              title="Generated CamillaDSP Pipeline Configuration"
+            >
+              CAMILLADSP CONFIG
             </span>
             <button
               type="button"
@@ -665,7 +678,7 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                 setCopiedYaml(true);
                 window.setTimeout(() => setCopiedYaml(false), 1800);
               }}
-              className="px-2.5 py-1 rounded border border-teal-500/40 bg-teal-500/15 text-teal-200 flex items-center gap-1.5 cursor-pointer"
+              className="px-2.5 py-1 rounded hw-key !bg-none !bg-teal-500/15 !border-teal-500/40 !text-teal-200 flex items-center gap-1.5 cursor-pointer"
             >
               {copiedYaml ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copiedYaml ? 'COPIED' : 'COPY YAML'}</span>
@@ -703,7 +716,7 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                 ============================================================== */}
             <div className="hw-card rounded-md overflow-hidden flex flex-col relative z-10 min-h-0">
               <div className="hw-card-header h-[32px] px-1.5 flex items-center justify-center text-center shrink-0">
-                <span className="text-[8.5px] font-bold tracking-[0.08em] uppercase leading-[1.15]">
+                <span className="hw-engraved text-[8.5px] font-bold tracking-[0.08em] uppercase leading-[1.15]">
                   INPUT CONDITIONING
                 </span>
               </div>
@@ -712,14 +725,20 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                   className={`text-[8.5px] font-mono font-semibold truncate ${
                     chAssigned ? 'text-[#99F6E4]' : 'text-slate-400'
                   }`}
+                  title={
+                    chAssigned
+                      ? `Selected input channel: CH${selectedChannel.index} — ${selectedChannel.name}`
+                      : `CH${selectedChannel.index} is an open slot — assign a hardware input to enable it`
+                  }
                 >
-                  {chAssigned ? `Selected CH${selectedChannel.index}` : `Open Slot CH${selectedChannel.index}`}
+                  {chAssigned ? `CH${selectedChannel.index} · SEL` : `CH${selectedChannel.index} · OPEN`}
                 </span>
                 {chAssigned && selectedChannel.mute && (
                   <span
-                    className="px-1 rounded bg-red-600/90 border border-red-300/70 text-white text-[7px] font-mono font-bold tracking-[0.14em] shrink-0"
+                    className="flex items-center gap-1 px-1 rounded bg-red-950/70 border border-red-400/60 text-red-200 text-[7px] font-mono font-bold tracking-[0.14em] shrink-0"
                     title="This input channel is MUTED — no signal leaves the channel"
                   >
+                    <span className="hw-lamp" data-on="red" style={{ width: 5, height: 5 }} aria-hidden="true" />
                     MUTED
                   </span>
                 )}
@@ -731,7 +750,7 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                     input strip for the selected channel) */}
                 <div className="w-full flex flex-col gap-1 shrink-0">
                   <div className="flex items-center justify-between gap-1 px-0.5 min-w-0">
-                    <span className="font-mono text-[7px] font-bold uppercase tracking-[0.14em] text-slate-400 shrink-0">
+                    <span className="font-mono text-[7px] font-bold uppercase tracking-[0.14em] hw-engraved shrink-0">
                       Input Source
                     </span>
                     <span
@@ -764,14 +783,14 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                                 ? ' · Keys/playback submixers. No phantom on jacks.'
                                 : ' · Condenser mics. +48V available.'
                           }`}
-                          className={`h-6 rounded border font-mono text-[8.5px] font-bold tracking-wider transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                          className={`h-6 rounded font-mono text-[8.5px] font-bold tracking-wider cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hw-key ${
                             active
                               ? m === 'mic'
-                                ? 'bg-cyan-500/25 border-cyan-300/70 text-cyan-200 shadow-[0_0_8px_rgba(34,211,238,0.4)]'
+                                ? '!bg-none !bg-cyan-500/25 !border-cyan-300/70 !text-cyan-200 !shadow-[0_0_8px_rgba(34,211,238,0.4)]'
                                 : m === 'line'
-                                  ? 'bg-emerald-500/25 border-emerald-300/70 text-emerald-200 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
-                                  : 'bg-fuchsia-500/25 border-fuchsia-300/70 text-fuchsia-200 shadow-[0_0_8px_rgba(217,70,239,0.45)]'
-                              : 'bg-[#0A0F16] border-slate-700/80 text-slate-500 hover:text-slate-300'
+                                  ? '!bg-none !bg-emerald-500/25 !border-emerald-300/70 !text-emerald-200 !shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+                                  : '!bg-none !bg-fuchsia-500/25 !border-fuchsia-300/70 !text-fuchsia-200 !shadow-[0_0_8px_rgba(217,70,239,0.45)]'
+                              : ''
                           }`}
                         >
                           {spec.shortLabel}
@@ -895,10 +914,10 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                           ? '+48V Phantom ON — disengage'
                           : '+48V Phantom Power (condenser mics)'
                     }
-                    className={`py-1 rounded font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                    className={`py-1 rounded font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hw-key ${
                       chAssigned && selectedChannel.phantom48v && modeSpec.phantomAllowed
-                        ? 'bg-red-600 border border-red-300 text-white'
-                        : 'hw-top-btn'
+                        ? '!bg-none !border-red-300 !bg-red-600 !text-white'
+                        : ''
                     }`}
                   >
                     48V
@@ -907,10 +926,10 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                     type="button"
                     disabled={locked || !chAssigned}
                     onClick={() => onUpdateChannel(selectedChannel.id, { padDb: !selectedChannel.padDb })}
-                    className={`py-1 rounded font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                    className={`py-1 rounded font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hw-key ${
                       chAssigned && selectedChannel.padDb
-                        ? 'bg-amber-500 border border-amber-300 text-slate-950'
-                        : 'hw-top-btn'
+                        ? '!bg-none !border-amber-300 !bg-amber-500 !text-slate-950'
+                        : ''
                     }`}
                   >
                     -20
@@ -921,10 +940,10 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                     onClick={() =>
                       onUpdateChannel(selectedChannel.id, { polarityInverted: !selectedChannel.polarityInverted })
                     }
-                    className={`py-1 rounded font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                    className={`py-1 rounded font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hw-key ${
                       chAssigned && selectedChannel.polarityInverted
-                        ? 'bg-teal-500 border border-teal-300 text-slate-950'
-                        : 'hw-top-btn'
+                        ? '!bg-none !border-teal-300 !bg-teal-500 !text-slate-950'
+                        : ''
                     }`}
                   >
                     Ø
@@ -1031,12 +1050,12 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                     onClick={() => onUpdateChannel(selectedChannel.id, { mainPaAssign: !(selectedChannel.mainPaAssign ?? true) })}
                     aria-pressed={chAssigned ? Boolean(selectedChannel.mainPaAssign ?? true) : undefined}
                     title={!chAssigned ? 'Open Slot — Unassigned' : 'Assign to Main PA Mix'}
-                    className={`py-1 rounded border tracking-normal transition cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
+                    className={`py-1 rounded tracking-normal cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed hw-key ${
                       !chAssigned
-                        ? 'bg-[#070A10] border-slate-800/80 text-slate-600'
+                        ? ''
                         : selectedChannel.mainPaAssign ?? true
-                          ? 'bg-emerald-500/25 border-emerald-400 text-emerald-200 shadow-[0_0_8px_rgba(16,185,129,0.35)]'
-                          : 'bg-[#0A0F1A] border-slate-700/80 text-slate-500 hover:text-slate-300'
+                          ? '!bg-none !bg-emerald-500/25 !border-emerald-400 !text-emerald-200 !shadow-[0_0_8px_rgba(16,185,129,0.35)]'
+                          : ''
                     }`}
                   >
                     MAIN PA
@@ -1047,12 +1066,12 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                     onClick={() => onUpdateChannel(selectedChannel.id, { streamAssign: !(selectedChannel.streamAssign ?? true) })}
                     aria-pressed={chAssigned ? Boolean(selectedChannel.streamAssign ?? true) : undefined}
                     title={!chAssigned ? 'Open Slot — Unassigned' : 'Assign to Live Stream / OBS Mix'}
-                    className={`py-1 rounded border tracking-normal transition cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
+                    className={`py-1 rounded tracking-normal cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed hw-key ${
                       !chAssigned
-                        ? 'bg-[#070A10] border-slate-800/80 text-slate-600'
+                        ? ''
                         : selectedChannel.streamAssign ?? true
-                          ? 'bg-emerald-500/25 border-emerald-400 text-emerald-200 shadow-[0_0_8px_rgba(16,185,129,0.35)]'
-                          : 'bg-[#0A0F1A] border-slate-700/80 text-slate-500 hover:text-slate-300'
+                          ? '!bg-none !bg-emerald-500/25 !border-emerald-400 !text-emerald-200 !shadow-[0_0_8px_rgba(16,185,129,0.35)]'
+                          : ''
                     }`}
                   >
                     STREAM
@@ -1063,12 +1082,12 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                     onClick={() => onUpdateChannel(selectedChannel.id, { subAssign: !selectedChannel.subAssign })}
                     aria-pressed={chAssigned ? Boolean(selectedChannel.subAssign) : undefined}
                     title={!chAssigned ? 'Open Slot — Unassigned' : 'Assign to Subwoofer Bus'}
-                    className={`py-1 rounded border tracking-normal transition cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
+                    className={`py-1 rounded tracking-normal cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed hw-key ${
                       !chAssigned
-                        ? 'bg-[#070A10] border-slate-800/80 text-slate-600'
+                        ? ''
                         : selectedChannel.subAssign
-                          ? 'bg-fuchsia-500/25 border-fuchsia-400 text-fuchsia-200 shadow-[0_0_8px_rgba(217,70,239,0.4)]'
-                          : 'bg-[#0A0F1A] border-slate-700/80 text-slate-500 hover:text-slate-300'
+                          ? '!bg-none !bg-fuchsia-500/25 !border-fuchsia-400 !text-fuchsia-200 !shadow-[0_0_8px_rgba(217,70,239,0.4)]'
+                          : ''
                     }`}
                   >
                     SUB
@@ -1082,12 +1101,12 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                 ============================================================== */}
             <div className="hw-card rounded-md overflow-hidden flex flex-col relative z-10 min-h-0">
               <div className="hw-card-header h-[32px] px-1.5 flex items-center justify-center text-center shrink-0">
-                <span className="text-[8.5px] font-bold tracking-[0.07em] uppercase leading-[1.15]">
+                <span className="hw-engraved text-[8.5px] font-bold tracking-[0.07em] uppercase leading-[1.15]">
                   AUTOMATIC GAIN CONTROL
                 </span>
               </div>
               <div className="hw-card-subheader h-[21px] px-1.5 flex items-center justify-center text-center shrink-0">
-                <span className="text-[8.5px] font-mono font-semibold text-slate-300 truncate">AGC</span>
+                <span className="text-[8.5px] font-mono font-semibold hw-engraved truncate">AGC</span>
               </div>
 
               <div className="flex-1 min-h-0 p-1.5 2xl:p-2 pb-2 2xl:pb-2.5 flex flex-col items-center justify-between gap-1.5">
@@ -1130,11 +1149,11 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                       });
                     }}
                     title="Click to cycle Smart AGC Target RMS (-20 / -18 / -14 dBFS)"
-                    className="hw-top-btn w-full px-1.5 py-1 rounded text-emerald-200 font-bold tabular-nums whitespace-nowrap truncate cursor-pointer disabled:opacity-45"
+                    className="hw-lcd w-full px-1.5 py-1 rounded text-emerald-200 font-bold tabular-nums whitespace-nowrap truncate cursor-pointer disabled:opacity-45"
                   >
                     TGT {(dsp.smartAgc?.targetRmsDb ?? -18).toFixed(0)} dBFS
                   </button>
-                  <div className="text-slate-300 tabular-nums whitespace-nowrap">
+                  <div className="hw-engraved tabular-nums whitespace-nowrap">
                     LIVE{' '}
                     <span className="text-[#4ADE80] font-bold">
                       {(telemetry.agcGainDb ?? 0) >= 0 ? '+' : ''}
@@ -1194,12 +1213,12 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                 ============================================================== */}
             <div className="hw-card rounded-md overflow-hidden flex flex-col relative z-10 min-h-0">
               <div className="hw-card-header h-[32px] px-1.5 flex items-center justify-center text-center shrink-0">
-                <span className="text-[8.5px] font-bold tracking-[0.08em] uppercase leading-[1.15]">
+                <span className="hw-engraved text-[8.5px] font-bold tracking-[0.08em] uppercase leading-[1.15]">
                   EQUALIZATION
                 </span>
               </div>
               <div className="hw-card-subheader h-[21px] px-1.5 flex items-center justify-center text-center shrink-0">
-                <span className="text-[8.5px] font-mono font-semibold text-slate-300 truncate">
+                <span className="text-[8.5px] font-mono font-semibold hw-engraved truncate">
                   {dsp.eqBands.length}-BAND PEQ
                 </span>
               </div>
@@ -1293,12 +1312,12 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                     <button
                       type="button"
                       onClick={() => setEqPage((p) => (p + 4 >= dsp.eqBands.length ? 0 : p + 4))}
-                      className="hw-top-btn px-1.5 py-0.5 rounded font-bold text-teal-200 cursor-pointer"
+                      className="hw-key px-1.5 py-0.5 rounded font-bold !text-teal-200 cursor-pointer"
                     >
                       {eqPage + 1}-{Math.min(dsp.eqBands.length, eqPage + 4)}
                     </button>
                   ) : (
-                    <span className="text-slate-400">±15dB</span>
+                    <span className="hw-engraved">±15dB</span>
                   )}
                   {onAddEqBand && (
                     <button
@@ -1306,7 +1325,7 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                       disabled={locked}
                       onClick={onAddEqBand}
                       title="Add parametric EQ band"
-                      className="hw-top-btn px-1.5 py-0.5 rounded font-bold text-emerald-200 cursor-pointer disabled:opacity-45"
+                      className="hw-key px-1.5 py-0.5 rounded font-bold !text-emerald-200 cursor-pointer disabled:opacity-45"
                     >
                       <Plus className="w-2.5 h-2.5" />
                     </button>
@@ -1318,7 +1337,7 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                       onUpdateDsp({ eqBands: dsp.eqBands.map((b) => ({ ...b, gainDb: 0 })) })
                     }
                     title="Flatten all EQ bands to 0 dB"
-                    className="hw-top-btn px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5 cursor-pointer disabled:opacity-45"
+                    className="hw-key px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5 cursor-pointer disabled:opacity-45"
                   >
                     <RotateCcw className="w-2 h-2" />
                     FLAT
@@ -1332,12 +1351,12 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                 ============================================================== */}
             <div className="hw-card rounded-md overflow-hidden flex flex-col relative z-10 min-h-0">
               <div className="hw-card-header h-[32px] px-1.5 flex items-center justify-center text-center shrink-0">
-                <span className="text-[8.5px] font-bold tracking-[0.08em] uppercase leading-[1.15]">
+                <span className="hw-engraved text-[8.5px] font-bold tracking-[0.08em] uppercase leading-[1.15]">
                   COMPRESSION
                 </span>
               </div>
               <div className="hw-card-subheader h-[21px] px-1.5 flex items-center justify-center text-center shrink-0">
-                <span className="text-[8.5px] font-mono font-semibold text-slate-300 truncate">DYNAMICS</span>
+                <span className="text-[8.5px] font-mono font-semibold hw-engraved truncate">DYNAMICS</span>
               </div>
 
               <div className="flex-1 min-h-0 p-1.5 2xl:p-2 pb-2 2xl:pb-2.5 flex flex-col items-center justify-between gap-1.5">
@@ -1364,13 +1383,13 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                 </div>
 
                 <div className="w-full space-y-0.5 font-mono text-[8.5px] text-center shrink-0">
-                  <div className="flex items-center justify-between text-slate-300 px-1">
+                  <div className="flex items-center justify-between hw-engraved px-1">
                     <span>THRESH</span>
                     <span className="text-amber-300 font-bold tabular-nums">
                       {dsp.compressor.thresholdDb.toFixed(0)} dBFS
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-slate-400 px-1">
+                  <div className="flex items-center justify-between hw-engraved px-1">
                     <span>GR</span>
                     <span className="text-emerald-300 font-bold tabular-nums">
                       -{Math.abs(telemetry.gainReductionDb).toFixed(1)} dB
@@ -1394,9 +1413,9 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                 </button>
 
                 {/* Ratio / Attack / Release Quick Scrub Controls */}
-                <div className="w-full space-y-1 font-mono text-[8px] 2xl:text-[8.5px] shrink-0 bg-[#0B1016] border border-[#344456] rounded px-1 py-1 2xl:p-1.5">
+                <div className="w-full space-y-1 font-mono text-[8px] 2xl:text-[8.5px] shrink-0 hw-lcd rounded px-1 py-1 2xl:p-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400">RAT<span className="hidden 2xl:inline">IO</span></span>
+                    <span className="hw-engraved">RAT<span className="hidden 2xl:inline">IO</span></span>
                     <div className="flex items-center gap-0.5 2xl:gap-1">
                       <button
                         type="button"
@@ -1409,7 +1428,7 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                             },
                           })
                         }
-                        className="hw-top-btn px-1 py-0.5 2xl:px-1.5 rounded font-bold leading-none cursor-pointer"
+                        className="hw-key px-1 py-0.5 2xl:px-1.5 rounded font-bold leading-none cursor-pointer"
                       >
                         −
                       </button>
@@ -1425,18 +1444,18 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                             },
                           })
                         }
-                        className="hw-top-btn px-1 py-0.5 2xl:px-1.5 rounded font-bold leading-none cursor-pointer"
+                        className="hw-key px-1 py-0.5 2xl:px-1.5 rounded font-bold leading-none cursor-pointer"
                       >
                         +
                       </button>
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400">ATTACK</span>
+                    <span className="hw-engraved">ATTACK</span>
                     <span className="text-slate-200 tabular-nums">{dsp.compressor.attackMs} ms</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400">RELEASE</span>
+                    <span className="hw-engraved">RELEASE</span>
                     <span className="text-slate-200 tabular-nums">{dsp.compressor.releaseMs} ms</span>
                   </div>
                 </div>
@@ -1465,12 +1484,12 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                 ============================================================== */}
             <div className="hw-card rounded-md overflow-hidden flex flex-col relative z-10 min-h-0">
               <div className="hw-card-header h-[32px] px-1.5 flex items-center justify-center text-center shrink-0">
-                <span className="text-[8.5px] font-bold tracking-[0.07em] uppercase leading-[1.15]">
+                <span className="hw-engraved text-[8.5px] font-bold tracking-[0.07em] uppercase leading-[1.15]">
                   FEEDBACK-SAFE PROCESSING
                 </span>
               </div>
               <div className="hw-card-subheader h-[21px] px-1.5 flex items-center justify-center text-center shrink-0">
-                <span className="text-[8.5px] font-mono font-semibold text-slate-300 truncate">FBX · HPF</span>
+                <span className="text-[8.5px] font-mono font-semibold hw-engraved truncate">FBX · HPF</span>
               </div>
 
               <div className="flex-1 min-h-0 p-1.5 2xl:p-2 pb-2 2xl:pb-2.5 flex flex-col items-center justify-between gap-1.5">
@@ -1490,7 +1509,7 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                 </div>
 
                 <div className="w-full space-y-1 font-mono text-[8.5px] text-center shrink-0">
-                  <div className="flex items-center justify-between text-slate-300 px-1">
+                  <div className="flex items-center justify-between hw-engraved px-1">
                     <span>HPF CUT</span>
                     <span className="text-teal-300 font-bold tabular-nums">{dsp.hpfHz} Hz</span>
                   </div>
@@ -1511,7 +1530,7 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                       });
                     }}
                     title="Cycle 50/60 Hz AC Mains Hum Notch Trap"
-                    className="hw-top-btn w-full py-1 rounded text-teal-200 font-bold cursor-pointer disabled:opacity-45"
+                    className="hw-lcd w-full py-1 rounded text-teal-200 font-bold cursor-pointer disabled:opacity-45"
                   >
                     HUM TRAP: {(dsp.cleanStandby?.mainsHumNotch ?? 'off').toUpperCase()}
                   </button>
@@ -1558,12 +1577,12 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                 ============================================================== */}
             <div className="hw-card rounded-md overflow-hidden flex flex-col relative z-10 min-h-0">
               <div className="hw-card-header h-[32px] px-1.5 flex items-center justify-center text-center shrink-0">
-                <span className="text-[8.5px] font-bold tracking-[0.08em] uppercase leading-[1.15]">
+                <span className="hw-engraved text-[8.5px] font-bold tracking-[0.08em] uppercase leading-[1.15]">
                   EFFECTS SENDS
                 </span>
               </div>
               <div className="hw-card-subheader h-[21px] px-1.5 flex items-center justify-center text-center shrink-0">
-                <span className="text-[8.5px] font-mono font-semibold text-slate-300 truncate">BUS SENDS</span>
+                <span className="text-[8.5px] font-mono font-semibold hw-engraved truncate">BUS SENDS</span>
               </div>
 
               <div className="flex-1 min-h-0 p-1.5 2xl:p-2 pb-2 2xl:pb-2.5 flex flex-col items-center justify-between gap-1.5">
@@ -1676,7 +1695,7 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                   </div>
                 </div>
 
-                <div className="w-full flex items-center justify-between px-1 font-mono text-[7.5px] 2xl:text-[8px] text-slate-300 shrink-0">
+                <div className="w-full flex items-center justify-between px-1 font-mono text-[7.5px] 2xl:text-[8px] hw-engraved shrink-0">
                   <span>PAN {(selectedChannel.pan || 0) === 0 ? 'CTR' : `${selectedChannel.pan}%`}</span>
                   <span>DLY {dsp.masterDelayMs}ms</span>
                 </div>
@@ -1688,16 +1707,16 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                 ============================================================== */}
             <div className="hw-card rounded-md overflow-hidden flex flex-col relative z-10 min-h-0">
               <div className="hw-card-header h-[32px] px-1.5 flex items-center justify-center text-center shrink-0">
-                <span className="text-[8.5px] font-bold tracking-[0.08em] uppercase leading-[1.15]">
+                <span className="hw-engraved text-[8.5px] font-bold tracking-[0.08em] uppercase leading-[1.15]">
                   MONITOR MIXES
                 </span>
               </div>
               <div className="hw-card-subheader h-[21px] px-1.5 flex items-center justify-center text-center shrink-0">
-                <span className="text-[8.5px] font-mono font-semibold text-slate-300 truncate">MON 1</span>
+                <span className="text-[8.5px] font-mono font-semibold hw-engraved truncate">MON 1</span>
               </div>
 
               <div className="flex-1 min-h-0 p-1.5 2xl:p-2 pb-2 2xl:pb-2.5 flex flex-col items-center justify-between gap-1.5">
-                <div className="font-mono text-base font-bold text-slate-100 tabular-nums leading-none shrink-0">
+                <div className="font-mono text-base font-bold text-slate-100 tabular-nums leading-none shrink-0 hw-lcd rounded px-1.5 py-0.5">
                   {selectedChannel.auxSends.stageMon1Db >= 0 ? '+' : ''}
                   {selectedChannel.auxSends.stageMon1Db.toFixed(1)} <span className="text-[10px] text-slate-400">dB</span>
                 </div>
@@ -1764,11 +1783,11 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
           <div className="h-[84px] shrink-0 hw-card rounded-md px-3 py-1.5 flex flex-col justify-between relative">
             {/* Top/Main Row: MAIN OUTPUTS label + Tall h-6 Meter Bars + Compact Gain Slider */}
             <div className="flex items-center gap-3">
-              <span className="font-mono text-[9.5px] font-bold tracking-wider text-slate-200 uppercase w-24 shrink-0">
+              <span className="font-mono text-[9.5px] font-bold tracking-wider hw-engraved uppercase w-24 shrink-0">
                 MAIN OUTPUTS
               </span>
 
-              <div className="flex-1 flex items-center gap-[3px] h-6 bg-[#070B10] border border-[#344354] rounded px-1 py-0.5">
+              <div className="flex-1 flex items-center gap-[3px] h-6 hw-lcd rounded px-1 py-0.5">
                 {Array.from({ length: 18 }).map((_, i) => {
                   const lit = i < leftSegmentsLit;
                   const color =
@@ -1787,7 +1806,7 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                 })}
               </div>
 
-              <div className="flex-1 flex items-center gap-[3px] h-6 bg-[#070B10] border border-[#344354] rounded px-1 py-0.5">
+              <div className="flex-1 flex items-center gap-[3px] h-6 hw-lcd rounded px-1 py-0.5">
                 {Array.from({ length: 18 }).map((_, i) => {
                   const lit = i < rightSegmentsLit;
                   const color =
@@ -1808,7 +1827,7 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
 
               <div className="w-32 shrink-0 flex flex-col gap-0.5">
                 <div className="flex items-center justify-between font-mono text-[8px] font-bold">
-                  <span className="text-slate-300">-36 / +6</span>
+                  <span className="hw-engraved">-36 / +6</span>
                   <span className="text-[#4ADE80] tabular-nums">
                     {(dsp.masterOutputGainDb ?? 0) >= 0 ? '+' : ''}
                     {(dsp.masterOutputGainDb ?? 0).toFixed(1)} dB
@@ -1831,22 +1850,22 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
             {/* Glowing Horizontal Cyan->Green Bus Rail Directly Beneath Meters */}
             <div className="flex items-center gap-2 px-1">
               <div className="flex-1 h-[2px] bg-gradient-to-r from-[#2DD4BF] via-[#4ADE80] to-[#4ADE80] shadow-[0_0_8px_rgba(74,222,128,0.7)] relative">
-                <span className="w-2 h-2 rounded-full bg-[#2DD4BF] shadow-[0_0_6px_rgba(45,212,191,0.9)] absolute left-[12%] -top-[3px]" />
-                <span className="w-2 h-2 rounded-full bg-[#4ADE80] shadow-[0_0_6px_rgba(74,222,128,0.9)] absolute left-[48%] -top-[3px]" />
-                <span className="w-2 h-2 rounded-full bg-[#4ADE80] shadow-[0_0_6px_rgba(74,222,128,0.9)] absolute left-[84%] -top-[3px]" />
+                <span className="w-2 h-2 hw-lamp absolute left-[12%] -top-[3px]" data-on="cyan" aria-hidden="true" />
+                <span className="w-2 h-2 hw-lamp absolute left-[48%] -top-[3px]" data-on="green" aria-hidden="true" />
+                <span className="w-2 h-2 hw-lamp absolute left-[84%] -top-[3px]" data-on="green" aria-hidden="true" />
               </div>
             </div>
 
             {/* Bottom Row Readout Labels */}
-            <div className="flex items-center justify-between font-mono text-[8.5px] font-bold text-slate-300 tracking-wider">
-              <span className="w-24 shrink-0 text-slate-400">MAIN OUTPUTS</span>
-              <span className="flex-1 text-center text-slate-300">
+            <div className="flex items-center justify-between font-mono text-[8.5px] font-bold hw-engraved tracking-wider">
+              <span className="w-24 shrink-0">MAIN OUTPUTS</span>
+              <span className="flex-1 text-center">
                 MAIN L {engineRunning ? `(${fastPostLDb.toFixed(1)} dBFS)` : ''}
               </span>
-              <span className="flex-1 text-center text-slate-300">
+              <span className="flex-1 text-center">
                 MAIN R {engineRunning ? `(${fastPostRDb.toFixed(1)} dBFS)` : ''}
               </span>
-              <span className="w-32 shrink-0 text-right text-slate-200">OUTPUT LEVEL</span>
+              <span className="w-32 shrink-0 text-right">OUTPUT LEVEL</span>
             </div>
           </div>
         </div>

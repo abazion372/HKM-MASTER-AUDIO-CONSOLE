@@ -318,11 +318,7 @@ export const FeedbackAnalyzerModule: React.FC<FeedbackAnalyzerModuleProps> = ({
           wctx.fillStyle = '#64748B';
           wctx.font = '11px "JetBrains Mono", monospace';
           wctx.textAlign = 'center';
-          wctx.fillText(
-            '3D 10-SECOND ROLLING WATERFALL STANDBY — START AUDIO ENGINE',
-            w / 2,
-            h / 2 - 6
-          );
+          wctx.fillText('WATERFALL · STANDBY', w / 2, h / 2 - 6);
         }
       }
     }
@@ -406,14 +402,17 @@ export const FeedbackAnalyzerModule: React.FC<FeedbackAnalyzerModuleProps> = ({
                 FEEDBACK DETECTION &amp; ADAPTIVE SUPPRESSION
               </h1>
             </div>
-            <p className="text-[11px] font-mono text-slate-400">
-              4096-pt Dual-Trace FFT · Scrolling Frequency Waterfall · Adaptive Surgical Notch Rack
+            <p
+              className="text-[11px] font-mono text-slate-400 hw-engraved"
+              title="4096-pt Dual-Trace FFT · Scrolling Frequency Waterfall · Adaptive Surgical Notch Rack"
+            >
+              4096-PT FFT · WATERFALL · NOTCH RACK
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
-          <span className="px-2.5 py-1 rounded border border-slate-800 bg-[#090D14] text-slate-300">
+          <span className="px-2.5 py-1 rounded hw-lcd text-slate-300">
             {telemetry.isRunning
               ? `${(telemetry.sampleRate / 1000).toFixed(1)} kHz · FLOOR ${telemetry.noiseFloorDb.toFixed(1)} dBFS`
               : 'ENGINE STANDBY'}
@@ -450,7 +449,7 @@ export const FeedbackAnalyzerModule: React.FC<FeedbackAnalyzerModuleProps> = ({
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
         {/* Left Telemetry & Bus Strip */}
         <div className="xl:col-span-2 rounded-lg border border-slate-800 bg-[#0D1119] p-3 flex flex-col justify-between gap-3">
-          <div className="font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-800 pb-2">
+          <div className="font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-800 pb-2 hw-engraved">
             Bus Telemetry
           </div>
 
@@ -483,7 +482,7 @@ export const FeedbackAnalyzerModule: React.FC<FeedbackAnalyzerModuleProps> = ({
             sublabel={
               telemetry.feedbackRisk.frequencyHz
                 ? `Peak ${telemetry.feedbackRisk.frequencyHz} Hz`
-                : 'No Ringing'
+                : 'CLEAR'
             }
             tone={
               (telemetry.feedbackRisk.severity ?? (telemetry.feedbackRisk.detected ? 'ring' : 'clear')) ===
@@ -500,7 +499,7 @@ export const FeedbackAnalyzerModule: React.FC<FeedbackAnalyzerModuleProps> = ({
             value={headroomMarginDb}
             max={24}
             displayValue={telemetry.isRunning ? `${headroomMarginDb.toFixed(1)}dB` : '--'}
-            sublabel={telemetry.isRunning ? 'Peak Headroom' : 'Standby'}
+            sublabel={telemetry.isRunning ? 'HEADROOM' : 'STANDBY'}
             tone={!telemetry.isRunning ? 'emerald' : headroomMarginDb < 4 ? 'red' : headroomMarginDb < 8 ? 'amber' : 'emerald'}
           />
         </div>
@@ -511,11 +510,21 @@ export const FeedbackAnalyzerModule: React.FC<FeedbackAnalyzerModuleProps> = ({
             {/* Left: Current Real-Time Dual-Trace FFT */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-mono font-semibold text-white uppercase">
+                <span className="font-mono font-semibold text-white uppercase hw-engraved">
                   Real-Time FFT Spectrum
                 </span>
-                <span className="font-mono text-[10px] text-sky-400">
-                  Amber = Raw · Cyan = Post-DSP
+                <span
+                  className="flex items-center gap-2.5 font-mono text-[9px] font-bold tracking-wider"
+                  title="Amber trace = raw pre-DSP · Cyan trace = post-DSP"
+                >
+                  <span className="flex items-center gap-1">
+                    <span className="hw-lamp" data-on="amber" style={{ width: 5, height: 5 }} aria-hidden="true" />
+                    RAW
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="hw-lamp" data-on="cyan" style={{ width: 5, height: 5 }} aria-hidden="true" />
+                    POST
+                  </span>
                 </span>
               </div>
 
@@ -530,7 +539,7 @@ export const FeedbackAnalyzerModule: React.FC<FeedbackAnalyzerModuleProps> = ({
             {/* Right: 3D Spectral History Waterfall (10s Rolling Window) */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-2 text-xs">
-                <span className="font-mono font-semibold text-white uppercase">
+                <span className="font-mono font-semibold text-white uppercase hw-engraved">
                   3D Waterfall (10s Window)
                 </span>
                 <div className="flex items-center gap-1 font-mono text-[9px]">
@@ -541,18 +550,20 @@ export const FeedbackAnalyzerModule: React.FC<FeedbackAnalyzerModuleProps> = ({
                         prev === 'isometric' ? 'steep' : 'isometric'
                       )
                     }
-                    className="px-1.5 py-0.5 rounded border border-slate-700 bg-[#090D14] text-slate-300 hover:border-sky-500/50"
+                    className="px-1.5 py-0.5 rounded hw-key"
+                    title="Toggle waterfall perspective (isometric / steep)"
                   >
                     {perspectiveTilt === 'isometric' ? 'ISO 3D' : 'STEEP 3D'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setWaterfallFrozen((f) => !f)}
-                    className={`px-1.5 py-0.5 rounded border ${
+                    className={`px-1.5 py-0.5 rounded hw-key ${
                       waterfallFrozen
-                        ? 'border-amber-400 bg-amber-500/20 text-amber-300'
-                        : 'border-slate-700 bg-[#090D14] text-slate-300 hover:border-sky-500/50'
+                        ? '!bg-none !border-amber-400 !bg-amber-500/20 !text-amber-300'
+                        : ''
                     }`}
+                    title={waterfallFrozen ? 'Waterfall frozen' : 'Waterfall live'}
                   >
                     {waterfallFrozen ? 'FROZEN' : 'LIVE'}
                   </button>
@@ -561,7 +572,8 @@ export const FeedbackAnalyzerModule: React.FC<FeedbackAnalyzerModuleProps> = ({
                     onClick={() => {
                       historySlicesRef.current = [];
                     }}
-                    className="px-1.5 py-0.5 rounded border border-slate-700 bg-[#090D14] text-slate-400 hover:text-slate-200"
+                    className="px-1.5 py-0.5 rounded hw-key"
+                    title="Clear waterfall history"
                   >
                     CLR
                   </button>
@@ -579,27 +591,30 @@ export const FeedbackAnalyzerModule: React.FC<FeedbackAnalyzerModuleProps> = ({
 
           <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-slate-400 border-t border-slate-800 pt-2">
             <span
-              className="font-mono text-[9px] font-bold tracking-wider uppercase"
-              title="20 Hz – 20 kHz log axis · a vertical ridge marks transient ringing energy (feedback candidate)"
+              className="font-mono text-[9px] font-bold tracking-wider uppercase hw-engraved"
+              title="20 Hz – 20 kHz log axis · a vertical ridge marks transient ringing energy (feedback candidate) · ridge = ring risk"
             >
-              20 HZ – 20 KHZ LOG · RIDGE = RING RISK
+              20 HZ – 20 KHZ LOG AXIS
             </span>
-            <span className="text-sky-400">
+            <span className="text-sky-400" title="10-second rolling waterfall depth">
               {telemetry.isRunning
-                ? `${historySlicesRef.current.length} / ${MAX_SLICES} slices (10.0s depth)`
-                : 'Standby'}
+                ? `${historySlicesRef.current.length}/${MAX_SLICES} · 10.0s`
+                : 'STANDBY'}
             </span>
           </div>
 
           {verificationMsg && (
             <div className="p-2.5 rounded bg-sky-500/10 border border-sky-500/30 text-xs text-sky-300 flex items-center justify-between gap-3">
-              <span className="flex items-center gap-2">
+              <span className="flex items-center gap-2" title={verificationMsg}>
                 <ShieldCheck className="w-4 h-4 shrink-0" />
-                <span>{verificationMsg}</span>
+                <span className="font-mono text-[10px] font-bold tracking-wider uppercase">STATUS</span>
               </span>
               {beforeSnap && telemetry.isRunning && (
-                <span className="font-mono text-[11px] shrink-0">
-                  Before {beforeSnap.rmsDb.toFixed(1)} dB → Now {telemetry.postRmsDb.toFixed(1)} dB
+                <span
+                  className="font-mono text-[11px] shrink-0"
+                  title={`Before ${beforeSnap.rmsDb.toFixed(1)} dB → Now ${telemetry.postRmsDb.toFixed(1)} dB`}
+                >
+                  PRE {beforeSnap.rmsDb.toFixed(1)} → POST {telemetry.postRmsDb.toFixed(1)} dB
                 </span>
               )}
             </div>
@@ -609,13 +624,13 @@ export const FeedbackAnalyzerModule: React.FC<FeedbackAnalyzerModuleProps> = ({
         {/* Right Adaptive Notch & HPF Rotary Rack */}
         <div className="xl:col-span-3 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 flex flex-col justify-between gap-3">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <span className="font-mono text-xs font-semibold text-white uppercase">
+            <span className="font-mono text-xs font-semibold text-white uppercase hw-engraved">
               Adaptive Notch Filters
             </span>
             <button
               type="button"
               onClick={handleResetNotch}
-              className="px-2 py-0.5 rounded border border-slate-700 text-[10px] font-mono text-slate-300 hover:border-slate-500 flex items-center gap-1"
+              className="px-2 py-0.5 rounded hw-key text-[10px] font-mono flex items-center gap-1"
             >
               <RotateCcw className="w-3 h-3" />
               <span>RESET</span>
@@ -770,7 +785,7 @@ export const FeedbackAnalyzerModule: React.FC<FeedbackAnalyzerModuleProps> = ({
               </span>
             )}
           </div>
-          <div className="grid grid-cols-3 gap-2 font-mono text-xs bg-[#070A10] p-2 rounded border border-slate-800">
+          <div className="grid grid-cols-3 gap-2 font-mono text-xs hw-lcd p-2 rounded">
             <div>
               <div className="text-[10px] text-slate-500">PEAK</div>
               <div className="text-slate-100">
@@ -790,11 +805,16 @@ export const FeedbackAnalyzerModule: React.FC<FeedbackAnalyzerModuleProps> = ({
             type="button"
             onClick={handleApplyNotchAndMeasure}
             disabled={!telemetry.feedbackRisk.detected}
-            className="w-full py-2 px-3 rounded bg-sky-600 hover:bg-sky-500 disabled:bg-slate-800 disabled:text-slate-500 text-white text-xs font-mono font-semibold transition-colors"
+            className="w-full py-2 px-3 rounded hw-key !bg-none !bg-sky-600 hover:!bg-sky-500 disabled:!bg-none disabled:!bg-slate-800 !text-white disabled:!text-slate-500 text-xs font-mono font-semibold transition-colors"
+            title={
+              telemetry.feedbackRisk.detected
+                ? `Apply notch at ${telemetry.feedbackRisk.frequencyHz} Hz`
+                : 'No feedback ring active'
+            }
           >
             {telemetry.feedbackRisk.detected
               ? `APPLY NOTCH @ ${telemetry.feedbackRisk.frequencyHz} Hz`
-              : 'NO FEEDBACK RING ACTIVE'}
+              : 'NO RING'}
           </button>
         </div>
 
@@ -813,7 +833,7 @@ export const FeedbackAnalyzerModule: React.FC<FeedbackAnalyzerModuleProps> = ({
               </span>
             )}
           </div>
-          <div className="grid grid-cols-3 gap-2 font-mono text-xs bg-[#070A10] p-2 rounded border border-slate-800">
+          <div className="grid grid-cols-3 gap-2 font-mono text-xs hw-lcd p-2 rounded">
             <div>
               <div className="text-[10px] text-slate-500">FUND</div>
               <div className="text-slate-100">
@@ -833,9 +853,10 @@ export const FeedbackAnalyzerModule: React.FC<FeedbackAnalyzerModuleProps> = ({
             type="button"
             onClick={handleApplyHumHpfAndVerify}
             disabled={!telemetry.humRisk.detected}
-            className="w-full py-2 px-3 rounded bg-sky-600 hover:bg-sky-500 disabled:bg-slate-800 disabled:text-slate-500 text-white text-xs font-mono font-semibold transition-colors"
+            className="w-full py-2 px-3 rounded hw-key !bg-none !bg-sky-600 hover:!bg-sky-500 disabled:!bg-none disabled:!bg-slate-800 !text-white disabled:!text-slate-500 text-xs font-mono font-semibold transition-colors"
+            title={telemetry.humRisk.detected ? 'Engage 95 Hz HPF & log DI check' : 'No mains hum detected'}
           >
-            {telemetry.humRisk.detected ? 'ENGAGE 95 Hz HPF & LOG DI CHECK' : 'NO MAINS HUM DETECTED'}
+            {telemetry.humRisk.detected ? 'ENGAGE 95 Hz HPF' : 'NO HUM'}
           </button>
         </div>
 
@@ -854,7 +875,7 @@ export const FeedbackAnalyzerModule: React.FC<FeedbackAnalyzerModuleProps> = ({
               </span>
             )}
           </div>
-          <div className="grid grid-cols-2 gap-2 font-mono text-xs bg-[#070A10] p-2 rounded border border-slate-800">
+          <div className="grid grid-cols-2 gap-2 font-mono text-xs hw-lcd p-2 rounded">
             <div>
               <div className="text-[10px] text-slate-500">CENTER</div>
               <div className="text-slate-100">{telemetry.mudRisk.centerHz} Hz</div>
@@ -868,9 +889,10 @@ export const FeedbackAnalyzerModule: React.FC<FeedbackAnalyzerModuleProps> = ({
             type="button"
             onClick={handleApplyMudCut}
             disabled={!telemetry.mudRisk.detected}
-            className="w-full py-2 px-3 rounded bg-sky-600 hover:bg-sky-500 disabled:bg-slate-800 disabled:text-slate-500 text-white text-xs font-mono font-semibold transition-colors"
+            className="w-full py-2 px-3 rounded hw-key !bg-none !bg-sky-600 hover:!bg-sky-500 disabled:!bg-none disabled:!bg-slate-800 !text-white disabled:!text-slate-500 text-xs font-mono font-semibold transition-colors"
+            title={telemetry.mudRisk.detected ? 'Apply -5.5 dB cut @ 220 Hz' : 'Vocal midrange clear'}
           >
-            {telemetry.mudRisk.detected ? 'APPLY -5.5 dB CUT @ 220 Hz' : 'VOCAL MIDRANGE CLEAR'}
+            {telemetry.mudRisk.detected ? 'APPLY -5.5 dB CUT @ 220 Hz' : 'CLEAR'}
           </button>
         </div>
       </div>
@@ -891,23 +913,30 @@ export const FeedbackAnalyzerModule: React.FC<FeedbackAnalyzerModuleProps> = ({
             onChange={setSensitivityDb}
           />
           <div className="text-xs space-y-1">
-            <div className="font-mono font-semibold text-white uppercase">
-              Detector Prominence Sensitivity
+            <div className="font-mono font-semibold text-white uppercase hw-engraved">
+              Detector Sensitivity
             </div>
-            <p className="text-[11px] text-slate-400">
-              Flags narrow-band FFT spikes exceeding neighbors by +{sensitivityDb.toFixed(1)} dB for &gt;0.8s.
+            <p
+              className="text-[11px] text-slate-400 font-mono hw-engraved"
+              title={`Flags narrow-band FFT spikes exceeding neighbors by +${sensitivityDb.toFixed(1)} dB for >0.8s.`}
+            >
+              THR +{sensitivityDb.toFixed(1)} dB · HOLD 0.8s
             </p>
           </div>
         </div>
 
         <div className="lg:col-span-8">
           <div className="flex items-center justify-between mb-1.5 font-mono text-[10px] text-slate-400 uppercase">
-            <span>Session Ring-Out &amp; Notch Intervention Log</span>
-            <span>{ringLog.length} events</span>
+            <span className="hw-engraved">Ring-Out Log</span>
+            <span>{ringLog.length} EVT</span>
           </div>
           {ringLog.length === 0 ? (
-            <div className="p-2.5 rounded border border-slate-800 bg-[#070A10] font-mono text-[11px] text-slate-500">
-              No feedback notch interventions logged this session.
+            <div
+              className="p-2.5 rounded border border-slate-800 bg-[#070A10] font-mono text-[11px] text-slate-500 flex items-center gap-2"
+              title="No feedback notch interventions logged this session."
+            >
+              <span className="hw-lamp" style={{ width: 5, height: 5 }} aria-hidden="true" />
+              NO EVENTS
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-24 overflow-y-auto">

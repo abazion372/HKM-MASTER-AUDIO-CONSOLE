@@ -105,8 +105,16 @@ export const ConsoleBottomBar: React.FC<ConsoleBottomBarProps> = ({
                 : 'border-[#25303D] text-slate-500'
             }`}
           >
-            {consoleLocked ? <Lock className="w-2.5 h-2.5" /> : <Unlock className="w-2.5 h-2.5" />}
-            {consoleLocked ? 'LOCKED' : 'UNLOCKED'}
+            <Lock className="w-2.5 h-2.5" />
+            <span>LOCK</span>
+            <span
+              aria-hidden="true"
+              className={`w-1.5 h-1.5 rounded-full ${
+                consoleLocked
+                  ? 'bg-amber-400 shadow-[0_0_5px_rgba(251,191,36,0.85)]'
+                  : 'bg-slate-600'
+              }`}
+            />
           </span>
         </div>
       </div>
@@ -197,7 +205,7 @@ export const ConsoleBottomBar: React.FC<ConsoleBottomBarProps> = ({
           }`}
         >
           <RotateCcw className="w-3 h-3" />
-          <span>{confirmReset ? 'CONFIRM RESET?' : 'RESET ALL'}</span>
+          <span className="w-[4.6rem] text-left">{confirmReset ? 'CONFIRM ?' : 'RESET ALL'}</span>
         </button>
 
         <button

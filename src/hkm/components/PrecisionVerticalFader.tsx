@@ -183,7 +183,11 @@ export const PrecisionVerticalFader: React.FC<PrecisionVerticalFaderProps> = ({
       {/* Real-time gain numeric display above fader */}
       <span
         className={`font-mono ${
-          compact ? 'text-[8px] mb-0.5 h-3.5' : large ? 'text-[11px] mb-1.5 h-5' : 'text-[9px] mb-1 h-4'
+          compact
+            ? 'text-[8px] mb-0.5 h-3.5'
+            : large
+              ? 'text-[11px] mb-1.5 h-5 hw-lcd rounded px-1'
+              : 'text-[9px] mb-1 h-4'
         } font-semibold tabular-nums flex items-center justify-center transition-colors ${
           isDormant
             ? 'text-slate-600'
@@ -207,7 +211,7 @@ export const PrecisionVerticalFader: React.FC<PrecisionVerticalFaderProps> = ({
         onDoubleClick={handleReset}
         className={`relative ${trackHeightClass} ${
           compact ? 'w-4' : large ? 'w-7' : 'w-5 sm:w-5.5'
-        } rounded-sm bg-[#04070D] border border-slate-800/90 shadow-[inset_0_2px_8px_rgba(0,0,0,0.95)] flex items-center justify-center touch-none overflow-visible`}
+        } rounded-sm hw-fader-slot flex items-center justify-center touch-none overflow-visible`}
         style={{
           boxShadow: isDormant
             ? 'inset 0 2px 8px rgba(0,0,0,0.95)'
@@ -254,9 +258,7 @@ export const PrecisionVerticalFader: React.FC<PrecisionVerticalFaderProps> = ({
         <div
           className={`absolute ${
             large ? 'left-[-10px] right-[-10px] h-6' : 'left-[-5px] right-[-5px] h-5'
-          } rounded-xs bg-gradient-to-b from-[#4A5568] via-[#2D3748] to-[#1A202C] border-2 ${
-            isDormant ? 'border-slate-700/75' : 'border-slate-300/80 group-hover:border-white'
-          } shadow-[0_4px_12px_rgba(0,0,0,0.95),inset_0_1px_2px_rgba(255,255,255,0.4)] flex items-center justify-center z-10 pointer-events-none transition-transform active:scale-105`}
+          } hw-fader-cap flex items-center justify-center z-10 pointer-events-none transition-transform active:scale-105`}
           style={{
             top: `${topPercent}%`,
             transform: 'translateY(-50%)',
@@ -288,10 +290,10 @@ export const PrecisionVerticalFader: React.FC<PrecisionVerticalFaderProps> = ({
       {/* Frequency / Axis Label under fader */}
       {label && (
         <span
-          className={`font-mono text-[9px] mt-1.5 transition-colors text-center ${
+          className={`font-mono text-[9px] mt-1.5 text-center ${
             isKeyFreq
               ? 'text-white font-bold bg-[#141C2B] px-1 py-0.5 rounded border border-slate-700'
-              : 'text-slate-400 group-hover:text-slate-200'
+              : 'hw-engraved'
           }`}
         >
           {label}

@@ -127,17 +127,25 @@ export function UpdateNotificationModal({
           {notes ? (
             <div className="p-3 rounded-lg border border-slate-800 bg-[#06090F] max-h-48 overflow-y-auto space-y-1.5 text-slate-300">
               <p className="font-semibold text-slate-100 uppercase tracking-wider text-[11px]">
-                Release Highlights:
+                Release Notes
               </p>
               <div className="whitespace-pre-line text-slate-300 font-sans leading-relaxed">
                 {notes}
               </div>
             </div>
           ) : (
-            <p className="text-slate-300">
-              A new verified release is ready with DSP audio optimizations, driver stability
-              improvements, and bug fixes.
-            </p>
+            <div
+              className="flex items-center gap-2 p-3 rounded-lg border border-sky-500/40 bg-sky-950/40 text-sky-200 font-mono text-[11px] font-bold uppercase tracking-wider"
+              title="A new verified release is ready with DSP audio optimizations, driver stability improvements, and bug fixes."
+            >
+              <span
+                aria-hidden="true"
+                className="hw-lamp"
+                data-on="cyan"
+                style={{ width: 6, height: 6 }}
+              />
+              VERIFIED RELEASE · READY
+            </div>
           )}
 
           {error && (
@@ -148,8 +156,8 @@ export function UpdateNotificationModal({
 
           {downloading && (
             <div className="space-y-2">
-              <div className="flex justify-between font-mono text-[11px] text-sky-300">
-                <span>Downloading verified update...</span>
+              <div className="flex justify-between font-mono text-[11px] text-sky-300 uppercase tracking-wider">
+                <span>Downloading</span>
                 <span>
                   {stats && stats.bytesPerSecond > 0
                     ? `${formatBytesPerSecond(stats.bytesPerSecond)}${
@@ -159,20 +167,28 @@ export function UpdateNotificationModal({
                 </span>
               </div>
               <div
-                className="h-2 w-full rounded-full bg-slate-800 overflow-hidden border border-slate-700"
+                className="hw-led-track-h h-2.5 w-full rounded-full"
                 role="progressbar"
                 aria-valuenow={progress}
                 aria-valuemin={0}
                 aria-valuemax={100}
+                aria-label="Update download progress"
               >
-                <div
-                  className="h-full bg-gradient-to-r from-sky-500 to-emerald-400 transition-all duration-200"
-                  style={{ width: `${progress}%` }}
-                />
+                {Array.from({ length: 20 }).map((_, i) => {
+                  const lit = progress >= ((i + 1) / 20) * 100;
+                  return (
+                    <span
+                      key={i}
+                      aria-hidden="true"
+                      className="hw-led-seg"
+                      data-lit={lit ? (i / 20 >= 0.8 ? 'cyan' : 'green') : undefined}
+                    />
+                  );
+                })}
               </div>
               {stats && stats.totalBytes > 0 && (
-                <p className="text-[10px] text-slate-500 font-mono">
-                  {(stats.downloadedBytes / (1024 * 1024)).toFixed(1)} MB of{' '}
+                <p className="text-[10px] text-slate-500 font-mono tabular-nums">
+                  {(stats.downloadedBytes / (1024 * 1024)).toFixed(1)} /{' '}
                   {(stats.totalBytes / (1024 * 1024)).toFixed(1)} MB
                 </p>
               )}
@@ -183,33 +199,33 @@ export function UpdateNotificationModal({
             <div className="p-3 rounded-lg border border-amber-500/50 bg-amber-950/40 text-amber-200 space-y-2">
               <div className="flex items-start gap-2.5">
                 <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <p className="leading-relaxed">
-                  In-app download is running at{' '}
-                  <span className="font-mono font-semibold text-amber-100">
-                    {formatBytesPerSecond(stats?.bytesPerSecond ?? 0)}
-                  </span>
-                  . Your browser is usually much faster on this network — grab it there instead:
+                <p
+                  className="leading-relaxed font-mono text-[11px] font-bold uppercase tracking-wider"
+                  title={`In-app download is running at ${formatBytesPerSecond(
+                    stats?.bytesPerSecond ?? 0
+                  )}. Your browser is usually much faster on this network — grab it there instead.`}
+                >
+                  Slow · {formatBytesPerSecond(stats?.bytesPerSecond ?? 0)} · Browser Faster
                 </p>
               </div>
               <button
                 type="button"
                 onClick={handleOpenInBrowser}
-                className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs flex items-center gap-2 transition cursor-pointer"
+                className="px-3 py-1.5 rounded-lg hw-key !bg-none !bg-amber-600 !border-amber-400/70 !text-white hover:!bg-amber-500 font-semibold text-xs flex items-center gap-2 transition cursor-pointer uppercase tracking-wider"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
-                Download in Browser (fast)
+                Download in Browser
               </button>
             </div>
           )}
 
           {browserOpened && !ready && (
-            <div className="p-3 rounded-lg border border-sky-500/40 bg-sky-950/40 text-sky-200 flex items-start gap-2.5">
-              <ExternalLink className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
-              <p className="leading-relaxed">
-                Opened the installer in your browser. Once it downloads, run the file — the
-                installer replaces the app and relaunches HKM Audio System automatically. You can
-                close this dialog and keep mixing meanwhile.
-              </p>
+            <div
+              className="flex items-center gap-2.5 p-3 rounded-lg border border-sky-500/40 bg-sky-950/40 text-sky-200 font-mono text-[11px] font-bold uppercase tracking-wider"
+              title="Opened the installer in your browser. Once it downloads, run the file — the installer replaces the app and relaunches HKM Audio System automatically. You can close this dialog and keep mixing meanwhile."
+            >
+              <ExternalLink className="w-4 h-4 text-sky-400 shrink-0" />
+              <span>Browser Opened · Run Installer</span>
             </div>
           )}
 
@@ -217,10 +233,14 @@ export function UpdateNotificationModal({
             <div className="p-3 rounded-lg border border-emerald-500/40 bg-emerald-950/40 text-emerald-200 flex items-center gap-2.5">
               <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
               <div>
-                <p className="font-semibold text-emerald-100">Installer Launched for v{version}</p>
-                <p className="text-[11px] text-emerald-300">
-                  The updater is replacing the application files and will relaunch HKM Audio System
-                  automatically.
+                <p
+                  className="font-semibold text-emerald-100 font-mono uppercase tracking-wider"
+                  title="The updater is replacing the application files and will relaunch HKM Audio System automatically."
+                >
+                  Installer Launched · v{version}
+                </p>
+                <p className="text-[11px] font-mono uppercase tracking-wider">
+                  Updating · Auto-Relaunch
                 </p>
               </div>
             </div>
@@ -234,15 +254,16 @@ export function UpdateNotificationModal({
               type="button"
               disabled={downloading}
               onClick={onDismiss}
-              className="px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 text-xs font-medium disabled:opacity-50 transition"
+              title={ready ? 'Close' : 'Remind Me Later'}
+              className="px-3 py-1.5 rounded-lg border hw-key !bg-none !text-slate-300 hover:!bg-slate-800 text-xs font-medium disabled:opacity-50 transition uppercase tracking-wider"
             >
-              {ready ? 'Close' : 'Remind Me Later'}
+              {ready ? 'Close' : 'Later'}
             </button>
             {!downloading && !ready && (
               <button
                 type="button"
                 onClick={handleOpenInBrowser}
-                className="px-3 py-1.5 rounded-lg border border-sky-700/60 text-sky-300 hover:bg-sky-950/60 text-xs font-medium flex items-center gap-1.5 transition cursor-pointer"
+                className="px-3 py-1.5 rounded-lg border hw-key !bg-none !border-sky-700/60 !text-sky-300 hover:!bg-sky-950/60 text-xs font-medium flex items-center gap-1.5 transition cursor-pointer uppercase tracking-wider"
                 title="Download the installer with your browser instead — usually much faster on restricted networks"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -256,12 +277,12 @@ export function UpdateNotificationModal({
               type="button"
               disabled={downloading}
               onClick={handleStartUpdate}
-              className="px-4 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs flex items-center gap-2 shadow-lg shadow-sky-600/20 disabled:opacity-50 transition cursor-pointer"
+              className="px-4 py-1.5 rounded-lg hw-key !bg-none !bg-sky-600 !border-sky-400/70 !text-white hover:!bg-sky-500 font-semibold text-xs flex items-center gap-2 shadow-lg shadow-sky-600/20 disabled:opacity-50 transition cursor-pointer uppercase tracking-wider"
             >
               {downloading ? (
                 <>
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  Downloading...
+                  Downloading
                 </>
               ) : (
                 <>
@@ -281,10 +302,11 @@ export function UpdateNotificationModal({
                   window.location.reload();
                 }
               }}
-              className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer"
+              title="Restart Now"
+              className="px-4 py-1.5 rounded-lg hw-key !bg-none !bg-emerald-600 !border-emerald-400/70 !text-white hover:!bg-emerald-500 font-semibold text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer uppercase tracking-wider"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              Restart Now
+              Restart
             </button>
           )}
         </div>

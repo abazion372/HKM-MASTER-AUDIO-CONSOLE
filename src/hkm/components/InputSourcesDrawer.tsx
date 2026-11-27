@@ -59,7 +59,7 @@ export const InputSourcesDrawer: React.FC<InputSourcesDrawerProps> = ({
           <Mic className="w-3 h-3 text-sky-400" />
           <span>Live Inputs ({inputDevices.length})</span>
         </div>
-        <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
+        <span className="hw-lamp" data-on="green" style={{ width: 6, height: 6 }} aria-hidden="true" />
       </div>
     );
   }
@@ -70,7 +70,7 @@ export const InputSourcesDrawer: React.FC<InputSourcesDrawerProps> = ({
       <div className="p-2.5 border-b border-slate-800 flex items-center justify-between gap-1.5 bg-[#0C121E]">
         <div className="flex items-center gap-1.5 min-w-0">
           <Mic className="w-4 h-4 text-sky-400 shrink-0" />
-          <span className="font-mono text-xs font-bold text-white truncate">
+          <span className="font-mono text-xs font-bold text-white truncate hw-engraved !text-white">
             Live Inputs ({inputDevices.length})
           </span>
         </div>
@@ -81,10 +81,10 @@ export const InputSourcesDrawer: React.FC<InputSourcesDrawerProps> = ({
             onClick={() => void handleScan()}
             title="Live Rescan All Input Devices (USB, soundcard & virtual cables incl. VB-Audio)"
             aria-label="Live rescan input devices"
-            className={`px-1.5 py-1 rounded border font-mono text-[9px] font-bold flex items-center gap-1 transition cursor-pointer disabled:opacity-40 ${
+            className={`px-1.5 py-1 rounded border font-mono text-[9px] font-bold flex items-center gap-1 transition cursor-pointer disabled:opacity-40 hw-key ${
               scanning
-                ? 'border-sky-400/70 bg-sky-950/50 text-sky-300'
-                : 'border-sky-500/45 bg-sky-950/35 hover:bg-sky-900/50 text-sky-300'
+                ? '!bg-none !bg-sky-950/50 !border-sky-400/70 !text-sky-300'
+                : '!bg-none !bg-sky-950/35 !border-sky-500/45 !text-sky-300 hover:!bg-sky-900/50'
             }`}
           >
             <RefreshCw className={`w-3 h-3 ${scanning ? 'animate-spin' : ''}`} />
@@ -104,9 +104,16 @@ export const InputSourcesDrawer: React.FC<InputSourcesDrawerProps> = ({
       {/* Device List */}
       <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2">
         {inputDevices.length === 0 ? (
-          <div className="p-3 text-center border border-dashed border-slate-800 rounded bg-[#060910] text-[10px] font-mono text-slate-500">
-            No external audio inputs detected yet. Click Rescan (grants mic access once to unlock
-            labels) or plug in a USB / virtual cable device.
+          <div
+            className="p-3 flex items-center justify-center gap-1.5 border border-dashed border-slate-800 rounded bg-[#060910] text-[10px] font-mono text-slate-500 uppercase tracking-wider"
+            title="No external audio inputs detected yet. Click Rescan (grants mic access once to unlock labels) or plug in a USB / virtual cable device."
+          >
+            <span
+              aria-hidden="true"
+              className="hw-lamp"
+              style={{ width: 6, height: 6 }}
+            />
+            NO INPUTS · RESCAN
           </div>
         ) : (
           inputDevices.map((dev, idx) => {
@@ -124,7 +131,12 @@ export const InputSourcesDrawer: React.FC<InputSourcesDrawerProps> = ({
                     {kind}
                   </span>
                   <div className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.8)]" />
+                    <span
+                      aria-hidden="true"
+                      className="hw-lamp"
+                      data-on="green"
+                      style={{ width: 5, height: 5 }}
+                    />
                     <span className="font-mono text-[9px] text-emerald-400 uppercase font-semibold">Active</span>
                   </div>
                 </div>
@@ -138,10 +150,10 @@ export const InputSourcesDrawer: React.FC<InputSourcesDrawerProps> = ({
 
                 {/* Assigned Channels Badge List */}
                 <div className="flex items-center justify-between text-[10px] font-mono pt-0.5">
-                  <span className="text-slate-400">Mapped:</span>
+                  <span className="text-slate-400 uppercase tracking-wider">Mapped:</span>
                   <div className="flex items-center gap-1 flex-wrap justify-end">
                     {assignedChannels.length === 0 ? (
-                      <span className="text-slate-500 italic text-[9px]">Unassigned</span>
+                      <span className="text-slate-500 uppercase text-[9px] tracking-wider">Unassigned</span>
                     ) : (
                       assignedChannels.map((c) => (
                         <button
@@ -178,9 +190,10 @@ export const InputSourcesDrawer: React.FC<InputSourcesDrawerProps> = ({
                         role: auto.role,
                       });
                     }}
-                    className="w-full mt-1 py-1 rounded bg-[#131B2E] hover:bg-sky-500/20 border border-slate-700 hover:border-sky-400/60 font-mono text-[9px] font-semibold text-slate-300 hover:text-sky-200 transition flex items-center justify-center gap-1 cursor-pointer"
+                    className="w-full mt-1 py-1 rounded bg-[#131B2E] hover:bg-sky-500/20 border border-slate-700 hover:border-sky-400/60 font-mono text-[9px] font-semibold text-slate-300 hover:text-sky-200 transition flex items-center justify-center gap-1 cursor-pointer uppercase tracking-wider"
+                    title="Route → Selected Strip"
                   >
-                    <span>Route → Selected Strip</span>
+                    <span>Route</span>
                     <ArrowRight className="w-2.5 h-2.5" />
                   </button>
                 )}
@@ -196,10 +209,11 @@ export const InputSourcesDrawer: React.FC<InputSourcesDrawerProps> = ({
           <button
             type="button"
             onClick={() => onAddChannel()}
-            className="w-full py-1.5 rounded border border-emerald-500/50 bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-200 font-mono text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+            className="w-full py-1.5 rounded border border-emerald-500/50 bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-200 font-mono text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm uppercase tracking-wider"
+            title="Add Channel Strip"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Add Channel Strip</span>
+            <span>Add Strip</span>
           </button>
         </div>
       )}

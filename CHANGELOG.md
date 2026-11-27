@@ -5,6 +5,28 @@ All notable changes to HKM Audio System are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-11-27 — The Bolted Deck & the Reference Bay: a physical console
+
+### Changed
+
+- **The center panel is now a bolted DECK — a distinct physical surface.** A machined border rail, a unique near-black brushed-metal background (stronger specular edge, vertical brush lines), a deep drop shadow and **four recessed Phillips screws at the corners** set the center processing surface apart from the two side panels — it reads as the console's master section bolted into the chassis, not another card on the same screen.
+- **The Input Bay was rebuilt to the reference console panel.** The redundant channel tab rail (a second, thinner copy of the same focus controls) is gone — the bay rows are the single focus surface. Each row is now a real channel strip: **number badge with solo/mute LEDs**, name + live RMS readout, **twin thin vertical segmented LED ladders (RMS + PEAK, green→amber→red)**, a **machined preamp-gain position knob** (ring color = MIC/LINE/INST domain), the mix-bus assign LEDs, and beveled **M / S keys**. Zero instruction text survives ("OPEN SLOT — tap to assign…" is now an `OPEN SLOT · PATCH` key with the sentence on hover; per-row source/mode/gain text moved to tooltips).
+- **A physical-hardware CSS kit** (`hw-deck`, `hw-screw`, `hw-engraved`, `hw-led-track`/`hw-led-seg` LED ladders, `hw-knob-face`, `hw-fader-cap` with center guide line, `hw-fader-slot`, `hw-key` beveled keycaps, `hw-lcd` recessed readouts, `hw-lamp` LED jewels) is applied across the console: the main faders and channel strips got **glossy 3D caps in milled slots**, knobs got **brushed-metal faces with specular highlights**, smooth meter bars became **discrete LED segment ladders**, flat buttons became **beveled keycaps**, and labels became **engraved silkscreen**. Light themes get matched overrides; `prefers-reduced-motion` kills all lamp transitions.
+- **Every module swept again for text — the strict "text is for labelling only" rule, enforced.** All 16 module dashboards plus every drawer, dock, modal and bar were re-audited: instructional sentences became operation keys or LED status chips with the full text on hover; advisory paragraphs became engraved chips (`DIST 10–15 CM · HPF 110–130 HZ · RF HW PAIRED`); AI quick-questions became silkscreen keys (`MIC CLARITY`, `BASS HUM`…) that still send the full question; empty-state prose became LED states (`NO EVENTS`, `NO INPUTS · RESCAN`, `NO OUTPUTS · RESCAN`, `NO DATA · MEASURE`); long card headers became console silkscreen (`DSP LOAD`, `HEADROOM`, `ENGINE`, `CLOCK STATUS`, `BUS MATRIX · PATCHBAY`, `MULTITRACK RECORDER`).
+- **The chrome got the same treatment**: the top-bar tagline became a nameplate (`HKM MASTER CONSOLE`), TOOLS lost its inline BPM readout (it lives in the popover's TAP tool), the LOCK pill became a **latching LOCK key with LED** (no more UNLOCKED/LOCKED label swap), preset recall shows short names with the full name on hover, and `CONFIRM RESET?` became `CONFIRM ?`.
+
+### Removed
+
+- **The Help Desk nav tab.** The manual lives in the menu bar only (**Help → Help Desk — Operation Manual…**), the way real consoles keep the manual off the surface; the first-run rail's HELP DESK chip became an icon-only key. The module itself is unchanged and still deep-links from every dashboard (SETUP GUIDE / GUIDE / WORKFLOW keys).
+
+### Fixed
+
+- Stale Turbopack CSS cache could serve an older stylesheet after rapid edits (dev-only; noted during verification).
+
+### Functionality preserved
+
+Design/layout only — every handler, state machine and data flow is untouched (the bay rows keep the exact focus/M/S/assign semantics and level-data paths; the tab rail was a duplicate surface). Verified: ESLint **0 errors**, TypeScript **0 errors**, and a full browser sweep of all 16 modules + both side panels + both tabs + drawers (no layout breakage, no console errors; all surfaces render label-only text).
+
 ## [1.2.0] - 2026-11-27 — The Help Desk & the De-Texted Console: a Real Surface, a Real Manual
 
 ### Changed

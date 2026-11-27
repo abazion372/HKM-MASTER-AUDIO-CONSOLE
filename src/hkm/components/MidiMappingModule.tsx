@@ -180,10 +180,15 @@ export const MidiMappingModule: React.FC<MidiMappingModuleProps> = ({
             <span>KEYBOARD SHORTCUTS ({shortcuts.filter((s) => s.enabled && s.keyCombo).length})</span>
           </button>
         </div>
-        <span className="text-[11px] font-mono text-slate-400 px-2">
-          {surfaceTab === 'midi'
-            ? 'Physical USB / RTP-MIDI Controller Matrix'
-            : 'Global Window Keydown Listener & Action Bindings'}
+        <span
+          className="text-[11px] font-mono text-slate-400 px-2 hw-engraved"
+          title={
+            surfaceTab === 'midi'
+              ? 'Physical USB / RTP-MIDI Controller Matrix'
+              : 'Global Window Keydown Listener & Action Bindings'
+          }
+        >
+          {surfaceTab === 'midi' ? 'USB / RTP-MIDI MATRIX' : 'KEYDOWN · BINDINGS'}
         </span>
       </div>
 
@@ -208,11 +213,17 @@ export const MidiMappingModule: React.FC<MidiMappingModuleProps> = ({
         <div className="flex items-center gap-3">
           <div className="w-2.5 h-8 rounded-xs bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.6)]" />
           <div>
-            <h1 className="font-display text-lg font-semibold text-white tracking-tight">
-              HARDWARE MIDI CONTROL SURFACE &amp; BINDING MATRIX
+            <h1
+              className="font-display text-lg font-semibold text-white tracking-tight"
+              title="Hardware MIDI Control Surface & Binding Matrix"
+            >
+              MIDI CONTROL SURFACE · BINDINGS
             </h1>
-            <p className="text-[11px] font-mono text-slate-400">
-              {osMidiStack} · MIDI Learn · Bidirectional LED Feedback
+            <p
+              className="text-[11px] font-mono text-slate-400 hw-engraved"
+              title={`${osMidiStack} · MIDI Learn · Bidirectional LED Feedback`}
+            >
+              {osMidiStack} · LEARN · LED FEEDBACK
             </p>
           </div>
         </div>
@@ -221,10 +232,11 @@ export const MidiMappingModule: React.FC<MidiMappingModuleProps> = ({
           <button
             type="button"
             onClick={onRequestMidiAccess}
-            className={`px-3 py-1.5 rounded text-xs font-mono font-semibold flex items-center gap-1.5 border transition-colors ${
+            title="Open the Web MIDI access request and enumerate ports"
+            className={`px-3 py-1.5 rounded text-xs font-mono font-semibold flex items-center gap-1.5 border transition-colors cursor-pointer hw-key ${
               midiConnected
-                ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
-                : 'bg-sky-600 border-sky-400/50 text-white hover:bg-sky-500'
+                ? '!bg-none !border-emerald-500/40 !bg-emerald-500/15 !text-emerald-300'
+                : '!bg-none !border-sky-400 !bg-sky-600 !text-white'
             }`}
           >
             <Cable className="w-3.5 h-3.5" />
@@ -233,7 +245,8 @@ export const MidiMappingModule: React.FC<MidiMappingModuleProps> = ({
           <button
             type="button"
             onClick={handleAddMapping}
-            className="px-3 py-1.5 rounded bg-[#121824] border border-slate-700 hover:border-sky-500/60 text-white text-xs font-mono font-semibold flex items-center gap-1.5"
+            title="Add a new binding row and arm MIDI Learn"
+            className="px-3 py-1.5 rounded text-xs font-mono font-semibold flex items-center gap-1.5 cursor-pointer hw-key"
           >
             <Plus className="w-3.5 h-3.5 text-sky-400" />
             <span>NEW BINDING + LEARN</span>
@@ -251,11 +264,14 @@ export const MidiMappingModule: React.FC<MidiMappingModuleProps> = ({
       <div className="rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2">
           <div className="min-w-0">
-            <div className="font-mono text-xs font-semibold text-white uppercase">
-              Virtual Hardware MIDI Control Surface (Live Test &amp; Learn Bench)
+            <div
+              className="font-mono text-xs font-semibold text-white uppercase hw-engraved"
+              title="Virtual Hardware MIDI Control Surface (Live Test & Learn Bench)"
+            >
+              VIRTUAL MIDI SURFACE
             </div>
             <div className="flex items-center gap-1.5 mt-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+              <span className="hw-lamp shrink-0" style={{ width: 5, height: 5 }} data-on="cyan" aria-hidden="true" />
               <span
                 className="font-mono text-[9px] font-bold tracking-wider text-slate-400 uppercase"
                 title="Drag the hardware fader, twist encoders, or hit transport pads to test live MIDI Learn and DSP bindings"
@@ -283,11 +299,11 @@ export const MidiMappingModule: React.FC<MidiMappingModuleProps> = ({
                 accent="sky"
                 onChange={(val) => triggerSimFader(7, val)}
               />
-              <div className="font-mono text-[10px] space-y-1 text-slate-400">
+              <div className="font-mono text-[10px] space-y-1 text-slate-400 hw-engraved">
                 <div className="text-sky-400 font-semibold">FADER 1</div>
                 <div>CC #7 · CH 1</div>
                 <div className="text-white">VAL: {simFaders[7] ?? 64}</div>
-                <div className="text-slate-500">DSP Gain Trim</div>
+                <div className="text-slate-500">DSP GAIN TRIM</div>
               </div>
             </div>
           </div>
@@ -353,8 +369,11 @@ export const MidiMappingModule: React.FC<MidiMappingModuleProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <div className="lg:col-span-5 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="font-mono text-xs font-semibold text-white uppercase">
-              Detected MIDI Ports &amp; Monitor
+            <span
+              className="font-mono text-xs font-semibold text-white uppercase hw-engraved"
+              title="Detected MIDI Ports & Monitor"
+            >
+              MIDI PORTS · MONITOR
             </span>
             <span className="font-mono text-[11px] text-emerald-400">
               {midiConnected ? 'LISTENING' : 'STANDBY'}
@@ -364,7 +383,7 @@ export const MidiMappingModule: React.FC<MidiMappingModuleProps> = ({
           {midiDevices.length === 0 ? (
             <div className="p-3 rounded bg-[#070A10] border border-slate-800 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="w-2 h-2 rounded-full bg-slate-600 shrink-0" />
+                <span className="hw-lamp shrink-0" style={{ width: 6, height: 6 }} aria-hidden="true" />
                 <span
                   className="font-mono text-[10px] font-bold tracking-wider text-slate-400"
                   title="No physical USB MIDI ports enumerated yet. Connect a MIDI controller or use the Virtual Hardware MIDI Surface above."
@@ -404,8 +423,11 @@ export const MidiMappingModule: React.FC<MidiMappingModuleProps> = ({
                 {lastPacket.deviceName} · CH{lastPacket.channel} · {lastPacket.messageType.toUpperCase()} #{lastPacket.controller} = {lastPacket.rawValue}
               </span>
             ) : (
-              <span className="flex items-center gap-1.5 text-slate-500">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
+              <span
+                className="flex items-center gap-1.5 text-slate-500"
+                title="No packet received yet — MIDI input is standing by"
+              >
+                <span className="hw-lamp" style={{ width: 5, height: 5 }} aria-hidden="true" />
                 STANDBY
               </span>
             )}
@@ -414,13 +436,17 @@ export const MidiMappingModule: React.FC<MidiMappingModuleProps> = ({
 
         <div className="lg:col-span-7 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="font-mono text-xs font-semibold text-white uppercase">
-              Hardware Control Surface Templates
+            <span
+              className="font-mono text-xs font-semibold text-white uppercase hw-engraved"
+              title="Hardware Control Surface Templates"
+            >
+              SURFACE TEMPLATES
             </span>
             <button
               type="button"
               onClick={() => loadControllerPreset('nanokontrol2')}
-              className="text-xs font-mono text-sky-400 hover:underline flex items-center gap-1"
+              title="Reset to the default KORG nanoKONTROL2 template"
+              className="text-xs font-mono text-sky-400 hover:underline flex items-center gap-1 cursor-pointer"
             >
               <RotateCcw className="w-3 h-3" />
               <span>RESET DEFAULT</span>
@@ -445,13 +471,19 @@ export const MidiMappingModule: React.FC<MidiMappingModuleProps> = ({
       {/* MIDI Learn & Mapping Matrix */}
       <div className="rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 space-y-3 overflow-x-auto">
         <div className="flex items-center justify-between">
-          <span className="font-mono text-xs font-semibold text-white uppercase">
-            Active Parameter Bindings ({mappings.length})
+          <span
+            className="font-mono text-xs font-semibold text-white uppercase hw-engraved"
+            title="Active Parameter Bindings"
+          >
+            PARAMETER BINDINGS ({mappings.length})
           </span>
           {learningId && (
-            <span className="text-xs font-mono text-amber-400 flex items-center gap-1.5">
+            <span
+              className="text-xs font-mono text-amber-400 flex items-center gap-1.5"
+              title="MIDI LEARN ARMED — move any fader, knob, or pad now"
+            >
               <Radio className="w-3.5 h-3.5" />
-              <span>MIDI LEARN ARMED — Move any fader, knob, or pad now</span>
+              <span>LEARN ARMED · MOVE A CONTROL</span>
             </span>
           )}
         </div>
@@ -460,8 +492,8 @@ export const MidiMappingModule: React.FC<MidiMappingModuleProps> = ({
           <thead>
             <tr className="border-b border-slate-800 font-mono text-[10px] uppercase text-slate-400">
               <th className="py-2 pr-3">On</th>
-              <th className="py-2 pr-3">MIDI Source (Ch · Type · #)</th>
-              <th className="py-2 pr-3">Target DSP / Console Parameter</th>
+              <th className="py-2 pr-3">Source · Ch · Type · #</th>
+              <th className="py-2 pr-3">Target Param</th>
               <th className="py-2 pr-3">Mode</th>
               <th className="py-2 pr-3">Range</th>
               <th className="py-2 pr-3">Raw</th>
@@ -561,13 +593,14 @@ export const MidiMappingModule: React.FC<MidiMappingModuleProps> = ({
                       <button
                         type="button"
                         onClick={() => onSetLearningId(isLearning ? null : m.id)}
-                        className={`px-2.5 py-1 rounded text-[11px] font-mono font-semibold transition-colors ${
+                        title={isLearning ? 'MIDI Learn is listening on this row — click to cancel' : 'Arm MIDI Learn on this row'}
+                        className={`px-2.5 py-1 rounded text-[11px] font-mono font-semibold transition-colors cursor-pointer hw-key ${
                           isLearning
-                            ? 'bg-amber-500 text-slate-950'
-                            : 'border border-slate-700 bg-[#121824] text-slate-200 hover:border-sky-500/60'
+                            ? '!bg-none !border-amber-400 !bg-amber-500 !text-slate-950'
+                            : ''
                         }`}
                       >
-                        {isLearning ? 'LISTENING...' : 'LEARN'}
+                        {isLearning ? 'LISTENING…' : 'LEARN'}
                       </button>
                       <button
                         type="button"

@@ -157,7 +157,7 @@ export const LivePatchbayDrawer: React.FC<LivePatchbayDrawerProps> = ({
           </button>
         </div>
 
-        <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
+        <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" aria-hidden="true" />
       </div>
     );
   }
@@ -172,10 +172,10 @@ export const LivePatchbayDrawer: React.FC<LivePatchbayDrawerProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('inputs')}
-              className={`py-1 px-2 rounded border-2 transition cursor-pointer flex items-center justify-center gap-1.5 ${
+              className={`py-1 px-2 rounded border-2 transition cursor-pointer flex items-center justify-center gap-1.5 hw-key ${
                 activeTab === 'inputs'
-                  ? 'bg-sky-500 text-slate-950 border-sky-300 shadow-[0_0_8px_rgba(56,189,248,0.4)]'
-                  : 'bg-[#0E1524] border-slate-700 text-slate-400 hover:text-slate-200'
+                  ? '!bg-none !bg-sky-500 !border-sky-300 !text-slate-950 shadow-[0_0_8px_rgba(56,189,248,0.4)]'
+                  : ''
               }`}
             >
               <Mic className="w-3 h-3 shrink-0" />
@@ -185,10 +185,10 @@ export const LivePatchbayDrawer: React.FC<LivePatchbayDrawerProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('outputs')}
-              className={`py-1 px-2 rounded border-2 transition cursor-pointer flex items-center justify-center gap-1.5 ${
+              className={`py-1 px-2 rounded border-2 transition cursor-pointer flex items-center justify-center gap-1.5 hw-key ${
                 activeTab === 'outputs'
-                  ? 'bg-emerald-500 text-slate-950 border-emerald-300 shadow-[0_0_8px_rgba(52,211,153,0.4)]'
-                  : 'bg-[#0E1524] border-slate-700 text-slate-400 hover:text-slate-200'
+                  ? '!bg-none !bg-emerald-500 !border-emerald-300 !text-slate-950 shadow-[0_0_8px_rgba(52,211,153,0.4)]'
+                  : ''
               }`}
             >
               <Volume2 className="w-3 h-3 shrink-0" />
@@ -204,10 +204,10 @@ export const LivePatchbayDrawer: React.FC<LivePatchbayDrawerProps> = ({
               onClick={() => void handleScan()}
               title="Live Rescan Physical & Virtual Audio Ports (inputs + outputs)"
               aria-label="Live rescan audio ports"
-              className={`px-1.5 py-1 rounded border font-mono text-[9px] font-bold flex items-center gap-1 transition cursor-pointer disabled:opacity-40 ${
+              className={`px-1.5 py-1 rounded border font-mono text-[9px] font-bold flex items-center gap-1 transition cursor-pointer disabled:opacity-40 hw-key ${
                 scanning
-                  ? 'border-sky-400/70 bg-sky-950/50 text-sky-300'
-                  : 'border-sky-500/45 bg-sky-950/35 hover:bg-sky-900/50 text-sky-300'
+                  ? '!bg-none !bg-sky-950/50 !border-sky-400/70 !text-sky-300'
+                  : '!bg-none !bg-sky-950/35 !border-sky-500/45 !text-sky-300 hover:!bg-sky-900/50'
               }`}
             >
               <RefreshCw className={`w-3 h-3 ${scanning ? 'animate-spin' : ''}`} />
@@ -231,8 +231,16 @@ export const LivePatchbayDrawer: React.FC<LivePatchbayDrawerProps> = ({
       {activeTab === 'inputs' && (
         <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2">
           {inputDevices.length === 0 ? (
-            <div className="p-3 text-center border border-dashed border-slate-800 rounded bg-[#060910] text-[10px] font-mono text-slate-500">
-              No audio inputs detected. Click refresh or plug in USB audio device.
+            <div
+              className="p-3 flex items-center justify-center gap-1.5 border border-dashed border-slate-800 rounded bg-[#060910] text-[10px] font-mono text-slate-500 uppercase tracking-wider"
+              title="No audio inputs detected. Click refresh or plug in USB audio device."
+            >
+              <span
+                aria-hidden="true"
+                className="hw-lamp"
+                style={{ width: 6, height: 6 }}
+              />
+              NO INPUTS · RESCAN
             </div>
           ) : (
             inputDevices.map((dev, idx) => {
@@ -250,7 +258,12 @@ export const LivePatchbayDrawer: React.FC<LivePatchbayDrawerProps> = ({
                       {kind}
                     </span>
                     <div className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.8)]" />
+                      <span
+                        aria-hidden="true"
+                        className="hw-lamp"
+                        data-on="green"
+                        style={{ width: 5, height: 5 }}
+                      />
                       <span className="font-mono text-[9px] text-emerald-400 uppercase font-semibold">Active</span>
                     </div>
                   </div>
@@ -267,7 +280,7 @@ export const LivePatchbayDrawer: React.FC<LivePatchbayDrawerProps> = ({
                     <span className="text-slate-400">Mapped:</span>
                     <div className="flex items-center gap-1 flex-wrap justify-end">
                       {assignedChannels.length === 0 ? (
-                        <span className="text-slate-500 italic text-[9px]">Unassigned</span>
+                        <span className="text-slate-500 uppercase text-[9px] tracking-wider">Unassigned</span>
                       ) : (
                         assignedChannels.map((c) => (
                           <button
@@ -304,9 +317,10 @@ export const LivePatchbayDrawer: React.FC<LivePatchbayDrawerProps> = ({
                           role: auto.role,
                         });
                       }}
-                      className="w-full mt-1 py-1 rounded bg-[#131B2E] hover:bg-sky-500/20 border border-slate-700 hover:border-sky-400/60 font-mono text-[9px] font-semibold text-slate-300 hover:text-sky-200 transition flex items-center justify-center gap-1 cursor-pointer"
+                      className="w-full mt-1 py-1 rounded bg-[#131B2E] hover:bg-sky-500/20 border border-slate-700 hover:border-sky-400/60 font-mono text-[9px] font-semibold text-slate-300 hover:text-sky-200 transition flex items-center justify-center gap-1 cursor-pointer uppercase tracking-wider"
+                      title="Route → Focused Channel"
                     >
-                      <span>Route → Focused Channel</span>
+                      <span>Route</span>
                       <ArrowRight className="w-2.5 h-2.5" />
                     </button>
                   )}
@@ -323,8 +337,16 @@ export const LivePatchbayDrawer: React.FC<LivePatchbayDrawerProps> = ({
       {activeTab === 'outputs' && (
         <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2">
           {outputDevices.length === 0 ? (
-            <div className="p-3 text-center border border-dashed border-slate-800 rounded bg-[#060910] text-[10px] font-mono text-slate-500">
-              No audio output endpoints detected. Click refresh or plug in speakers/headphones.
+            <div
+              className="p-3 flex items-center justify-center gap-1.5 border border-dashed border-slate-800 rounded bg-[#060910] text-[10px] font-mono text-slate-500 uppercase tracking-wider"
+              title="No audio output endpoints detected. Click refresh or plug in speakers/headphones."
+            >
+              <span
+                aria-hidden="true"
+                className="hw-lamp"
+                style={{ width: 6, height: 6 }}
+              />
+              NO OUTPUTS · RESCAN
             </div>
           ) : (
             outputDevices.map((dev, idx) => {
@@ -350,7 +372,12 @@ export const LivePatchbayDrawer: React.FC<LivePatchbayDrawerProps> = ({
                       <span>{kind}</span>
                     </span>
                     <div className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.8)]" />
+                      <span
+                        aria-hidden="true"
+                        className="hw-lamp"
+                        data-on="green"
+                        style={{ width: 5, height: 5 }}
+                      />
                       <span className="font-mono text-[9px] text-emerald-400 uppercase font-semibold">Active</span>
                     </div>
                   </div>
@@ -384,7 +411,12 @@ export const LivePatchbayDrawer: React.FC<LivePatchbayDrawerProps> = ({
                       </span>
                     ))}
                     {!isMasterOut && !isStreamOut && assignedZones.length === 0 && (
-                      <span className="text-slate-500 italic text-[9px]">Available for assignment</span>
+                      <span
+                        className="text-slate-500 uppercase text-[9px] tracking-wider"
+                        title="Available for assignment"
+                      >
+                        Open
+                      </span>
                     )}
                   </div>
 
@@ -392,16 +424,24 @@ export const LivePatchbayDrawer: React.FC<LivePatchbayDrawerProps> = ({
                   {(isMasterOut || isStreamOut) && (
                     <div className="space-y-0.5 pt-0.5">
                       <div className="flex items-center justify-between text-[8px] font-mono text-slate-400">
-                        <span>OUT LEVEL</span>
+                        <span className="uppercase tracking-wider">OUT LEVEL</span>
                         <span className="text-emerald-400 font-bold tabular-nums">
                           {telemetry?.isRunning ? `${postLevel.toFixed(1)} dBFS` : 'IDLE'}
                         </span>
                       </div>
-                      <div className="h-1.5 w-full bg-[#05070C] rounded-xs border border-slate-800 overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-emerald-500 via-yellow-400 to-rose-500 transition-all duration-75"
-                          style={{ width: `${meterWidth}%` }}
-                        />
+                      <div className="hw-led-track-h h-2 w-full rounded-xs" title={`Output level ${postLevel.toFixed(1)} dBFS`}>
+                        {Array.from({ length: 12 }).map((_, i) => {
+                          const lit = meterWidth >= ((i + 1) / 12) * 100;
+                          const color = i / 12 >= 0.85 ? 'red' : i / 12 >= 0.68 ? 'amber' : 'green';
+                          return (
+                            <span
+                              key={i}
+                              aria-hidden="true"
+                              className="hw-led-seg"
+                              data-lit={lit ? color : undefined}
+                            />
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -412,13 +452,14 @@ export const LivePatchbayDrawer: React.FC<LivePatchbayDrawerProps> = ({
                       <button
                         type="button"
                         onClick={() => onSelectOutputDevice(dev.deviceId)}
-                        className={`py-1 rounded font-mono text-[9px] font-semibold border transition cursor-pointer ${
+                        className={`py-1 rounded font-mono text-[9px] font-semibold border transition cursor-pointer uppercase tracking-wider hw-key ${
                           isMasterOut
-                            ? 'bg-emerald-600 text-white border-emerald-400 shadow-sm'
-                            : 'bg-[#121A2A] text-slate-300 hover:text-white border-slate-700 hover:border-emerald-500/50'
+                            ? '!bg-none !bg-emerald-600 !border-emerald-400 !text-white shadow-[0_0_6px_rgba(16,185,129,0.45)]'
+                            : '!text-slate-300 hover:!text-white hover:!border-emerald-500/50'
                         }`}
+                        title={isMasterOut ? 'Master PA output' : 'Set Master PA'}
                       >
-                        {isMasterOut ? '✓ Master PA' : 'Set Master PA'}
+                        {isMasterOut ? '✓ Master PA' : 'Master PA'}
                       </button>
                     )}
 
@@ -426,13 +467,14 @@ export const LivePatchbayDrawer: React.FC<LivePatchbayDrawerProps> = ({
                       <button
                         type="button"
                         onClick={() => onSelectStreamOutputDevice(dev.deviceId)}
-                        className={`py-1 rounded font-mono text-[9px] font-semibold border transition cursor-pointer ${
+                        className={`py-1 rounded font-mono text-[9px] font-semibold border transition cursor-pointer uppercase tracking-wider hw-key ${
                           isStreamOut
-                            ? 'bg-violet-600 text-white border-violet-400 shadow-sm'
-                            : 'bg-[#121A2A] text-slate-300 hover:text-white border-slate-700 hover:border-violet-500/50'
+                            ? '!bg-none !bg-violet-600 !border-violet-400 !text-white shadow-[0_0_6px_rgba(139,92,246,0.45)]'
+                            : '!text-slate-300 hover:!text-white hover:!border-violet-500/50'
                         }`}
+                        title={isStreamOut ? 'Stream / OBS output' : 'Set Stream OBS'}
                       >
-                        {isStreamOut ? '✓ Stream / OBS' : 'Set Stream OBS'}
+                        {isStreamOut ? '✓ Stream OBS' : 'Stream OBS'}
                       </button>
                     )}
                   </div>
@@ -449,14 +491,15 @@ export const LivePatchbayDrawer: React.FC<LivePatchbayDrawerProps> = ({
           <button
             type="button"
             onClick={() => onAddChannel()}
-            className="w-full py-1.5 rounded border border-emerald-500/50 bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-200 font-mono text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+            className="w-full py-1.5 rounded border border-emerald-500/50 bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-200 font-mono text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm uppercase tracking-wider"
+            title="Add Channel Strip"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Add Channel Strip</span>
+            <span>Add Strip</span>
           </button>
         ) : (
-          <div className="font-mono text-[9px] text-slate-400 flex items-center justify-between">
-            <span>Standalone Stereo Outputs</span>
+          <div className="font-mono text-[9px] text-slate-400 flex items-center justify-between uppercase tracking-wider">
+            <span title="Standalone stereo outputs">Stereo Outs</span>
             <span className="text-emerald-400 font-bold">100% Live Sync</span>
           </div>
         )}

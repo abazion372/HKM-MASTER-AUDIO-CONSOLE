@@ -146,10 +146,10 @@ export const GainStagingAssistantModal: React.FC<GainStagingAssistantModalProps>
             </div>
             <div>
               <h2 className="font-display text-base font-bold text-white">
-                Pro Gain Staging Assistant
+                Gain Staging Assistant
               </h2>
-              <p className="font-mono text-[11px] text-slate-400">
-                {device.manufacturer} {device.model} · Target Nominal RMS: {targetNominalRmsDb} dBFS · Optimal: {optimalCount}/{channels.length}
+              <p className="font-mono text-[11px] text-slate-400 hw-lcd px-2 py-0.5 rounded inline-block">
+                {device.manufacturer} {device.model} · TGT {targetNominalRmsDb} dBFS · OPT {optimalCount}/{channels.length}
               </p>
             </div>
           </div>
@@ -164,10 +164,11 @@ export const GainStagingAssistantModal: React.FC<GainStagingAssistantModalProps>
             <button
               type="button"
               onClick={autoStageAll}
-              className="px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center gap-1.5 cursor-pointer"
+              title="Auto-Stage All Active"
+              className="px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center gap-1.5 cursor-pointer uppercase tracking-wider"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              Auto-Stage All Active
+              Auto-Stage All
             </button>
             <button
               type="button"
@@ -185,38 +186,38 @@ export const GainStagingAssistantModal: React.FC<GainStagingAssistantModalProps>
             <button
               type="button"
               onClick={() => setFilterMode('all')}
-              className={`px-2.5 py-1 rounded border cursor-pointer ${
+              className={`px-2.5 py-1 rounded border cursor-pointer hw-key ${
                 filterMode === 'all'
-                  ? 'bg-sky-500/20 border-sky-400 text-sky-200 font-bold'
-                  : 'bg-slate-900 border-slate-800 text-slate-400'
+                  ? '!bg-none !bg-sky-500/20 !border-sky-400 !text-sky-200 font-bold'
+                  : '!text-slate-400'
               }`}
             >
-              All Channels ({channels.length})
+              All ({channels.length})
             </button>
             <button
               type="button"
               onClick={() => setFilterMode('active')}
-              className={`px-2.5 py-1 rounded border cursor-pointer ${
+              className={`px-2.5 py-1 rounded border cursor-pointer hw-key ${
                 filterMode === 'active'
-                  ? 'bg-sky-500/20 border-sky-400 text-sky-200 font-bold'
-                  : 'bg-slate-900 border-slate-800 text-slate-400'
+                  ? '!bg-none !bg-sky-500/20 !border-sky-400 !text-sky-200 font-bold'
+                  : '!text-slate-400'
               }`}
             >
-              Active Signal Only
+              Active
             </button>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-slate-400">Nominal Target:</span>
+            <span className="text-slate-400 uppercase tracking-wider">Target:</span>
             {[-20, -18, -15, -12].map((lvl) => (
               <button
                 key={lvl}
                 type="button"
                 onClick={() => setTargetNominalRmsDb(lvl)}
-                className={`px-2 py-0.5 rounded border cursor-pointer ${
+                className={`px-2 py-0.5 rounded border cursor-pointer hw-key ${
                   targetNominalRmsDb === lvl
-                    ? 'bg-amber-500 text-slate-950 border-amber-300 font-bold'
-                    : 'bg-slate-900 border-slate-800 text-slate-400'
+                    ? '!bg-none !bg-amber-500 !border-amber-300 !text-slate-950 font-bold'
+                    : '!text-slate-400'
                 }`}
               >
                 {lvl} dBFS
@@ -257,7 +258,10 @@ export const GainStagingAssistantModal: React.FC<GainStagingAssistantModalProps>
                     >
                       {modeSpec.shortLabel}
                     </span>
-                    <span className={`px-2 py-0.5 rounded border font-mono text-[10px] font-bold ${verdict.colorClass}`}>
+                    <span
+                      className={`px-2 py-0.5 rounded border font-mono text-[10px] font-bold ${verdict.colorClass}`}
+                      title={verdict.guidance}
+                    >
                       {verdict.label}
                     </span>
                     {ch.phantom48v && (
@@ -273,42 +277,51 @@ export const GainStagingAssistantModal: React.FC<GainStagingAssistantModalProps>
                   </div>
 
                   {/* Headroom Meter with Target Marker */}
-                  <div className="relative h-2.5 w-full rounded bg-[#04060B] border border-slate-800 overflow-hidden">
-                    <div
-                      className={`h-full transition-all ${
+                  <div
+                    className="relative hw-led-track-h h-2.5 w-full rounded"
+                    title={`RMS ${ch.levelDb.toFixed(1)} dBFS · target ${chTarget} dBFS`}
+                  >
+                    {Array.from({ length: 16 }).map((_, i) => {
+                      const lit = rmsPct >= ((i + 1) / 16) * 100;
+                      const litColor =
                         verdict.label === 'CLIPPING'
-                          ? 'bg-rose-500'
+                          ? 'red'
                           : verdict.label === 'HOT'
-                            ? 'bg-amber-400'
+                            ? 'amber'
                             : verdict.label === 'OPTIMAL'
-                              ? 'bg-emerald-400'
-                              : 'bg-sky-400'
-                      }`}
-                      style={{ width: `${rmsPct}%` }}
-                    />
+                              ? 'green'
+                              : 'cyan';
+                      return (
+                        <span
+                          key={i}
+                          aria-hidden="true"
+                          className="hw-led-seg"
+                          data-lit={lit ? litColor : undefined}
+                        />
+                      );
+                    })}
                     <div
-                      className="absolute top-0 bottom-0 w-0.5 bg-white/90"
+                      className="absolute top-0 bottom-0 w-0.5 bg-white/90 z-10 pointer-events-none"
                       style={{ left: `${targetPct}%` }}
                       title={`Target: ${chTarget} dBFS${mode === 'inst' ? ' (instrument domain)' : ''}`}
                     />
                   </div>
-
-                  <p className="text-[11px] text-slate-400">{verdict.guidance}</p>
                 </div>
 
                 {/* Controls */}
                 <div className="flex items-center gap-2 shrink-0 font-mono text-xs">
-                  <div className="px-2.5 py-1 rounded bg-[#05080F] border border-slate-800 text-center">
-                    <div className="text-[9px] text-slate-500">{mode === 'line' ? 'TRIM' : 'PREAMP'}</div>
+                  <div className="hw-lcd px-2.5 py-1 rounded text-center">
+                    <div className="text-[9px] text-slate-500 uppercase">{mode === 'line' ? 'Trim' : 'Preamp'}</div>
                     <div className="font-bold text-amber-300">{modeSpec.formatGain(ch.gainDb)} dB</div>
                   </div>
                   <button
                     type="button"
                     onClick={() => onUpdateChannel(ch.id, { padDb: !ch.padDb })}
-                    className={`px-2 py-1.5 rounded border text-[10px] font-bold cursor-pointer ${
+                    title="-20 dB Pad"
+                    className={`px-2 py-1.5 rounded border text-[10px] font-bold cursor-pointer hw-key ${
                       ch.padDb
-                        ? 'bg-amber-500 text-slate-950 border-amber-300'
-                        : 'bg-slate-900 border-slate-700 text-slate-400'
+                        ? '!bg-none !bg-amber-500 !border-amber-300 !text-slate-950'
+                        : '!text-slate-400'
                     }`}
                   >
                     PAD
@@ -316,7 +329,8 @@ export const GainStagingAssistantModal: React.FC<GainStagingAssistantModalProps>
                   <button
                     type="button"
                     onClick={() => autoStageChannel(ch)}
-                    className="px-2.5 py-1.5 rounded border border-emerald-500/50 bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-200 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                    title="Auto-Stage"
+                    className="px-2.5 py-1.5 rounded border border-emerald-500/50 hw-key !bg-none !bg-emerald-500/15 !border-emerald-500/50 !text-emerald-200 hover:!bg-emerald-500/30 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
                   >
                     <CheckCircle2 className="w-3 h-3" />
                     Auto-Stage
@@ -328,7 +342,7 @@ export const GainStagingAssistantModal: React.FC<GainStagingAssistantModalProps>
                         onSelectChannel(ch.id);
                         onClose();
                       }}
-                      className="px-2.5 py-1.5 rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 py-1.5 rounded border border-slate-700 hw-key !text-slate-200 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
                     >
                       <Sliders className="w-3 h-3" />
                       Edit

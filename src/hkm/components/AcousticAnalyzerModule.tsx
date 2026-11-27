@@ -122,14 +122,14 @@ export const AcousticAnalyzerModule: React.FC<AcousticAnalyzerModuleProps> = ({
                 ACOUSTIC INTELLIGENCE &amp; REW ROOM ANALYZER
               </h1>
             </div>
-            <p className="text-[11px] font-mono text-slate-400">
+            <p className="text-[11px] font-mono text-slate-400 hw-engraved">
               {measurement.name} · {measurement.position} · STI {estimatedSti.toFixed(2)}
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <label className="px-2.5 py-1.5 rounded border border-slate-700 bg-[#121824] text-[11px] font-mono font-semibold text-slate-200 hover:border-sky-500/50 cursor-pointer flex items-center gap-1.5">
+          <label className="px-2.5 py-1.5 rounded hw-key text-[11px] font-mono font-semibold cursor-pointer flex items-center gap-1.5">
             <Upload className="w-3.5 h-3.5 text-sky-400" />
             <span>IMPORT REW .TXT</span>
             <input type="file" accept=".txt,.csv" onChange={handleImportRewFile} className="hidden" />
@@ -137,7 +137,7 @@ export const AcousticAnalyzerModule: React.FC<AcousticAnalyzerModuleProps> = ({
           <button
             type="button"
             onClick={handleExportRewTxt}
-            className="px-2.5 py-1.5 rounded border border-slate-700 bg-[#121824] text-[11px] font-mono font-semibold text-slate-200 hover:border-sky-500/50 flex items-center gap-1.5"
+            className="px-2.5 py-1.5 rounded hw-key text-[11px] font-mono font-semibold flex items-center gap-1.5"
           >
             <Download className="w-3.5 h-3.5 text-sky-400" />
             <span>EXPORT REW .TXT</span>
@@ -152,8 +152,12 @@ export const AcousticAnalyzerModule: React.FC<AcousticAnalyzerModuleProps> = ({
       </div>
 
       {importError && (
-        <div className="p-3 rounded border border-red-500/40 bg-red-500/10 text-xs text-red-300">
-          {importError}
+        <div
+          className="p-2 rounded border border-red-500/40 bg-red-500/10 text-[10px] font-mono text-red-300 flex items-center gap-2"
+          title={importError}
+        >
+          <span className="hw-lamp" data-on="red" style={{ width: 6, height: 6 }} aria-hidden="true" />
+          IMPORT ERROR
         </div>
       )}
 
@@ -161,7 +165,7 @@ export const AcousticAnalyzerModule: React.FC<AcousticAnalyzerModuleProps> = ({
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
         {/* Left Calibration & Room Target Rack */}
         <div className="xl:col-span-3 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 flex flex-col justify-between gap-3">
-          <div className="font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-800 pb-2">
+          <div className="font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-800 pb-2 hw-engraved">
             Room Target &amp; Calibration
           </div>
 
@@ -219,7 +223,9 @@ export const AcousticAnalyzerModule: React.FC<AcousticAnalyzerModuleProps> = ({
               ) : (
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
               )}
-              <span className="truncate text-slate-200">{measurement.micModel}</span>
+              <span className="truncate text-slate-200" title={measurement.micModel}>
+                {measurement.calibratedMic ? 'UMIK-1' : 'REF MIC'}
+              </span>
             </div>
             <span
               className={`px-1.5 py-0.5 rounded border font-mono text-[8.5px] font-bold tracking-wider shrink-0 ${
@@ -241,11 +247,17 @@ export const AcousticAnalyzerModule: React.FC<AcousticAnalyzerModuleProps> = ({
         {/* Center Measured Sanctuary Frequency Response */}
         <div className="xl:col-span-6 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="font-mono text-xs font-semibold text-white uppercase">
-              Measured Sanctuary Frequency Response (40 Hz – 16 kHz)
+            <span
+              className="font-mono text-xs font-semibold text-white uppercase"
+              title="Measured Sanctuary Frequency Response (40 Hz – 16 kHz)"
+            >
+              MEASURED RESPONSE · 40 HZ – 16 KHZ
             </span>
-            <span className="font-mono text-[11px] text-amber-400">
-              63–80 Hz AXIAL MODE: +6.4 dB
+            <span
+              className="font-mono text-[10px] font-bold tracking-wider text-amber-400"
+              title="63–80 Hz axial room mode: +6.4 dB"
+            >
+              AXIAL +6.4 dB
             </span>
           </div>
           <div className="rounded bg-[#070A10] border border-slate-800 p-2">
@@ -288,10 +300,10 @@ export const AcousticAnalyzerModule: React.FC<AcousticAnalyzerModuleProps> = ({
               type="button"
               onClick={() => setAnalysisOpen((v) => !v)}
               aria-expanded={analysisOpen}
-              className={`px-2 py-0.5 rounded border font-mono text-[9px] font-bold tracking-wider cursor-pointer ${
+              className={`px-2 py-0.5 rounded hw-key font-mono text-[9px] font-bold tracking-wider cursor-pointer ${
                 analysisOpen
-                  ? 'border-sky-400/70 bg-sky-500/15 text-sky-200'
-                  : 'border-slate-700 bg-[#0A0F16] text-slate-400 hover:text-slate-100'
+                  ? '!bg-none !border-sky-400/70 !bg-sky-500/15 !text-sky-200'
+                  : ''
               }`}
               title={measurement.notes}
             >
@@ -306,7 +318,7 @@ export const AcousticAnalyzerModule: React.FC<AcousticAnalyzerModuleProps> = ({
 
         {/* Right Octave RT60 Decay Matrix */}
         <div className="xl:col-span-3 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 flex flex-col justify-between gap-3">
-          <div className="font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-800 pb-2">
+          <div className="font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-800 pb-2 hw-engraved">
             Reverberation Decay (RT60)
           </div>
           <div className="space-y-2.5 flex-1">
@@ -321,11 +333,17 @@ export const AcousticAnalyzerModule: React.FC<AcousticAnalyzerModuleProps> = ({
                       {row.seconds.toFixed(2)}s
                     </span>
                   </div>
-                  <div className="h-2.5 rounded-xs bg-[#070A10] border border-slate-800 overflow-hidden p-px">
-                    <div
-                      className={`h-full rounded-[1px] ${highDecay ? 'bg-amber-400' : 'bg-sky-400'}`}
-                      style={{ width: `${pct}%` }}
-                    />
+                  <div className="hw-led-track-h h-3 rounded-xs">
+                    {Array.from({ length: 12 }, (_, seg) => {
+                      const lit = ((seg + 1) / 12) * 100 <= pct;
+                      return (
+                        <span
+                          key={seg}
+                          className="hw-led-seg"
+                          data-lit={lit ? (highDecay ? 'amber' : 'cyan') : undefined}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
               );
@@ -336,20 +354,20 @@ export const AcousticAnalyzerModule: React.FC<AcousticAnalyzerModuleProps> = ({
           <div className="p-2 rounded bg-[#090D14] border border-slate-800 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 font-mono text-[8.5px] font-bold tracking-wider text-slate-400 min-w-0">
               <span className="flex items-center gap-1" title="Measure 4+ sanctuary seating zones before cutting global EQ">
-                <span className="w-1.5 h-1.5 rounded-full bg-sky-400" /> 4+ ZONES
+                <span className="hw-lamp" data-on="cyan" style={{ width: 5, height: 5 }} aria-hidden="true" /> 4+ ZONES
               </span>
               <span className="flex items-center gap-1" title="Verify subwoofer polarity before EQ">
-                <span className="w-1.5 h-1.5 rounded-full bg-sky-400" /> SUB POLARITY
+                <span className="hw-lamp" data-on="cyan" style={{ width: 5, height: 5 }} aria-hidden="true" /> SUB POLARITY
               </span>
               <span className="flex items-center gap-1" title="Treat early reflections before cutting global EQ">
-                <span className="w-1.5 h-1.5 rounded-full bg-sky-400" /> EARLY REFLECTIONS
+                <span className="hw-lamp" data-on="cyan" style={{ width: 5, height: 5 }} aria-hidden="true" /> EARLY REFLECTIONS
               </span>
             </div>
             <button
               type="button"
               onClick={() => openHelpTopic('acoustics')}
               title="Open the REW room-tuning workflow in the Help Desk"
-              className="px-1.5 py-0.5 rounded border border-[#2A3646] bg-[#0A0F16] text-slate-300 hover:text-white hover:border-teal-400/50 font-mono text-[8.5px] font-bold tracking-wider cursor-pointer shrink-0"
+              className="px-1.5 py-0.5 rounded hw-key font-mono text-[8.5px] font-bold tracking-wider cursor-pointer shrink-0"
             >
               WORKFLOW
             </button>
@@ -369,7 +387,7 @@ export const AcousticAnalyzerModule: React.FC<AcousticAnalyzerModuleProps> = ({
               step={0.5}
               value={roomLengthM}
               onChange={(e) => setRoomLengthM(Number(e.target.value) || 24)}
-              className="w-full px-2.5 py-1.5 rounded border border-slate-700 bg-[#070A10] text-slate-100"
+              className="w-full px-2.5 py-1.5 rounded hw-lcd text-slate-100"
             />
           </div>
           <div>
@@ -381,7 +399,7 @@ export const AcousticAnalyzerModule: React.FC<AcousticAnalyzerModuleProps> = ({
               step={0.5}
               value={roomWidthM}
               onChange={(e) => setRoomWidthM(Number(e.target.value) || 16)}
-              className="w-full px-2.5 py-1.5 rounded border border-slate-700 bg-[#070A10] text-slate-100"
+              className="w-full px-2.5 py-1.5 rounded hw-lcd text-slate-100"
             />
           </div>
           <div>
@@ -393,25 +411,25 @@ export const AcousticAnalyzerModule: React.FC<AcousticAnalyzerModuleProps> = ({
               step={0.5}
               value={roomHeightM}
               onChange={(e) => setRoomHeightM(Number(e.target.value) || 6.5)}
-              className="w-full px-2.5 py-1.5 rounded border border-slate-700 bg-[#070A10] text-slate-100"
+              className="w-full px-2.5 py-1.5 rounded hw-lcd text-slate-100"
             />
           </div>
         </div>
 
         <div className="lg:col-span-4 grid grid-cols-4 gap-2 font-mono text-xs">
-          <div className="p-2 rounded bg-[#070A10] border border-slate-800">
+          <div className="p-2 rounded hw-lcd">
             <div className="text-[9px] text-slate-500">AXIAL L</div>
             <div className="text-sky-300 font-semibold">{axialLengthHz} Hz</div>
           </div>
-          <div className="p-2 rounded bg-[#070A10] border border-slate-800">
+          <div className="p-2 rounded hw-lcd">
             <div className="text-[9px] text-slate-500">AXIAL W</div>
             <div className="text-sky-300 font-semibold">{axialWidthHz} Hz</div>
           </div>
-          <div className="p-2 rounded bg-[#070A10] border border-slate-800">
+          <div className="p-2 rounded hw-lcd">
             <div className="text-[9px] text-slate-500">MODE 2H</div>
             <div className="text-amber-300 font-semibold">{primaryModeHz} Hz</div>
           </div>
-          <div className="p-2 rounded bg-[#070A10] border border-slate-800">
+          <div className="p-2 rounded hw-lcd">
             <div className="text-[9px] text-slate-500">STI EST</div>
             <div className={estimatedSti >= 0.55 ? 'text-emerald-400 font-semibold' : 'text-amber-400 font-semibold'}>
               {estimatedSti.toFixed(2)}
@@ -428,14 +446,32 @@ export const AcousticAnalyzerModule: React.FC<AcousticAnalyzerModuleProps> = ({
               onExportRoomModeCut(primaryModeHz);
               setExportedNote(`Exported -3.5 dB modal cut @ ${primaryModeHz} Hz to DSP Band 1.`);
             }}
-            className="w-full py-2 px-3 rounded bg-sky-600 hover:bg-sky-500 disabled:bg-slate-800 disabled:text-slate-500 text-white text-xs font-mono font-semibold transition-colors"
+            className="w-full py-2 px-3 rounded hw-key !bg-none !bg-sky-600 hover:!bg-sky-500 disabled:!bg-none disabled:!bg-slate-800 !text-white disabled:!text-slate-500 text-xs font-mono font-semibold transition-colors"
+            title={
+              measurement.calibratedMic
+                ? `Export -3.5 dB modal cut @ ${primaryModeHz} Hz to DSP Band 1`
+                : 'Locked — calibrate mic first'
+            }
           >
             {measurement.calibratedMic
-              ? `EXPORT ${primaryModeHz} Hz CUT TO DSP`
-              : 'LOCKED (CALIBRATE MIC FIRST)'}
+              ? `EXPORT ${primaryModeHz} Hz CUT`
+              : 'LOCKED'}
           </button>
-          <div className="font-mono text-[10px] text-slate-400 truncate">
-            {exportedNote || `Vertical mode f=${axialHeightHz} Hz / 2nd=${primaryModeHz} Hz`}
+          <div
+            className="font-mono text-[10px] text-slate-400 flex items-center gap-1.5"
+            title={
+              exportedNote ??
+              `Vertical mode f=${axialHeightHz} Hz / 2nd=${primaryModeHz} Hz`
+            }
+          >
+            {exportedNote ? (
+              <>
+                <span className="hw-lamp" data-on="green" style={{ width: 6, height: 6 }} aria-hidden="true" />
+                <span>EXPORTED</span>
+              </>
+            ) : (
+              <span>2H {primaryModeHz} Hz</span>
+            )}
           </div>
         </div>
       </div>

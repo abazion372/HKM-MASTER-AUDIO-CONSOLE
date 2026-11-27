@@ -209,8 +209,11 @@ export const DspEngineModule: React.FC<DspEngineModuleProps> = ({
                 AUDIO DSP ENGINE
               </h1>
             </div>
-            <p className="text-[11px] font-mono text-slate-400">
-              Live Church Sound System · {device.manufacturer} {device.model} · {(sampleRate / 1000).toFixed(1)} kHz
+            <p
+              className="text-[11px] font-mono text-slate-400 hw-engraved"
+              title={`Live Church Sound System · ${device.manufacturer} ${device.model} · ${(sampleRate / 1000).toFixed(1)} kHz`}
+            >
+              {device.manufacturer} {device.model} · {(sampleRate / 1000).toFixed(1)} kHz
             </p>
           </div>
         </div>
@@ -219,10 +222,11 @@ export const DspEngineModule: React.FC<DspEngineModuleProps> = ({
           <button
             type="button"
             onClick={() => setPanelLocked((l) => !l)}
-            className={`px-2.5 py-1 rounded border flex items-center gap-1.5 font-semibold ${
+            title={panelLocked ? 'Panel locked — controls are read-only' : 'Panel unlocked — controls are editable'}
+            className={`px-2.5 py-1 rounded font-mono text-[10px] flex items-center gap-1.5 font-semibold cursor-pointer hw-key ${
               panelLocked
-                ? 'border-amber-400 bg-amber-500/20 text-amber-200'
-                : 'border-slate-700 bg-[#090D14] text-slate-300'
+                ? '!bg-none !border-amber-400 !bg-amber-500/20 !text-amber-200'
+                : '!text-slate-300'
             }`}
           >
             {panelLocked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
@@ -236,7 +240,8 @@ export const DspEngineModule: React.FC<DspEngineModuleProps> = ({
                 setSlotA(structuredClone(dsp));
                 setActiveCompareSlot('A');
               }}
-              className="px-2 py-1 text-slate-300 hover:bg-slate-800 border-r border-slate-800"
+              title="Store the current DSP chain into compare slot A"
+              className="px-2 py-1 font-mono cursor-pointer hw-key"
             >
               {slotA ? 'A*' : 'STORE A'}
             </button>
@@ -246,7 +251,8 @@ export const DspEngineModule: React.FC<DspEngineModuleProps> = ({
                 setSlotB(structuredClone(dsp));
                 setActiveCompareSlot('B');
               }}
-              className="px-2 py-1 text-slate-300 hover:bg-slate-800 border-r border-slate-800"
+              title="Store the current DSP chain into compare slot B"
+              className="px-2 py-1 font-mono cursor-pointer hw-key"
             >
               {slotB ? 'B*' : 'STORE B'}
             </button>
@@ -262,7 +268,7 @@ export const DspEngineModule: React.FC<DspEngineModuleProps> = ({
                   onUpdateDsp(structuredClone(target));
                 }
               }}
-              className="px-2 py-1 text-emerald-300 hover:bg-emerald-500/15 disabled:opacity-40 font-semibold"
+              className="px-2 py-1 font-mono font-semibold cursor-pointer hw-key !text-emerald-300 disabled:opacity-40"
             >
               {slotA && slotB ? `CMP ${activeCompareSlot}` : 'A ↔ B'}
             </button>
@@ -278,7 +284,8 @@ export const DspEngineModule: React.FC<DspEngineModuleProps> = ({
           <button
             type="button"
             onClick={() => setShowYaml(!showYaml)}
-            className="px-2.5 py-1 rounded border border-sky-500/40 bg-sky-500/15 text-sky-300 hover:bg-sky-500/25 font-semibold"
+            title="Show / hide the CamillaDSP YAML pipeline export"
+            className="px-2.5 py-1 rounded font-mono font-semibold cursor-pointer hw-key !border-sky-500/40 !text-sky-300"
           >
             {showYaml ? 'HIDE YAML' : 'YAML'}
           </button>
@@ -289,8 +296,11 @@ export const DspEngineModule: React.FC<DspEngineModuleProps> = ({
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-3 items-stretch">
         {/* LEFT RAIL (2 cols): INPUTS (8 Channels with LED meters & mini gain knobs) */}
         <div className="xl:col-span-2 rounded-lg border border-slate-800 bg-[#0D1119] p-2.5 flex flex-col justify-between gap-2">
-          <div className="font-mono text-[10px] font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-800 pb-1.5">
-            Inputs ({inputRackChannels.length} CH)
+          <div
+            className="font-mono text-[10px] text-slate-300 font-semibold uppercase border-b border-slate-800 pb-1.5 hw-engraved"
+            title={`Inputs (${inputRackChannels.length} CH)`}
+          >
+            INPUTS ({inputRackChannels.length} CH)
           </div>
 
           <div className="space-y-1.5 flex-1">
@@ -406,8 +416,11 @@ export const DspEngineModule: React.FC<DspEngineModuleProps> = ({
               </button>
             </div>
 
-            <span className="font-mono text-[10px] text-emerald-400">
-              {validation.valid ? 'SIGNAL PATH CONTINUOUS · GREEN TRACE ACTIVE' : validation.errors[0]}
+            <span
+              className="font-mono text-[10px] text-emerald-400"
+              title="SIGNAL PATH CONTINUOUS · GREEN TRACE ACTIVE"
+            >
+              {validation.valid ? 'SIGNAL PATH OK' : validation.errors[0]}
             </span>
           </div>
 
@@ -978,16 +991,31 @@ export const DspEngineModule: React.FC<DspEngineModuleProps> = ({
                 return (
                   <div key={label} className="flex items-center gap-2">
                     <span className="font-mono text-[10px] text-slate-400 w-12">{label}</span>
-                    <div className="flex-1 flex gap-0.5">
+                    <div
+                      className="hw-led-track-h flex-1 h-[12px]"
+                      role="meter"
+                      aria-label={`${label} output level`}
+                      aria-valuenow={lvl}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                    >
                       {Array.from({ length: 20 }, (_, i) => {
                         const lit = !emergencyMuted && i < activeCount;
-                        const color =
-                          i >= 17
-                            ? lit ? 'bg-red-500' : 'bg-red-950/30'
-                            : i >= 13
-                              ? lit ? 'bg-amber-400' : 'bg-amber-950/30'
-                              : lit ? 'bg-emerald-400' : 'bg-emerald-950/30';
-                        return <div key={i} className={`flex-1 h-3 rounded-[1px] ${color}`} />;
+                        return (
+                          <span
+                            key={i}
+                            className="hw-led-seg"
+                            data-lit={
+                              lit
+                                ? i >= 17
+                                  ? 'red'
+                                  : i >= 13
+                                    ? 'amber'
+                                    : 'green'
+                                : undefined
+                            }
+                          />
+                        );
                       })}
                     </div>
                   </div>
@@ -1002,7 +1030,7 @@ export const DspEngineModule: React.FC<DspEngineModuleProps> = ({
           {/* LATENCY */}
           <div className="rounded-lg border border-slate-800 bg-[#0D1119] p-3 flex items-center justify-between gap-2">
             <div>
-              <div className="font-mono text-[10px] text-slate-400 uppercase">Latency</div>
+              <div className="font-mono text-[10px] text-slate-400 uppercase hw-engraved">Latency</div>
               <div className="font-mono text-2xl font-bold text-white tabular-nums">{latencyMs} ms</div>
               <div
                 className={`font-mono text-[9px] ${
@@ -1012,8 +1040,15 @@ export const DspEngineModule: React.FC<DspEngineModuleProps> = ({
                       ? 'text-sky-400'
                       : 'text-amber-400'
                 }`}
+                title={
+                  latencyMs <= 10
+                    ? 'ROUND TRIP · STATUS GOOD'
+                    : latencyMs <= 18
+                      ? 'ROUND TRIP · MONITOR OK'
+                      : 'INCREASE CLOCK / LOWER BUF'
+                }
               >
-                ROUND TRIP · {latencyMs <= 10 ? 'STATUS GOOD' : latencyMs <= 18 ? 'MONITOR OK' : 'INCREASE CLOCK / LOWER BUF'}
+                ROUND TRIP · {latencyMs <= 10 ? 'OK' : latencyMs <= 18 ? 'MON OK' : 'LATE'}
               </div>
             </div>
             <svg viewBox="0 0 80 36" className="w-20 h-9">
@@ -1029,7 +1064,7 @@ export const DspEngineModule: React.FC<DspEngineModuleProps> = ({
           {/* SYSTEM CPU */}
           <div className="rounded-lg border border-slate-800 bg-[#0D1119] p-3 space-y-1.5">
             <div className="flex justify-between font-mono text-[10px] tabular-nums">
-              <span className="text-slate-400 uppercase">System CPU</span>
+              <span className="text-slate-400 uppercase hw-engraved">System CPU</span>
               <span
                 className={
                   systemCpuValue === null
@@ -1044,19 +1079,34 @@ export const DspEngineModule: React.FC<DspEngineModuleProps> = ({
                 {systemCpuValue === null ? '—' : `${systemCpuValue}%`}
               </span>
             </div>
-            <div className="h-2.5 rounded-xs bg-[#070A10] border border-slate-800 overflow-hidden p-px">
-              <div
-                className={`h-full rounded-[1px] transition-[width] duration-150 ${
-                  systemCpuValue === null
-                    ? 'bg-slate-600'
-                    : systemCpuValue >= 88
-                      ? 'bg-red-500'
-                      : systemCpuValue >= 72
-                        ? 'bg-amber-400'
-                        : 'bg-emerald-400'
-                }`}
-                style={{ width: `${systemCpuValue ?? 0}%` }}
-              />
+            <div
+              className="hw-led-track-h h-[10px]"
+              role="meter"
+              aria-label="System CPU load"
+              aria-valuenow={systemCpuValue ?? 0}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              {Array.from({ length: 16 }, (_, i) => {
+                const litCount =
+                  systemCpuValue === null ? 0 : Math.round((systemCpuValue / 100) * 16);
+                const lit = systemCpuValue !== null && i < litCount;
+                return (
+                  <span
+                    key={i}
+                    className="hw-led-seg"
+                    data-lit={
+                      lit
+                        ? systemCpuValue !== null && systemCpuValue >= 88
+                          ? 'red'
+                          : systemCpuValue !== null && systemCpuValue >= 72
+                            ? 'amber'
+                            : 'green'
+                        : undefined
+                    }
+                  />
+                );
+              })}
             </div>
           </div>
 
@@ -1121,16 +1171,25 @@ export const DspEngineModule: React.FC<DspEngineModuleProps> = ({
       {/* Bottom System Action Dock */}
       <div className="rounded-lg border border-slate-800 bg-[#0D1119] px-4 py-2 flex flex-wrap items-center justify-between gap-3 font-mono text-[11px]">
         <div className="flex items-center gap-3 text-[10px]">
-          <span className="text-emerald-400">● ACTIVE</span>
-          <span className="text-amber-400">● {dsp.bypassed ? 'BYPASSED' : 'DYNAMICS'}</span>
-          <span className="text-sky-400">● {panelLocked ? 'LOCKED' : 'LIVE EDIT'}</span>
+          <span className="flex items-center gap-1.5 text-emerald-400">
+            <span className="hw-lamp" data-on="green" style={{ width: 6, height: 6 }} aria-hidden="true" />
+            ACTIVE
+          </span>
+          <span className="flex items-center gap-1.5 text-amber-400">
+            <span className="hw-lamp" data-on="amber" style={{ width: 6, height: 6 }} aria-hidden="true" />
+            {dsp.bypassed ? 'BYPASSED' : 'DYNAMICS'}
+          </span>
+          <span className="flex items-center gap-1.5 text-sky-400">
+            <span className="hw-lamp" data-on="cyan" style={{ width: 6, height: 6 }} aria-hidden="true" />
+            {panelLocked ? 'LOCKED' : 'LIVE EDIT'}
+          </span>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setPanelLocked((l) => !l)}
-            className="px-3 py-1 rounded border border-slate-700 bg-[#121824] text-slate-200 hover:border-slate-500"
+            className="px-3 py-1 rounded font-mono cursor-pointer hw-key"
           >
             {panelLocked ? 'UNLOCK' : 'LOCK'}
           </button>
@@ -1143,19 +1202,17 @@ export const DspEngineModule: React.FC<DspEngineModuleProps> = ({
                 ? 'EMERGENCY MUTE ENGAGED — all outputs silenced. Click to unmute.'
                 : 'Emergency mute all outputs'
             }
-            className={`relative px-3 py-1 rounded border font-semibold flex items-center gap-1.5 transition-all duration-200 ${
+            className={`relative px-3 py-1 rounded border font-semibold flex items-center gap-1.5 transition-all duration-200 font-mono cursor-pointer hw-key ${
               emergencyMuted
-                ? 'border-red-400 bg-red-600 text-white shadow-[0_0_10px_rgba(239,68,68,0.55)] hw-mute-breath'
-                : 'border-red-500/50 bg-red-950/40 text-red-300 hover:bg-red-600/25'
+                ? '!bg-none !border-red-400 !bg-red-600 !text-white shadow-[0_0_10px_rgba(239,68,68,0.55)] hw-mute-breath'
+                : '!border-red-500/50 !text-red-300'
             }`}
           >
             <span
               aria-hidden="true"
-              className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors duration-200 ${
-                emergencyMuted
-                  ? 'bg-red-100 shadow-[0_0_5px_rgba(255,255,255,0.95)]'
-                  : 'bg-red-900 border border-red-500/50'
-              }`}
+              className="hw-lamp shrink-0 transition-colors duration-200"
+              style={{ width: 6, height: 6 }}
+              data-on={emergencyMuted ? 'red' : undefined}
             />
             <ShieldAlert className="w-3 h-3 shrink-0" aria-hidden="true" />
             <span>MUTE ALL</span>
@@ -1163,14 +1220,21 @@ export const DspEngineModule: React.FC<DspEngineModuleProps> = ({
           <button
             type="button"
             onClick={() => !panelLocked && onUpdateDsp(DEFAULT_DSP_CONFIG)}
-            className="px-3 py-1 rounded border border-slate-700 bg-[#121824] text-slate-200 hover:border-slate-500 flex items-center gap-1"
+            title="Reset the entire DSP chain to defaults"
+            className="px-3 py-1 rounded font-mono flex items-center gap-1 cursor-pointer hw-key"
           >
             <RotateCcw className="w-3 h-3" />
             <span>RESET ALL</span>
           </button>
         </div>
 
-        <div className="text-[10px] text-emerald-400">
+        <div className="text-[10px] text-emerald-400 flex items-center gap-1.5">
+          <span
+            className="hw-lamp"
+            data-on={telemetry?.isRunning ? 'green' : undefined}
+            style={{ width: 5, height: 5 }}
+            aria-hidden="true"
+          />
           {telemetry?.isRunning
             ? `SIGNAL OK · ${((telemetry.sampleRate || sampleRate) / 1000).toFixed(1)} kHz`
             : 'STANDBY'}
@@ -1181,16 +1245,20 @@ export const DspEngineModule: React.FC<DspEngineModuleProps> = ({
       {showYaml && (
         <div className="p-4 rounded-lg border border-slate-800 bg-[#0D1119] space-y-2.5">
           <div className="flex items-center justify-between">
-            <div className="text-xs font-mono font-semibold text-white">
-              CamillaDSP v2.0 Pipeline Configuration ({platform.toUpperCase()} · {driver})
+            <div
+              className="text-xs font-mono font-semibold text-white uppercase hw-engraved"
+              title={`CamillaDSP v2.0 Pipeline Configuration (${platform.toUpperCase()} · ${driver})`}
+            >
+              CAMELLADSP V2.0 PIPELINE · {platform.toUpperCase()} · {driver}
             </div>
             <button
               type="button"
               onClick={handleCopyYaml}
-              className="px-2.5 py-1 rounded border border-slate-700 text-xs font-mono text-slate-300 hover:bg-slate-800 flex items-center gap-1.5"
+              title="Copy the CamillaDSP YAML configuration to the clipboard"
+              className="px-2.5 py-1 rounded font-mono text-xs cursor-pointer hw-key flex items-center gap-1.5"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copied ? 'Copied' : 'Copy YAML'}</span>
+              <span>{copied ? 'COPIED' : 'COPY YAML'}</span>
             </button>
           </div>
           <pre className="p-3 rounded bg-[#070A10] border border-slate-800 text-[11px] font-mono text-slate-300 overflow-x-auto max-h-80 leading-relaxed">

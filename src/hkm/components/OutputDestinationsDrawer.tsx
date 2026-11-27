@@ -71,7 +71,7 @@ export const OutputDestinationsDrawer: React.FC<OutputDestinationsDrawerProps> =
           <Volume2 className="w-3 h-3 text-emerald-400" />
           <span>Live Outputs ({outputDevices.length})</span>
         </div>
-        <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
+        <span className="hw-lamp" data-on="green" style={{ width: 6, height: 6 }} aria-hidden="true" />
       </div>
     );
   }
@@ -82,7 +82,7 @@ export const OutputDestinationsDrawer: React.FC<OutputDestinationsDrawerProps> =
       <div className="p-2.5 border-b border-slate-800 flex items-center justify-between gap-1.5 bg-[#0C121E]">
         <div className="flex items-center gap-1.5 min-w-0">
           <Volume2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span className="font-mono text-xs font-bold text-white truncate">
+          <span className="font-mono text-xs font-bold text-white truncate hw-engraved !text-white">
             Live Outputs ({outputDevices.length})
           </span>
         </div>
@@ -93,10 +93,10 @@ export const OutputDestinationsDrawer: React.FC<OutputDestinationsDrawerProps> =
             onClick={() => void handleScan()}
             title="Live Rescan All Output Devices (speakers, headphones, USB & virtual cable sinks)"
             aria-label="Live rescan output devices"
-            className={`px-1.5 py-1 rounded border font-mono text-[9px] font-bold flex items-center gap-1 transition cursor-pointer disabled:opacity-40 ${
+            className={`px-1.5 py-1 rounded border font-mono text-[9px] font-bold flex items-center gap-1 transition cursor-pointer disabled:opacity-40 hw-key ${
               scanning
-                ? 'border-emerald-400/70 bg-emerald-950/50 text-emerald-300'
-                : 'border-emerald-500/45 bg-emerald-950/35 hover:bg-emerald-900/50 text-emerald-300'
+                ? '!bg-none !bg-emerald-950/50 !border-emerald-400/70 !text-emerald-300'
+                : '!bg-none !bg-emerald-950/35 !border-emerald-500/45 !text-emerald-300 hover:!bg-emerald-900/50'
             }`}
           >
             <RefreshCw className={`w-3 h-3 ${scanning ? 'animate-spin' : ''}`} />
@@ -116,8 +116,16 @@ export const OutputDestinationsDrawer: React.FC<OutputDestinationsDrawerProps> =
       {/* Output Device List */}
       <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2">
         {outputDevices.length === 0 ? (
-          <div className="p-3 text-center border border-dashed border-slate-800 rounded bg-[#060910] text-[10px] font-mono text-slate-500">
-            No audio output endpoints detected. Click refresh or plug in headphones/speakers.
+          <div
+            className="p-3 flex items-center justify-center gap-1.5 border border-dashed border-slate-800 rounded bg-[#060910] text-[10px] font-mono text-slate-500 uppercase tracking-wider"
+            title="No audio output endpoints detected. Click refresh or plug in headphones/speakers."
+          >
+            <span
+              aria-hidden="true"
+              className="hw-lamp"
+              style={{ width: 6, height: 6 }}
+            />
+            NO OUTPUTS · RESCAN
           </div>
         ) : (
           outputDevices.map((dev, idx) => {
@@ -144,7 +152,12 @@ export const OutputDestinationsDrawer: React.FC<OutputDestinationsDrawerProps> =
                     <span>{kind}</span>
                   </span>
                   <div className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.8)]" />
+                    <span
+                      aria-hidden="true"
+                      className="hw-lamp"
+                      data-on="green"
+                      style={{ width: 5, height: 5 }}
+                    />
                     <span className="font-mono text-[9px] text-emerald-400 uppercase font-semibold">Active</span>
                   </div>
                 </div>
@@ -179,7 +192,12 @@ export const OutputDestinationsDrawer: React.FC<OutputDestinationsDrawerProps> =
                     </span>
                   ))}
                   {!isMasterOut && !isStreamOut && assignedZones.length === 0 && (
-                    <span className="text-slate-500 italic text-[9px]">Available for assignment</span>
+                    <span
+                      className="text-slate-500 uppercase text-[9px] tracking-wider"
+                      title="Available for assignment"
+                    >
+                      Open
+                    </span>
                   )}
                 </div>
 
@@ -187,16 +205,24 @@ export const OutputDestinationsDrawer: React.FC<OutputDestinationsDrawerProps> =
                 {(isMasterOut || isStreamOut) && (
                   <div className="space-y-0.5 pt-0.5">
                     <div className="flex items-center justify-between text-[8px] font-mono text-slate-400">
-                      <span>OUT LEVEL</span>
+                      <span className="uppercase tracking-wider">OUT LEVEL</span>
                       <span className="text-emerald-400 font-bold tabular-nums">
                         {telemetry?.isRunning ? `${postLevel.toFixed(1)} dBFS` : 'IDLE'}
                       </span>
                     </div>
-                    <div className="h-1.5 w-full bg-[#05070C] rounded-xs border border-slate-800 overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-emerald-500 via-yellow-400 to-rose-500 transition-all duration-75"
-                        style={{ width: `${meterWidth}%` }}
-                      />
+                    <div className="hw-led-track-h h-2 w-full rounded-xs" title={`Output level ${postLevel.toFixed(1)} dBFS`}>
+                      {Array.from({ length: 12 }).map((_, i) => {
+                        const lit = meterWidth >= ((i + 1) / 12) * 100;
+                        const color = i / 12 >= 0.85 ? 'red' : i / 12 >= 0.68 ? 'amber' : 'green';
+                        return (
+                          <span
+                            key={i}
+                            aria-hidden="true"
+                            className="hw-led-seg"
+                            data-lit={lit ? color : undefined}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -207,13 +233,14 @@ export const OutputDestinationsDrawer: React.FC<OutputDestinationsDrawerProps> =
                     <button
                       type="button"
                       onClick={() => onSelectOutputDevice(dev.deviceId)}
-                      className={`py-1 rounded font-mono text-[9px] font-semibold border transition cursor-pointer ${
+                      className={`py-1 rounded font-mono text-[9px] font-semibold border transition cursor-pointer uppercase tracking-wider hw-key ${
                         isMasterOut
-                          ? 'bg-emerald-600 text-white border-emerald-400 shadow-sm'
-                          : 'bg-[#121A2A] text-slate-300 hover:text-white border-slate-700 hover:border-emerald-500/50'
+                          ? '!bg-none !bg-emerald-600 !border-emerald-400 !text-white shadow-[0_0_6px_rgba(16,185,129,0.45)]'
+                          : '!text-slate-300 hover:!text-white hover:!border-emerald-500/50'
                       }`}
+                      title={isMasterOut ? 'Master PA output' : 'Set Master PA'}
                     >
-                      {isMasterOut ? '✓ Master PA' : 'Set Master PA'}
+                      {isMasterOut ? '✓ Master PA' : 'Master PA'}
                     </button>
                   )}
 
@@ -221,13 +248,14 @@ export const OutputDestinationsDrawer: React.FC<OutputDestinationsDrawerProps> =
                     <button
                       type="button"
                       onClick={() => onSelectStreamOutputDevice(dev.deviceId)}
-                      className={`py-1 rounded font-mono text-[9px] font-semibold border transition cursor-pointer ${
+                      className={`py-1 rounded font-mono text-[9px] font-semibold border transition cursor-pointer uppercase tracking-wider hw-key ${
                         isStreamOut
-                          ? 'bg-violet-600 text-white border-violet-400 shadow-sm'
-                          : 'bg-[#121A2A] text-slate-300 hover:text-white border-slate-700 hover:border-violet-500/50'
+                          ? '!bg-none !bg-violet-600 !border-violet-400 !text-white shadow-[0_0_6px_rgba(139,92,246,0.45)]'
+                          : '!text-slate-300 hover:!text-white hover:!border-violet-500/50'
                       }`}
+                      title={isStreamOut ? 'Stream / OBS output' : 'Set Stream OBS'}
                     >
-                      {isStreamOut ? '✓ Stream / OBS' : 'Set Stream OBS'}
+                      {isStreamOut ? '✓ Stream OBS' : 'Stream OBS'}
                     </button>
                   )}
                 </div>
@@ -238,8 +266,8 @@ export const OutputDestinationsDrawer: React.FC<OutputDestinationsDrawerProps> =
       </div>
 
       {/* Footer Info */}
-      <div className="p-2 border-t border-slate-800 bg-[#0C121E] font-mono text-[9px] text-slate-400 flex items-center justify-between">
-        <span>Bus Matrix: Selective Out</span>
+      <div className="p-2 border-t border-slate-800 bg-[#0C121E] font-mono text-[9px] text-slate-400 flex items-center justify-between uppercase tracking-wider">
+        <span title="Selective output bus matrix">Bus · Sel Out</span>
         <span className="text-emerald-400 font-bold">100% Live Sync</span>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { CheckCircle2, RotateCcw, Zap } from 'lucide-react';
+import { RotateCcw, Zap } from 'lucide-react';
 import type {
   BassDiConfig,
   DspConfig,
@@ -140,7 +140,7 @@ export const VirtualDiBassModule: React.FC<VirtualDiBassModuleProps> = ({
       ctx.fillStyle = '#94A3B8';
       ctx.textAlign = 'right';
       /* Drawn bottom-right so it never collides with the XOVER label at top */
-      ctx.fillText('FILTER CURVE PREVIEW (ENGINE STANDBY)', w - 8, h - 26);
+      ctx.fillText('PREVIEW · STANDBY', w - 8, h - 26);
     }
   }, [bassDi, spectrum, telemetry]);
 
@@ -215,8 +215,11 @@ export const VirtualDiBassModule: React.FC<VirtualDiBassModuleProps> = ({
                 VIRTUAL DI &amp; DUAL-BAND BASS PROCESSOR
               </h1>
             </div>
-            <p className="text-[11px] font-mono text-slate-400">
-              Active DI Input Stage · 50/60 Hz Mains Hum Suppressor · Bi-Amp Low Comp + Harmonic Tube Drive ({device.model})
+            <p
+              className="text-[9.5px] font-mono font-bold uppercase hw-engraved"
+              title={`Active DI Input Stage · 50/60 Hz Mains Hum Suppressor · Bi-Amp Low Comp + Harmonic Tube Drive (${device.model})`}
+            >
+              Active DI · 50/60 Hz Hum Guard · Bi-Amp Comp · Tube Drive · {device.model}
             </p>
           </div>
         </div>
@@ -231,7 +234,8 @@ export const VirtualDiBassModule: React.FC<VirtualDiBassModuleProps> = ({
           <button
             type="button"
             onClick={() => onUpdateBassDi(DEFAULT_BASS_DI_CONFIG)}
-            className="px-2.5 py-1.5 rounded border border-slate-700 bg-[#121722] text-[10px] font-mono font-semibold text-slate-300 hover:border-slate-500 flex items-center gap-1"
+            className="px-2.5 py-1.5 rounded hw-key hover:!border-slate-500 text-[10px] font-mono font-semibold flex items-center gap-1 cursor-pointer"
+            title="Reset Virtual DI Bass chain to factory defaults"
           >
             <RotateCcw className="w-3 h-3" />
             <span>DEFAULT</span>
@@ -239,7 +243,8 @@ export const VirtualDiBassModule: React.FC<VirtualDiBassModuleProps> = ({
           <button
             type="button"
             onClick={handleApplyToMainDsp}
-            className="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-mono font-semibold flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded hw-key !bg-none !bg-emerald-600 hover:!bg-emerald-500 !border-emerald-400/60 !text-white text-xs font-mono font-semibold flex items-center gap-1.5 cursor-pointer"
+            title="Push the Virtual DI Bass chain to the live console DSP"
           >
             <Zap className="w-3.5 h-3.5" />
             <span>PUSH TO LIVE CONSOLE DSP</span>
@@ -252,10 +257,16 @@ export const VirtualDiBassModule: React.FC<VirtualDiBassModuleProps> = ({
         {/* Left Input & Hum Guard Rack */}
         <div className="xl:col-span-4 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 flex flex-col justify-between gap-3">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <span className="font-mono text-xs font-semibold text-white uppercase">
+            <span className="font-mono text-xs font-semibold uppercase hw-engraved">
               1. Active DI Input &amp; Hum Guard
             </span>
-            <span className="font-mono text-[10px] text-amber-400">
+            <span className="font-mono text-[10px] text-amber-400 flex items-center gap-1.5">
+              <span
+                aria-hidden="true"
+                className="hw-lamp"
+                style={{ width: 5, height: 5 }}
+                data-on={telemetry.humRisk.detected ? 'red' : 'green'}
+              />
               {telemetry.humRisk.detected ? 'HUM DETECTED' : 'CLEAN DI'}
             </span>
           </div>
@@ -343,10 +354,10 @@ export const VirtualDiBassModule: React.FC<VirtualDiBassModuleProps> = ({
                     onClick={() => onUpdateBassDi({ subsonicHpfHz: opt.hpf })}
                     title={opt.title}
                     aria-pressed={active}
-                    className={`px-2 py-0.5 rounded border font-mono text-[9px] font-bold tracking-wider transition cursor-pointer ${
+                    className={`px-2 py-0.5 rounded font-mono text-[9px] font-bold tracking-wider transition cursor-pointer hw-key ${
                       active
-                        ? 'border-emerald-400 bg-emerald-500/20 text-emerald-200'
-                        : 'border-slate-700 bg-[#0A0F16] text-slate-400 hover:text-slate-100'
+                        ? '!bg-none !border-emerald-400 !bg-emerald-500/20 !text-emerald-200'
+                        : 'hover:!text-slate-100'
                     }`}
                   >
                     {opt.label}
@@ -355,7 +366,7 @@ export const VirtualDiBassModule: React.FC<VirtualDiBassModuleProps> = ({
               })}
             </div>
             <span
-              className="font-mono text-[9px] font-bold tracking-wider text-amber-300 shrink-0"
+              className="font-mono text-[9px] font-bold tracking-wider text-amber-300 shrink-0 hw-lcd rounded px-1.5 py-0.5"
               title="Keep the Subsonic HPF at 32–40 Hz to remove rumble without thinning fundamental weight"
             >
               HPF {bassDi.subsonicHpfHz.toFixed(0)} Hz
@@ -366,7 +377,7 @@ export const VirtualDiBassModule: React.FC<VirtualDiBassModuleProps> = ({
         {/* Center Bi-Amp Dual-Band Processor */}
         <div className="xl:col-span-5 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 flex flex-col justify-between gap-3">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <span className="font-mono text-xs font-semibold text-white uppercase">
+            <span className="font-mono text-xs font-semibold uppercase hw-engraved">
               2. Dual-Band Sub Comp &amp; Tube Drive
             </span>
             <span className="font-mono text-[10px] text-sky-400">
@@ -482,7 +493,7 @@ export const VirtualDiBassModule: React.FC<VirtualDiBassModuleProps> = ({
         {/* Right Output Stage & Telemetry */}
         <div className="xl:col-span-3 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 flex flex-col justify-between gap-3">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <span className="font-mono text-xs font-semibold text-white uppercase">
+            <span className="font-mono text-xs font-semibold uppercase hw-engraved">
               3. Output &amp; Metering
             </span>
             <span className="font-mono text-[10px] text-emerald-400">
@@ -496,7 +507,7 @@ export const VirtualDiBassModule: React.FC<VirtualDiBassModuleProps> = ({
               value={telemetry.isRunning ? telemetry.gainReductionDb : 0}
               max={18}
               displayValue={telemetry.isRunning ? `-${telemetry.gainReductionDb.toFixed(1)}` : '--'}
-              sublabel={telemetry.isRunning ? 'dB Low Tightening' : 'Standby'}
+              sublabel={telemetry.isRunning ? 'dB GR' : 'Standby'}
               tone="emerald"
             />
             <div className="flex items-center justify-around py-2 bg-[#070A10] border border-slate-800 rounded">
@@ -549,10 +560,20 @@ export const VirtualDiBassModule: React.FC<VirtualDiBassModuleProps> = ({
             />
           </div>
 
-          <div className="p-2.5 rounded border border-emerald-500/30 bg-emerald-500/5 text-[11px] font-mono text-emerald-300 flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-            <span>
-              {bassDi.highBandDrive.cabinetVoicing} · {bassDi.lowBandComp.enabled ? 'Low Comp Active' : 'Low Uncompressed'}
+          {/* Voicing status LED — the old voicing sentence is now a lamp +
+              short status words; full line rides on the tooltip */}
+          <div
+            className="p-2.5 rounded border border-emerald-500/30 bg-emerald-500/5 text-[10px] font-mono font-bold tracking-wider text-emerald-300 flex items-center gap-2"
+            title={`${bassDi.highBandDrive.cabinetVoicing} voicing — ${bassDi.lowBandComp.enabled ? 'low-band compressor active' : 'low-band uncompressed'}`}
+          >
+            <span
+              aria-hidden="true"
+              className="hw-lamp shrink-0"
+              style={{ width: 6, height: 6 }}
+              data-on={bassDi.lowBandComp.enabled ? 'green' : 'amber'}
+            />
+            <span className="truncate uppercase">
+              {bassDi.highBandDrive.cabinetVoicing} · {bassDi.lowBandComp.enabled ? 'LOW COMP ON' : 'LOW COMP OFF'}
             </span>
           </div>
         </div>

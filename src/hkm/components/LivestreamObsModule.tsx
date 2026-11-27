@@ -310,41 +310,50 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
       <div className="rounded-lg border border-slate-800 bg-gradient-to-b from-[#161D29] to-[#0E131C] p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div
-            className={`w-2.5 h-8 rounded-xs ${
-              obsState.telemetry.streaming
-                ? 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.8)] animate-pulse'
-                : obsState.connected
-                  ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.7)]'
-                  : 'bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.6)]'
-            }`}
+            className={`hw-lamp ${obsState.telemetry.streaming ? 'animate-pulse' : ''}`}
+            style={{ width: 8, height: 30 }}
+            data-on={
+              obsState.telemetry.streaming ? 'red' : obsState.connected ? 'green' : 'cyan'
+            }
+            aria-hidden="true"
           />
           <div>
             <div className="flex items-center gap-2">
               <span className="font-mono text-[11px] font-bold text-sky-400">08</span>
-              <h1 className="font-display text-lg font-semibold text-white tracking-tight flex items-center gap-2">
-                <span>LIVESTREAM BROADCAST &amp; OBS STUDIO CONSOLE</span>
+              <h1
+                className="font-display text-lg font-semibold text-white tracking-tight flex items-center gap-2"
+                title="Livestream Broadcast & OBS Studio Console"
+              >
+                <span>LIVESTREAM · OBS CONSOLE</span>
                 {obsState.connected ? (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="hw-lamp animate-pulse" style={{ width: 5, height: 5 }} data-on="green" aria-hidden="true" />
                     CONNECTED
                   </span>
                 ) : obsState.connecting ? (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-amber-500/15 border border-amber-500/30 text-amber-300">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    <span className="hw-lamp animate-pulse" style={{ width: 5, height: 5 }} data-on="amber" aria-hidden="true" />
                     CONNECTING...
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-slate-800 border border-slate-700 text-slate-400">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                    <span className="hw-lamp" style={{ width: 5, height: 5 }} aria-hidden="true" />
                     STANDBY
                   </span>
                 )}
               </h1>
             </div>
-            <p className="text-[11px] font-mono text-slate-400">
+            <p
+              className="text-[11px] font-mono text-slate-400"
+              title={
+                telemetry.isRunning
+                  ? `Dedicated Stream Bus (${broadcastDsp.targetLufs} LUFS · Δ ${lufsDelta > 0 ? `+${lufsDelta}` : lufsDelta}) · A/V Sync Offset · Loop Guard`
+                  : `Stream Bus Standby (Target ${broadcastDsp.targetLufs} LUFS) · A/V Sync Offset · Loop Guard`
+              }
+            >
               {telemetry.isRunning
-                ? `Dedicated Stream Bus (${broadcastDsp.targetLufs} LUFS · Δ ${lufsDelta > 0 ? `+${lufsDelta}` : lufsDelta}) · A/V Sync Offset · Loop Guard`
-                : `Stream Bus Standby (Target ${broadcastDsp.targetLufs} LUFS) · A/V Sync Offset · Loop Guard`}
+                ? `STREAM BUS · ${broadcastDsp.targetLufs} LUFS · Δ ${lufsDelta > 0 ? `+${lufsDelta}` : lufsDelta}`
+                : `STREAM BUS SBY · TGT ${broadcastDsp.targetLufs} LUFS`}
             </p>
           </div>
         </div>
@@ -354,10 +363,9 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
             type="button"
             onClick={() => setShowSettings((prev) => !prev)}
             title="Configure OBS WebSocket Host, Port & Password"
-            className={`h-8 px-2.5 rounded border font-mono text-[11px] flex items-center gap-1.5 transition-colors ${
-              showSettings
-                ? 'border-sky-400 bg-sky-500/20 text-sky-200'
-                : 'border-slate-700 bg-[#121824] text-slate-300 hover:border-slate-500'
+            aria-pressed={showSettings}
+            className={`h-8 px-2.5 rounded border font-mono text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer hw-key ${
+              showSettings ? '!bg-none !border-sky-400 !bg-sky-500/20 !text-sky-200' : ''
             }`}
           >
             <Settings2 className="w-3.5 h-3.5" />
@@ -399,18 +407,20 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
           role="alert"
           className="px-3.5 py-2 rounded-lg border border-amber-500/40 bg-amber-950/30 text-amber-200 text-xs font-mono flex flex-wrap items-center justify-between gap-2"
         >
-          <span className="flex items-center gap-2">
+          <span
+            className="flex items-center gap-2"
+            title={`OBS connection: ${obsState.error}${obsState.authRequired ? ' — open WS CONFIG below and verify the password.' : ''}`}
+          >
             <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
             <span>
-              OBS CONNECTION:{' '}
-              <strong className="text-amber-100">{obsState.error}</strong>
-              {obsState.authRequired && ' — open WS CONFIG below and verify the password.'}
+              WS FAULT · <strong className="text-amber-100">{obsState.error}</strong>
             </span>
           </span>
           <button
             type="button"
             onClick={handleConnectObs}
-            className="px-2.5 py-1 rounded border border-amber-400/60 bg-amber-500/20 hover:bg-amber-500/35 text-amber-100 font-bold text-[10px] cursor-pointer shrink-0"
+            title="Retry the OBS WebSocket connection"
+            className="px-2.5 py-1 rounded border border-amber-400/60 text-amber-100 font-bold text-[10px] cursor-pointer shrink-0 hw-key !bg-none !border-amber-400/60 !bg-amber-500/20 !text-amber-100"
           >
             RETRY CONNECT
           </button>
@@ -421,9 +431,12 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
       {showSettings && (
         <div className="p-3.5 rounded-lg border border-slate-700 bg-[#0B0F19] text-xs font-mono space-y-3">
           <div className="flex items-center justify-between text-slate-300 border-b border-slate-800 pb-2">
-            <span className="font-semibold flex items-center gap-2 text-white">
+            <span
+              className="font-semibold flex items-center gap-2 text-white"
+              title="OBS Studio WebSocket v5 Connection Settings"
+            >
               <Radio className="w-4 h-4 text-sky-400" />
-              <span>OBS STUDIO WEBSOCKET V5 CONNECTION SETTINGS</span>
+              <span>OBS WEBSOCKET V5 · CONFIG</span>
             </span>
             <button
               type="button"
@@ -436,9 +449,15 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] text-slate-400 mb-1">WebSocket Server URL</label>
+              <label
+                className="block text-[11px] text-slate-400 mb-1"
+                title="WebSocket Server URL"
+              >
+                WS URL
+              </label>
               <input
                 type="text"
+                aria-label="OBS WebSocket server URL"
                 value={wsUrl}
                 onChange={(e) => {
                   setWsUrl(e.target.value);
@@ -450,18 +469,21 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
             </div>
             <div>
               <label className="block text-[11px] text-slate-400 mb-1 flex items-center justify-between">
-                <span>Server Password (SHA-256 Authenticated)</span>
-                <span className="text-[10px] text-slate-500">Auto-detected from OBS</span>
+                <span title="Server Password (SHA-256 Authenticated)">WS PASSWORD</span>
+                <span className="text-[10px] text-slate-500" title="Auto-detected from OBS">
+                  AUTO
+                </span>
               </label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
+                  aria-label="OBS WebSocket password"
                   value={wsPassword}
                   onChange={(e) => {
                     setWsPassword(e.target.value);
                     obsWsService.setConfig(wsUrl, e.target.value);
                   }}
-                  placeholder="Enter OBS WebSocket password"
+                  placeholder="PASSWORD"
                   className="w-full pl-8 pr-8 py-1.5 rounded border border-slate-700 bg-[#141B28] text-white focus:border-sky-500 focus:outline-none"
                 />
                 <Key className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
@@ -477,16 +499,20 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
           </div>
 
           <div className="flex items-center justify-between pt-1">
-            <span className="text-[11px] text-slate-400">
-              Protocol: obs-websocket v5 · Port 4455 enabled in OBS Studio settings
+            <span
+              className="text-[11px] text-slate-400"
+              title="Protocol: obs-websocket v5 · port 4455 must be enabled in OBS Studio settings"
+            >
+              OBS-WS v5 · PORT 4455
             </span>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleConnectObs}
-                className="px-3 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs"
+                title="Test & Connect Now — open the OBS WebSocket link with the settings above"
+                className="px-3 py-1 rounded text-white font-semibold text-xs cursor-pointer hw-key !bg-none !border-sky-500 !bg-sky-600 !text-white"
               >
-                Test &amp; Connect Now
+                CONNECT
               </button>
             </div>
           </div>
@@ -500,7 +526,12 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="relative flex items-center justify-center shrink-0" title="OBS WebSocket: disconnected">
               <span className="absolute w-3.5 h-3.5 rounded-full bg-sky-500/30 animate-ping" />
-              <span className="w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.8)]" />
+              <span
+                className="hw-lamp"
+                style={{ width: 8, height: 8 }}
+                data-on="cyan"
+                aria-hidden="true"
+              />
             </span>
             <span className="font-mono text-[11px] font-bold text-white tracking-wider shrink-0">
               OBS STANDBY
@@ -512,7 +543,7 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
               type="button"
               onClick={handleConnectObs}
               title="Retry the OBS WebSocket connection (obs-websocket v5 · port 4455, enabled in OBS Studio settings)"
-              className="px-2.5 py-1 rounded border border-sky-500/50 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 text-[10px] font-mono font-bold tracking-wider cursor-pointer"
+              className="px-2.5 py-1 rounded border text-[10px] font-mono font-bold tracking-wider cursor-pointer hw-key !bg-none !border-sky-500/50 !bg-sky-500/10 !text-sky-300"
             >
               RETRY WS
             </button>
@@ -538,20 +569,31 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
             <div className="p-2 rounded-lg bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 shrink-0">
               <Radio className="w-4 h-4" />
             </div>
-            <span className="font-mono text-xs font-bold text-white uppercase tracking-wider shrink-0">
-              Send Processed HKM Audio to OBS
+            <span
+              className="font-mono text-xs font-bold text-white uppercase tracking-wider shrink-0"
+              title="Send Processed HKM Audio to OBS"
+            >
+              HKM AUDIO → OBS
             </span>
-            <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border shrink-0 ${
-              processedAudioSource
-                ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
-                : 'bg-amber-500/15 border-amber-500/50 text-amber-200'
-            }`}>
+            <span
+              className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border shrink-0 flex items-center gap-1 ${
+                processedAudioSource
+                  ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
+                  : 'bg-amber-500/15 border-amber-500/50 text-amber-200'
+              }`}
+            >
+              <span
+                className="hw-lamp"
+                style={{ width: 5, height: 5 }}
+                data-on={processedAudioSource ? 'green' : 'amber'}
+                aria-hidden="true"
+              />
               {processedAudioSource ? 'SOURCE DETECTED' : 'AWAITING SOURCE'}
             </span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <span
-              className={`px-2 py-1 rounded border font-mono text-[9px] font-bold tracking-wider ${
+              className={`px-2 py-1 rounded border font-mono text-[9px] font-bold tracking-wider flex items-center gap-1 ${
                 processedOutputActive
                   ? 'border-emerald-400/60 bg-emerald-500/15 text-emerald-300'
                   : 'border-amber-500/50 bg-amber-500/10 text-amber-200'
@@ -560,13 +602,19 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
                 ? "HKM is rendering the processed signal to its selected output; OBS can capture this application audio."
                 : 'OBS can capture the signal while HKM renders it. Start the processed output route below; the same signal will play through the selected speakers.'}
             >
+              <span
+                className="hw-lamp"
+                style={{ width: 5, height: 5 }}
+                data-on={processedOutputActive ? 'green' : 'amber'}
+                aria-hidden="true"
+              />
               {processedOutputActive ? 'OUTPUT LIVE' : 'OUTPUT STANDBY'}
             </span>
             <button
               type="button"
               onClick={() => openHelpTopic('livestream')}
               title="Open the OBS Application Audio Capture setup walkthrough in the Help Desk"
-              className="px-2 py-1 rounded border border-[#2A3646] bg-[#0A0F16] text-slate-300 hover:text-white hover:border-teal-400/50 font-mono text-[9px] font-bold tracking-wider cursor-pointer"
+              className="px-2 py-1 rounded border font-mono text-[9px] font-bold tracking-wider cursor-pointer hw-key"
             >
               SETUP GUIDE
             </button>
@@ -602,24 +650,28 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
         {/* Live source readout + start key */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2 min-w-0 font-mono text-[10px]">
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-              processedAudioSource ? 'bg-emerald-400 shadow-[0_0_6px_rgba(74,222,128,0.9)]' : 'bg-slate-600'
-            }`} />
+            <span
+              className="hw-lamp shrink-0"
+              style={{ width: 5, height: 5 }}
+              data-on={processedAudioSource ? 'green' : undefined}
+              aria-hidden="true"
+            />
             <span className={processedAudioSource ? 'text-emerald-300 truncate' : 'text-slate-500 truncate'}>
               {processedAudioSource
                 ? `SOURCE: ${processedAudioSource.inputName} (${processedAudioSource.inputKind})`
                 : obsState.connected
-                  ? 'WS LINKED — SOURCE NOT IN OBS YET'
-                  : 'AWAITING OBS SOURCE'}
+                  ? 'WS LINKED · NO SOURCE'
+                  : 'NO SOURCE'}
             </span>
           </div>
           {!processedOutputActive && (
             <button
               type="button"
               onClick={onEnableProcessedOutput}
-              className="px-3 py-1.5 rounded border border-emerald-400/60 bg-emerald-600/25 hover:bg-emerald-600/40 text-emerald-100 font-mono text-[10px] font-bold cursor-pointer"
+              title="Start HKM processed output — render the processed signal to the selected output"
+              className="px-3 py-1.5 rounded border border-emerald-400/60 text-emerald-100 font-mono text-[10px] font-bold cursor-pointer hw-key !bg-none !border-emerald-400/60 !bg-emerald-600/25 !text-emerald-100"
             >
-              START HKM PROCESSED OUTPUT
+              START OUTPUT
             </button>
           )}
         </div>
@@ -629,34 +681,43 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
       {!device.capabilities.perChannelCapture && (
         dismissedStereoNote ? (
           <div className="flex items-center justify-between px-3 py-1.5 rounded border border-slate-800 bg-[#0A0E16] text-[11px] font-mono text-slate-400">
-            <span className="flex items-center gap-2">
+            <span
+              className="flex items-center gap-2"
+              title={`Stereo Bus Mode: summed 2-channel USB (${device.model}) — broadcast EQ/limiting processes the summed stereo bus`}
+            >
               <Info className="w-3.5 h-3.5 text-sky-400" />
-              <span>Stereo Bus Mode: Summed 2-Ch USB ({device.model})</span>
+              <span>STEREO 2-CH USB · {device.model}</span>
             </span>
             <button
               type="button"
               onClick={() => setDismissedStereoNote(false)}
+              title="View routing note — why this mixer runs a summed stereo bus"
               className="text-sky-400 hover:underline"
             >
-              View Routing Note
+              ROUTING NOTE
             </button>
           </div>
         ) : (
-          <div className="p-3 rounded-lg border border-slate-800 bg-[#0E131E] text-xs text-slate-300 flex items-start justify-between gap-3">
-            <div className="flex items-start gap-2.5">
-              <Info className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
-              <div className="text-[11px] leading-relaxed">
-                <span className="font-semibold font-mono text-white">ROUTING ADVISORY ({device.model}): </span>
-                This mixer exposes a 2-channel USB stereo bus. Broadcast EQ/limiting processes the summed stereo bus; route AUX/GROUP outputs to a 4+ channel interface or digital mixer for separate stream stems.
-              </div>
+          <div className="p-3 rounded-lg border border-slate-800 bg-[#0E131E] text-xs text-slate-300 flex items-center justify-between gap-3">
+            <div
+              className="flex items-center gap-2 min-w-0"
+              title={`${device.model}: this mixer exposes a 2-channel USB stereo bus. Broadcast EQ/limiting processes the summed stereo bus; route AUX/GROUP outputs to a 4+ channel interface or digital mixer for separate stream stems.`}
+            >
+              <Info className="w-4 h-4 text-sky-400 shrink-0" />
+              <span className="font-semibold font-mono text-white shrink-0">
+                ROUTING ADVISORY · {device.model}
+              </span>
+              <span className="px-1.5 py-0.5 rounded border border-sky-500/40 bg-sky-500/10 text-sky-300 font-mono text-[9px] font-bold tracking-wider shrink-0">
+                2-CH USB STEREO BUS
+              </span>
             </div>
             <button
               type="button"
               onClick={handleDismissStereoNote}
-              className="px-2 py-0.5 rounded border border-slate-700 bg-slate-800 text-[10px] font-mono text-slate-300 hover:text-white hover:bg-slate-700 shrink-0"
+              className="px-2 py-0.5 rounded border text-[10px] font-mono text-slate-300 shrink-0 cursor-pointer hw-key"
               title="Acknowledge note"
             >
-              Acknowledge
+              ACK
             </button>
           </div>
         )
@@ -666,8 +727,11 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
         {/* Left Broadcast DSP Processor */}
         <div className="xl:col-span-6 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 flex flex-col justify-between gap-4">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <span className="font-mono text-xs font-semibold text-white uppercase">
-              Broadcast Mastering &amp; Sync Rack
+            <span
+              className="font-mono text-xs font-semibold text-white uppercase hw-engraved"
+              title="Broadcast Mastering & Sync Rack"
+            >
+              MASTERING &amp; SYNC RACK
             </span>
             <div className="flex items-center gap-1.5">
               <ConsolePushButton
@@ -857,9 +921,9 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
           {/* Live Broadcast Output Waveform Scope */}
           <div className="p-2.5 rounded bg-[#05080E] border border-emerald-500/25 space-y-1.5">
             <div className="flex items-center justify-between font-mono text-[10px]">
-              <span className="text-emerald-300 font-bold uppercase flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                Live Broadcast Stream Waveform Scope
+              <span className="text-emerald-300 font-bold uppercase flex items-center gap-1.5 hw-engraved !text-emerald-300">
+                <span className="hw-lamp animate-pulse" style={{ width: 6, height: 6 }} data-on="green" aria-hidden="true" />
+                STREAM SCOPE
               </span>
               <span className="text-slate-400 tabular-nums">
                 Peak: <strong className="text-white">{fastStreamPeakDb > -90 ? `${fastStreamPeakDb.toFixed(1)} dBFS` : '--'}</strong> · Ceiling: {broadcastDsp.limiterCeilingDb.toFixed(1)} dB
@@ -877,24 +941,35 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
         {/* Right OBS Studio Scene Matrix & Telemetry */}
         <div className="xl:col-span-6 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 flex flex-col justify-between gap-4">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <span className="font-mono text-xs font-semibold text-white uppercase flex items-center gap-2">
+            <span
+              className="font-mono text-xs font-semibold text-white uppercase flex items-center gap-2"
+              title="OBS Studio v5 WebSocket Switcher"
+            >
               <Radio className="w-4 h-4 text-sky-400" />
-              <span>OBS Studio v5 WebSocket Switcher</span>
+              <span>OBS SWITCHER · WS V5</span>
             </span>
             <span className="font-mono text-[11px] text-slate-400 flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${obsState.connected ? 'bg-emerald-400 shadow-[0_0_6px_#10B981]' : 'bg-slate-600'}`} />
+              <span
+                className="hw-lamp"
+                style={{ width: 6, height: 6 }}
+                data-on={obsState.connected ? 'green' : undefined}
+                aria-hidden="true"
+              />
               <span>{wsUrl}</span>
             </span>
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <div className="font-mono text-[10px] text-slate-400 uppercase">
-                Program Scene Pads {obsState.connected ? '(Live OBS Synced)' : '(Local Mode)'}
+              <div
+                className="font-mono text-[10px] text-slate-400 uppercase hw-engraved"
+                title={`Program scene pads — ${obsState.connected ? 'live OBS synced' : 'local mode'}`}
+              >
+                PROGRAM SCENES · {obsState.connected ? 'SYNCED' : 'LOCAL'}
               </div>
               {obsState.connected && (
                 <span className="font-mono text-[10px] text-sky-400">
-                  Active: {obsState.activeScene}
+                  PGM: {obsState.activeScene}
                 </span>
               )}
             </div>
@@ -906,17 +981,19 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
                     key={scene}
                     type="button"
                     onClick={() => handleSceneClick(scene)}
-                    className={`px-3 py-2.5 rounded border font-mono text-xs text-left transition-all flex items-center justify-between cursor-pointer ${
+                    title={`Cut to OBS scene: ${scene}`}
+                    className={`px-3 py-2.5 rounded border font-mono text-xs text-left transition-all flex items-center justify-between cursor-pointer hw-key ${
                       active
-                        ? 'border-sky-400 bg-sky-500/20 text-white shadow-[0_0_12px_rgba(56,189,248,0.25)]'
-                        : 'border-slate-800 bg-[#090D14] text-slate-400 hover:border-slate-600 hover:text-slate-200'
+                        ? '!bg-none !border-sky-400 !bg-sky-500/20 !text-white shadow-[0_0_12px_rgba(56,189,248,0.25)]'
+                        : ''
                     }`}
                   >
                     <span className="truncate">{scene}</span>
                     <span
-                      className={`w-2 h-2 rounded-full shrink-0 ${
-                        active ? 'bg-sky-400 shadow-[0_0_6px_#38BDF8]' : 'bg-slate-700'
-                      }`}
+                      className="hw-lamp shrink-0"
+                      style={{ width: 5, height: 5 }}
+                      data-on={active ? 'cyan' : undefined}
+                      aria-hidden="true"
                     />
                   </button>
                 );
@@ -930,10 +1007,11 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
               type="button"
               disabled={!obsState.connected}
               onClick={() => void obsWsService.toggleRecord()}
-              className={`py-2 px-2.5 rounded border font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 ${
+              title={`OBS record — ${obsState.telemetry.recording ? 'stop' : 'start'} remote record in OBS Studio`}
+              className={`py-2 px-2.5 rounded border font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 hw-key ${
                 obsState.telemetry.recording
-                  ? 'bg-rose-600 text-white border-rose-400 animate-pulse'
-                  : 'bg-[#090D14] border-slate-700 text-slate-300 hover:text-white'
+                  ? '!bg-none !border-rose-400 !bg-rose-600 !text-white animate-pulse'
+                  : ''
               }`}
             >
               <Circle className="w-3 h-3 fill-current" />
@@ -944,10 +1022,11 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
               type="button"
               disabled={!obsState.connected}
               onClick={() => void obsWsService.toggleStudioMode()}
-              className={`py-2 px-2.5 rounded border font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 ${
+              title="Toggle OBS Studio Mode (preview/program)"
+              className={`py-2 px-2.5 rounded border font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 hw-key ${
                 obsState.studioModeEnabled
-                  ? 'bg-amber-500/25 text-amber-200 border-amber-400/60'
-                  : 'bg-[#090D14] border-slate-700 text-slate-300 hover:text-white'
+                  ? '!bg-none !border-amber-400/60 !bg-amber-500/25 !text-amber-200'
+                  : ''
               }`}
             >
               <ArrowRightLeft className="w-3 h-3" />
@@ -958,7 +1037,8 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
               type="button"
               disabled={!obsState.connected}
               onClick={() => void obsWsService.triggerTransition()}
-              className="py-2 px-2.5 rounded border border-sky-500/50 bg-sky-500/20 hover:bg-sky-500/35 text-sky-200 font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40"
+              title="Trigger the OBS preview-to-program transition"
+              className="py-2 px-2.5 rounded border border-sky-500/50 text-sky-200 font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 hw-key !bg-none !border-sky-500/50 !bg-sky-500/20 !text-sky-200"
             >
               CUT / TRANSITION
             </button>
@@ -967,18 +1047,22 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
           {/* OBS Exclusive Audio Isolation + Live OBS Audio Mixer */}
           <div className="p-3 rounded border border-emerald-500/30 bg-[#080F0D] space-y-2.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="font-mono text-[10px] font-bold text-emerald-300 uppercase flex items-center gap-1.5">
+              <span
+                className="font-mono text-[10px] font-bold text-emerald-300 uppercase flex items-center gap-1.5 hw-engraved !text-emerald-300"
+                title="OBS exclusive app-audio lock — mute every OBS input except the designated app feed"
+              >
                 <Lock className="w-3.5 h-3.5" />
-                OBS Exclusive App-Audio Lock
+                EXCLUSIVE AUDIO LOCK
               </span>
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   disabled={!obsState.connected}
                   onClick={() => void handleSyncAvOffsetToObs()}
-                  className="px-2 py-1 rounded border border-sky-500/40 bg-sky-500/15 hover:bg-sky-500/30 text-sky-200 font-mono text-[10px] font-bold cursor-pointer disabled:opacity-40"
+                  title={`Sync the ${broadcastDsp.avSyncOffsetMs}ms A/V offset to the designated OBS input`}
+                  className="px-2 py-1 rounded border border-sky-500/40 text-sky-200 font-mono text-[10px] font-bold cursor-pointer disabled:opacity-40 hw-key !bg-none !border-sky-500/40 !bg-sky-500/15 !text-sky-200"
                 >
-                  Sync {broadcastDsp.avSyncOffsetMs}ms A/V
+                  SYNC {broadcastDsp.avSyncOffsetMs}ms A/V
                 </button>
                 <button
                   type="button"
@@ -988,13 +1072,16 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
                       ? setExclusiveAudioLock(false)
                       : void handleEnforceExclusiveObsAudio()
                   }
-                  className={`px-2.5 py-1 rounded border font-mono text-[10px] font-bold cursor-pointer disabled:opacity-40 ${
+                  className={`px-2.5 py-1 rounded border font-mono text-[10px] font-bold cursor-pointer disabled:opacity-40 hw-key ${
                     exclusiveAudioLock
-                      ? 'bg-emerald-500 text-slate-950 border-emerald-300'
-                      : 'bg-emerald-500/20 border-emerald-400/50 text-emerald-200 hover:bg-emerald-500/35'
+                      ? '!bg-none !border-emerald-300 !bg-emerald-500 !text-slate-950'
+                      : '!bg-none !border-emerald-400/50 !bg-emerald-500/20 !text-emerald-200'
                   }`}
+                  title={exclusiveAudioLock
+                    ? 'Exclusive app-audio lock active — only the designated feed is unmuted'
+                    : 'Mute all other OBS mics — enforce the exclusive app-audio lock'}
                 >
-                  {exclusiveAudioLock ? 'EXCLUSIVE LOCK ON' : 'MUTE ALL OTHER OBS MICS'}
+                  {exclusiveAudioLock ? 'LOCK ON' : 'ENGAGE LOCK'}
                 </button>
               </div>
             </div>
@@ -1019,6 +1106,7 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
                           checked={isAppFeed}
                           onChange={() => setDesignatedObsInput(inp.inputName)}
                           title="Designate as App Broadcast Feed"
+                          aria-label={`Designate ${inp.inputName} as app broadcast feed`}
                           className="accent-emerald-400 cursor-pointer"
                         />
                         <span className="text-white font-semibold truncate">{inp.inputName}</span>
@@ -1046,10 +1134,11 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
                         <button
                           type="button"
                           onClick={() => void obsWsService.setInputMute(inp.inputName, !inp.muted)}
-                          className={`px-2 py-0.5 rounded border font-bold cursor-pointer flex items-center gap-1 ${
+                          title={`${inp.muted ? 'Unmute' : 'Mute'} OBS input ${inp.inputName}`}
+                          className={`px-2 py-0.5 rounded border font-bold cursor-pointer flex items-center gap-1 hw-key ${
                             inp.muted
-                              ? 'bg-red-600/80 border-red-400 text-white'
-                              : 'bg-emerald-500/20 border-emerald-400/50 text-emerald-300'
+                              ? '!bg-none !border-red-400 !bg-red-600/80 !text-white'
+                              : '!bg-none !border-emerald-400/50 !bg-emerald-500/20 !text-emerald-300'
                           }`}
                         >
                           {inp.muted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
@@ -1062,12 +1151,16 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
               </div>
             ) : (
               <div className="flex items-center gap-2 py-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-600 shrink-0" />
+                <span
+                  className="hw-lamp shrink-0"
+                  style={{ width: 5, height: 5 }}
+                  aria-hidden="true"
+                />
                 <span
                   className="font-mono text-[9px] font-bold tracking-wider text-slate-500 uppercase"
                   title="Connect OBS WebSocket above to view & mute all OBS mics/inputs and lock the stream exclusively to this app's audio."
                 >
-                  WS OFFLINE — INPUT LOCK UNAVAILABLE
+                  WS OFFLINE · LOCK OFF
                 </span>
               </div>
             )}
@@ -1076,8 +1169,11 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
           {/* Feedback Loop Guard */}
           <div className="p-3 rounded border border-slate-800 bg-[#090D14] space-y-2">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-mono font-semibold text-slate-200">
-                OBS AUDIO MONITORING (FEEDBACK GUARD)
+              <span
+                className="font-mono font-semibold text-slate-200 hw-engraved"
+                title="OBS audio monitoring — feedback loop guard"
+              >
+                AUDIO MONITOR · LOOP GUARD
               </span>
               {obsStatus.audioMonitorMode === 'Monitor Off' ? (
                 <span className="flex items-center gap-1 text-emerald-400 font-mono text-[11px]">
@@ -1098,24 +1194,26 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
                   audioMonitorMode: e.target.value as ObsStatus['audioMonitorMode'],
                 })
               }
+              aria-label="OBS audio monitoring mode"
+              title="Monitor Off recommended — prevents a PA feedback loop"
               className="w-full px-2.5 py-1.5 rounded border border-slate-700 bg-[#121824] text-slate-200 text-xs font-mono"
             >
-              <option value="Monitor Off">Monitor Off (Recommended — prevents PA feedback loop)</option>
-              <option value="Monitor Only">Monitor Only (Mute Output)</option>
-              <option value="Monitor and Output">Monitor and Output (Caution)</option>
+              <option value="Monitor Off">Monitor Off</option>
+              <option value="Monitor Only">Monitor Only</option>
+              <option value="Monitor and Output">Monitor and Output</option>
             </select>
           </div>
 
           <div className="grid grid-cols-3 gap-3 p-2.5 rounded bg-[#070A10] border border-slate-800 font-mono text-xs items-center">
             <div>
-              <div className="text-[10px] text-slate-500">BITRATE</div>
-              <div className="text-slate-100 tabular-nums">
+              <div className="text-[10px] text-slate-500 hw-engraved">BITRATE</div>
+              <div className="text-slate-100 tabular-nums rounded px-1.5 py-0.5 hw-lcd">
                 {obsState.telemetry.streaming ? `${obsState.telemetry.bitrateKbps} kbps` : 'IDLE'}
               </div>
             </div>
             <div>
-              <div className="text-[10px] text-slate-500">DROPPED</div>
-              <div className="text-emerald-400 tabular-nums">
+              <div className="text-[10px] text-slate-500 hw-engraved">DROPPED</div>
+              <div className="text-emerald-400 tabular-nums rounded px-1.5 py-0.5 hw-lcd">
                 {obsState.telemetry.droppedFrames} frames
               </div>
             </div>
@@ -1123,7 +1221,8 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
               <button
                 type="button"
                 onClick={handleSyncCheck}
-                className="px-2.5 py-1.5 rounded border border-slate-700 bg-[#121824] text-[11px] text-slate-200 hover:border-sky-500/50 flex items-center gap-1"
+                title="Re-sync the OBS state snapshot (scenes, inputs, telemetry)"
+                className="px-2.5 py-1.5 rounded border text-[11px] text-slate-200 flex items-center gap-1 cursor-pointer hw-key"
               >
                 <RefreshCw className="w-3 h-3 text-sky-400" />
                 <span>SYNC CHECK</span>

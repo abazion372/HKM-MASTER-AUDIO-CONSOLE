@@ -132,8 +132,11 @@ export const KeyboardShortcutManager: React.FC<KeyboardShortcutManagerProps> = (
               <Keyboard className="w-4 h-4 text-sky-400 shrink-0" />
               <span>GLOBAL KEYBOARD SHORTCUT MANAGER</span>
             </h2>
-            <p className="text-[11px] font-mono text-slate-400">
-              Global window keydown listener · Physical key capture · Safely ignored inside text inputs
+            <p
+              className="text-[11px] font-mono text-slate-400 hw-engraved"
+              title="Global window keydown listener · Physical key capture · Safely ignored inside text inputs"
+            >
+              GLOBAL KEYDOWN · CAPTURE · TEXT-INPUT SAFE
             </p>
           </div>
         </div>
@@ -155,7 +158,8 @@ export const KeyboardShortcutManager: React.FC<KeyboardShortcutManagerProps> = (
           <button
             type="button"
             onClick={handleResetDefaults}
-            className="px-3 py-1.5 rounded bg-[#121824] border border-slate-700 hover:border-slate-500 text-slate-200 text-xs font-mono font-semibold flex items-center gap-1.5"
+            title="Reset all shortcut bindings to factory defaults"
+            className="px-3 py-1.5 rounded font-mono text-xs font-semibold flex items-center gap-1.5 cursor-pointer hw-key"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>RESET DEFAULTS</span>
@@ -169,7 +173,7 @@ export const KeyboardShortcutManager: React.FC<KeyboardShortcutManagerProps> = (
                 onClose();
               }}
               aria-label="Close Keyboard Shortcut Manager"
-              className="px-2.5 py-1.5 rounded bg-[#121824] border border-slate-700 hover:border-slate-500 text-slate-200 text-xs font-mono font-semibold flex items-center gap-1"
+              className="px-2.5 py-1.5 rounded font-mono text-xs font-semibold flex items-center gap-1 cursor-pointer hw-key"
             >
               <X className="w-3.5 h-3.5" />
               <span>CLOSE</span>
@@ -182,8 +186,8 @@ export const KeyboardShortcutManager: React.FC<KeyboardShortcutManagerProps> = (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
         <div className="lg:col-span-5 rounded-lg border border-slate-800 bg-[#0D1119] p-3 flex items-center justify-between gap-3">
           <div className="space-y-0.5">
-            <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
-              LIVE TAP TEMPO ENGINE
+            <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400 hw-engraved">
+              TAP TEMPO ENGINE
             </div>
             <div className="flex items-baseline gap-2.5">
               <span className="font-mono text-2xl font-bold text-white tabular-nums">
@@ -199,10 +203,11 @@ export const KeyboardShortcutManager: React.FC<KeyboardShortcutManagerProps> = (
           <button
             type="button"
             onClick={() => onTriggerAction('tap-tempo', 'CLICK')}
-            className={`px-3.5 py-2 rounded border font-mono text-xs font-bold flex items-center gap-1.5 shrink-0 ${
+            title="Tap to set the live tempo — 1/4 and 1/8d timings update instantly"
+            className={`px-3.5 py-2 rounded border font-mono text-xs font-bold flex items-center gap-1.5 shrink-0 cursor-pointer hw-key ${
               tapRecently
-                ? 'border-sky-400 bg-sky-500 text-slate-950 shadow-[0_0_12px_rgba(56,189,248,0.55)]'
-                : 'border-sky-500/40 bg-sky-500/15 text-sky-300 hover:bg-sky-500/25'
+                ? '!bg-none !border-sky-400 !bg-sky-500 !text-slate-950 shadow-[0_0_12px_rgba(56,189,248,0.55)]'
+                : '!border-sky-500/40 !text-sky-300'
             }`}
           >
             <Activity className="w-3.5 h-3.5" />
@@ -212,7 +217,7 @@ export const KeyboardShortcutManager: React.FC<KeyboardShortcutManagerProps> = (
 
         <div className="lg:col-span-7 rounded-lg border border-slate-800 bg-[#0D1119] p-3 flex flex-col justify-center gap-1.5">
           <div className="flex items-center justify-between gap-2 text-[11px] font-mono">
-            <span className="text-slate-400 uppercase tracking-wider">LAST KEYDOWN EXECUTION</span>
+            <span className="text-slate-400 uppercase tracking-wider">LAST KEYDOWN</span>
             <span className={emergencyMuted ? 'text-red-400 font-bold' : 'text-emerald-400 font-semibold'}>
               {emergencyMuted ? 'PA: EMERGENCY MUTED' : 'PA: LIVE / ARMED'}
             </span>
@@ -220,13 +225,17 @@ export const KeyboardShortcutManager: React.FC<KeyboardShortcutManagerProps> = (
 
           {capturingId ? (
             <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded border border-amber-500/50 bg-amber-500/10 text-amber-200 font-mono text-xs">
-              <span>
-                KEY CAPTURE ACTIVE — Press any key or modifier combo (Ctrl/Alt/Shift + Key), or Esc to cancel.
+              <span
+                className="flex items-center gap-1.5 font-bold tracking-wider"
+                title="KEY CAPTURE ACTIVE — press any key or modifier combo (Ctrl/Alt/Shift + Key), or Esc to cancel."
+              >
+                <span className="hw-lamp shrink-0" style={{ width: 6, height: 6 }} data-on="amber" aria-hidden="true" />
+                CAPTURE ARMED · PRESS KEY · ESC = CANCEL
               </span>
               <button
                 type="button"
                 onClick={() => onSetCapturingId(null)}
-                className="px-2 py-0.5 rounded border border-amber-400/50 text-[10px] hover:bg-amber-500/20"
+                className="px-2 py-0.5 rounded border border-amber-400/50 text-[10px] hover:bg-amber-500/20 cursor-pointer"
               >
                 CANCEL
               </button>
@@ -250,8 +259,12 @@ export const KeyboardShortcutManager: React.FC<KeyboardShortcutManagerProps> = (
               </span>
             </div>
           ) : (
-            <div className="px-2.5 py-1.5 rounded border border-slate-800 bg-[#080B10] font-mono text-xs text-slate-500">
-              Press any bound shortcut (e.g. Shift+M for Mute All, T for Tap Tempo, Shift+S for Save Snapshot).
+            <div
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded border border-slate-800 bg-[#080B10] font-mono text-xs text-slate-500"
+              title="Press any bound shortcut (e.g. Shift+M for Mute All, T for Tap Tempo, Shift+S for Save Snapshot)."
+            >
+              <span className="hw-lamp" style={{ width: 5, height: 5 }} aria-hidden="true" />
+              NO TRIGGER YET
             </div>
           )}
         </div>
@@ -285,7 +298,7 @@ export const KeyboardShortcutManager: React.FC<KeyboardShortcutManagerProps> = (
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Filter actions or keys..."
+            placeholder="FILTER · ACTION / KEY"
             className="w-full h-8 pl-8 pr-2.5 rounded border border-slate-800 bg-[#080B10] text-xs font-mono text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-sky-500/60"
           />
         </div>
@@ -371,10 +384,11 @@ export const KeyboardShortcutManager: React.FC<KeyboardShortcutManagerProps> = (
                         <button
                           type="button"
                           onClick={() => onSetCapturingId(isCapturing ? null : item.id)}
-                          className={`px-2.5 py-1 rounded border font-mono text-[10px] font-semibold ${
+                          title={isCapturing ? 'Cancel key capture' : 'Bind a physical key combo to this action'}
+                          className={`px-2.5 py-1 rounded font-mono text-[10px] font-semibold cursor-pointer hw-key ${
                             isCapturing
-                              ? 'border-amber-400 bg-amber-500 text-slate-950'
-                              : 'border-sky-500/40 bg-sky-500/15 text-sky-300 hover:bg-sky-500/25'
+                              ? '!bg-none !border-amber-400 !bg-amber-500 !text-slate-950'
+                              : '!border-sky-500/40 !text-sky-300'
                           }`}
                         >
                           {isCapturing ? 'CANCEL' : 'BIND KEY'}
@@ -383,7 +397,7 @@ export const KeyboardShortcutManager: React.FC<KeyboardShortcutManagerProps> = (
                           type="button"
                           onClick={() => onTriggerAction(item.actionId, item.keyCombo || 'TEST')}
                           title={`Test ${item.label}`}
-                          className="px-2 py-1 rounded border border-slate-700 bg-[#121824] text-slate-300 hover:text-white font-mono text-[10px] inline-flex items-center gap-1"
+                          className="px-2 py-1 rounded font-mono text-[10px] inline-flex items-center gap-1 cursor-pointer hw-key"
                         >
                           <Play className="w-2.5 h-2.5" />
                           <span>TEST</span>
@@ -393,7 +407,7 @@ export const KeyboardShortcutManager: React.FC<KeyboardShortcutManagerProps> = (
                             type="button"
                             onClick={() => clearBindingKey(item.id)}
                             title="Unbind key"
-                            className="px-2 py-1 rounded border border-slate-800 bg-[#080B10] text-slate-400 hover:text-red-300 font-mono text-[10px]"
+                            className="px-2 py-1 rounded font-mono text-[10px] cursor-pointer hw-key"
                           >
                             CLEAR
                           </button>
@@ -406,8 +420,15 @@ export const KeyboardShortcutManager: React.FC<KeyboardShortcutManagerProps> = (
 
               {filteredShortcuts.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-6 text-center font-mono text-xs text-slate-500">
-                    No console shortcuts match &ldquo;{searchQuery}&rdquo;.
+                  <td
+                    colSpan={5}
+                    className="py-6 text-center font-mono text-xs text-slate-500"
+                    title={`No console shortcuts match “${searchQuery}”.`}
+                  >
+                    <span className="inline-flex items-center gap-2 font-bold tracking-wider">
+                      <span className="hw-lamp" style={{ width: 5, height: 5 }} aria-hidden="true" />
+                      NO MATCH · {searchQuery}
+                    </span>
                   </td>
                 </tr>
               )}

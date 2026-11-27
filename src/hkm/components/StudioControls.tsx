@@ -157,7 +157,18 @@ export const RotaryKnob: React.FC<RotaryKnobProps> = ({
         }`}
         style={{ width: size, height: size }}
       >
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        {/* Machined knob cap face (CSS hardware kit) */}
+        <span
+          aria-hidden="true"
+          className="hw-knob-face absolute rounded-full pointer-events-none"
+          style={{
+            width: capRadius * 2,
+            height: capRadius * 2,
+            left: cx - capRadius,
+            top: cy - capRadius,
+          }}
+        />
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="relative z-10">
           <defs>
             <radialGradient id={gradId} cx="38%" cy="32%" r="70%">
               <stop offset="0%" stopColor="#3B4559" />
@@ -213,12 +224,12 @@ export const RotaryKnob: React.FC<RotaryKnobProps> = ({
             );
           })}
 
-          {/* Metallic Knob Cap */}
+          {/* Machined Knob Cap (face rendered by .hw-knob-face behind the SVG) */}
           <circle
             cx={cx}
             cy={cy}
             r={capRadius}
-            fill={`url(#${gradId})`}
+            fill="none"
             stroke="rgba(255,255,255,0.12)"
             strokeWidth={1}
           />
@@ -367,7 +378,7 @@ export const VerticalFader: React.FC<VerticalFaderProps> = ({
         </div>
 
         {/* Recessed Slot */}
-        <div className="relative w-1.5 h-[84%] rounded-full bg-[#030508] border border-slate-800 overflow-hidden">
+        <div className="relative w-1.5 h-[84%] rounded-full hw-fader-slot overflow-hidden">
           <div
             className={`absolute bottom-0 inset-x-0 ${fillBg} opacity-80`}
             style={{
@@ -379,14 +390,9 @@ export const VerticalFader: React.FC<VerticalFaderProps> = ({
 
         {/* Tactile Metallic Fader Cap */}
         <div
-          className="absolute left-1.5 right-1.5 h-6 -translate-y-1/2 rounded-xs border border-slate-500/60 shadow-md flex flex-col items-center justify-center gap-0.5 pointer-events-none"
-          style={{
-            bottom: `${capBottomPct}%`,
-            background: 'linear-gradient(180deg, #475569 0%, #1E293B 48%, #0F172A 52%, #334155 100%)',
-          }}
-        >
-          <div className={`w-full h-px ${accent === 'slate' ? 'bg-slate-600/45' : 'bg-white/80'}`} />
-        </div>
+          className="hw-fader-cap absolute left-1.5 right-1.5 h-6 -translate-y-1/2 flex items-center justify-center pointer-events-none"
+          style={{ bottom: `${capBottomPct}%` }}
+        />
       </div>
 
       <div
@@ -427,7 +433,7 @@ export const SegmentedLedMeter: React.FC<SegmentedLedMeterProps> = ({
   return (
     <div
       style={{ height }}
-      className="w-3 bg-[#070A0F] border border-slate-800 rounded-xs p-0.5 flex flex-col-reverse justify-between gap-[2px]"
+      className="w-3 hw-led-track !flex-col-reverse rounded-xs"
       aria-label={`Level ${levelDb.toFixed(1)} dBFS`}
     >
       {Array.from({ length: segments }).map((_, i) => {

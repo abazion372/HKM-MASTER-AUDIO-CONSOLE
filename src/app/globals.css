@@ -1082,5 +1082,242 @@ input[type="range"].studio-slider::-webkit-slider-thumb:hover {
   color: #f8fafc;
 }
 
+/* ============================================================================
+   PHYSICAL CONSOLE HARDWARE KIT v2 — deck surface, screws, segmented LEDs,
+   machined knobs, glossy fader caps, engraved silkscreen labels.
+   Built for the center deck + channel bays; everything is pure presentation
+   (background/border/shadow only — no layout or behavior).
+   ============================================================================ */
 
+/* --- The Deck: the center processing surface. Unique against all other
+   panels — near-black brushed metal with a strong machined border rail,
+   a top specular edge and a deep drop shadow, like the master section of a
+   real console bolted into a chassis. --- */
+.hw-deck {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0) 6%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.012) 0px, rgba(255, 255, 255, 0.012) 1px, transparent 1px, transparent 3px),
+    linear-gradient(180deg, #141a21 0%, #0c1116 58%, #090d12 100%);
+  border: 1px solid #5d7290;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.17),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.65),
+    inset 1px 0 0 rgba(255, 255, 255, 0.04),
+    0 6px 22px rgba(0, 0, 0, 0.65);
+}
 
+/* --- Panel screws: recessed Phillips heads at deck corners.
+   NOTE: consumers position this with Tailwind `absolute` (corner offsets);
+   this class never sets `position` (unlayered CSS would beat the utility). --- */
+.hw-screw {
+  width: 11px;
+  height: 11px;
+  border-radius: 9999px;
+  background:
+    radial-gradient(circle at 35% 28%, #c3d3e6 0%, #6b7f96 40%, #33445a 74%, #16202c 100%);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.55),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.75),
+    0 1px 2px rgba(0, 0, 0, 0.7);
+}
+.hw-screw::after,
+.hw-screw::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(7, 11, 16, 0.9);
+  box-shadow: 0 0.5px 0 rgba(255, 255, 255, 0.35);
+}
+.hw-screw::after {
+  transform: translate(-50%, -50%) rotate(38deg);
+}
+.hw-screw::before {
+  transform: translate(-50%, -50%) rotate(128deg);
+}
+
+/* --- Engraved silkscreen label: the way real consoles print text into
+   brushed metal — dark upper edge, light lower edge (incised, not raised) --- */
+.hw-engraved {
+  color: #b7c5d6;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.85), 0 1px 0 rgba(255, 255, 255, 0.09);
+  letter-spacing: 0.14em;
+}
+
+/* --- Segmented LED meter track (the hardware way: discrete LEDs, never a
+   smooth bar). Use on the track element; segments are child flex items. --- */
+.hw-led-track {
+  background: linear-gradient(180deg, #05080c 0%, #0a0f16 100%);
+  border: 1px solid #27313e;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.9), inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+  padding: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5px;
+}
+.hw-led-track-h {
+  background: linear-gradient(90deg, #030509 0%, #070c12 100%);
+  border: 1px solid #232d3a;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.9), inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+  padding: 2px;
+  display: flex;
+  gap: 2px;
+}
+/* Individual LED lens: dome-lit when lit; dark molded plastic when off */
+.hw-led-seg {
+  flex: 1;
+  border-radius: 1px;
+  background: #1a2330;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.6), inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+  transition: background 90ms linear, box-shadow 90ms linear;
+}
+.hw-led-seg[data-lit='green'] {
+  background: #34d399;
+  box-shadow: 0 0 5px rgba(52, 211, 153, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+}
+.hw-led-seg[data-lit='cyan'] {
+  background: #22d3ee;
+  box-shadow: 0 0 5px rgba(34, 211, 238, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+}
+.hw-led-seg[data-lit='amber'] {
+  background: #fbbf24;
+  box-shadow: 0 0 5px rgba(251, 191, 36, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+}
+.hw-led-seg[data-lit='red'] {
+  background: #f87171;
+  box-shadow: 0 0 5px rgba(248, 113, 113, 0.8), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+}
+
+/* --- Machined knob face: brushed radial metal + specular top highlight +
+   turned-ring ridges + drop shadow so it sits ABOVE the panel --- */
+.hw-knob-face {
+  background:
+    radial-gradient(circle at 50% 24%, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.05) 34%, rgba(0, 0, 0, 0.22) 72%, rgba(0, 0, 0, 0.5) 100%),
+    repeating-radial-gradient(circle at 50% 50%, #3a4757 0px, #3a4757 1px, #2d3947 1.5px, #2d3947 2.5px),
+    #2d3947;
+  border: 1px solid #1c242f;
+  box-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(255, 255, 255, 0.09),
+    inset 0 1px 1px rgba(255, 255, 255, 0.22);
+}
+
+/* --- Glossy 3D fader cap: polished cap with a bright top face, thumb groove
+   and a physical shadow cast into the slot below it --- */
+.hw-fader-cap {
+  background: linear-gradient(180deg, #e7f0f8 0%, #9fb3c6 18%, #5b7186 55%, #33455a 85%, #22303f 100%);
+  border: 1px solid #16202c;
+  border-radius: 3px;
+  box-shadow:
+    0 3px 6px rgba(0, 0, 0, 0.75),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.45);
+}
+/* the center guide line every real fader cap carries */
+.hw-fader-cap::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  bottom: 2px;
+  width: 1.5px;
+  transform: translateX(-50%);
+  border-radius: 1px;
+  background: linear-gradient(180deg, #0c141d 0%, #1d2b3a 100%);
+}
+
+/* --- Recessed control slot: the milled track a fader cap rides in --- */
+.hw-fader-slot {
+  background: linear-gradient(180deg, #04070b 0%, #0a1017 100%);
+  border: 1px solid #1f2934;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.95), inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* --- Beveled keycap: physical push key with depth, pressed-in active state --- */
+.hw-key {
+  background: linear-gradient(180deg, #39485a 0%, #26313e 52%, #1a222c 100%);
+  border: 1px solid #566a84;
+  color: #e8eef6;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 2px 3px rgba(0, 0, 0, 0.6);
+  transition: box-shadow 90ms ease, transform 90ms ease, background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.hw-key:hover:not(:disabled) {
+  background: linear-gradient(180deg, #435468 0%, #2c3947 52%, #1f2833 100%);
+  border-color: #718099;
+}
+.hw-key:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+/* --- Recessed LCD readout well: like a screen sunk into the panel --- */
+.hw-lcd {
+  background: linear-gradient(180deg, #03070a 0%, #071017 100%);
+  border: 1px solid #1c2632;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.92);
+}
+
+/* --- LED indicator lamp: domed jewel with bloom --- */
+.hw-lamp {
+  border-radius: 9999px;
+  background: #1a232e;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.12), inset 0 -1px 2px rgba(0, 0, 0, 0.7);
+}
+.hw-lamp[data-on='green'] {
+  background: radial-gradient(circle at 42% 32%, #d1fae5 0%, #34d399 45%, #059669 100%);
+  box-shadow: 0 0 6px rgba(52, 211, 153, 0.85), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+}
+.hw-lamp[data-on='red'] {
+  background: radial-gradient(circle at 42% 32%, #fee2e2 0%, #f87171 45%, #b91c1c 100%);
+  box-shadow: 0 0 6px rgba(248, 113, 113, 0.85), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+}
+.hw-lamp[data-on='amber'] {
+  background: radial-gradient(circle at 42% 32%, #fef3c7 0%, #fbbf24 45%, #b45309 100%);
+  box-shadow: 0 0 6px rgba(251, 191, 36, 0.85), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+}
+.hw-lamp[data-on='cyan'] {
+  background: radial-gradient(circle at 42% 32%, #cffafe 0%, #22d3ee 45%, #0e7490 100%);
+  box-shadow: 0 0 6px rgba(34, 211, 238, 0.85), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+}
+
+/* --- Light-theme compatibility for the v2 hardware kit --- */
+[data-console-theme="daylight-foh"] .hw-deck,
+[data-console-theme="warm-daylight"] .hw-deck {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0) 6%),
+    linear-gradient(180deg, var(--theme-panel) 0%, var(--theme-chrome-deep) 100%);
+  border-color: var(--theme-border-strong);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 4px 14px rgba(15, 23, 42, 0.12);
+}
+[data-console-theme="daylight-foh"] .hw-engraved,
+[data-console-theme="warm-daylight"] .hw-engraved {
+  color: var(--theme-muted);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+[data-console-theme="daylight-foh"] .hw-key,
+[data-console-theme="warm-daylight"] .hw-key {
+  background: linear-gradient(180deg, #ffffff 0%, var(--theme-control) 100%);
+  border-color: var(--theme-border-strong);
+  color: var(--theme-heading);
+}
+[data-console-theme="daylight-foh"] .hw-fader-cap,
+[data-console-theme="warm-daylight"] .hw-fader-cap {
+  background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 20%, #64748b 60%, #334155 100%);
+}
+[data-console-theme="daylight-foh"] .hw-lcd,
+[data-console-theme="warm-daylight"] .hw-lcd {
+  background: linear-gradient(180deg, #03070a 0%, #071017 100%);
+}
+
+/* Reduced motion: LED lamps snap, no glow pulsing */
+@media (prefers-reduced-motion: reduce) {
+  .hw-led-seg,
+  .hw-lamp {
+    transition: none;
+  }
+}

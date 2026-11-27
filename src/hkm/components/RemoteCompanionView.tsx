@@ -418,35 +418,39 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
         >
           <div className="flex items-center gap-2.5">
             <Lock className="w-5 h-5 text-sky-400" />
-            <h1 className="font-display text-lg font-semibold text-white">
-              FOH Companion PIN Required
+            <h1
+              className="font-display text-lg font-semibold text-white"
+              title="FOH Companion PIN required"
+            >
+              FOH PIN
             </h1>
           </div>
-          <p className="text-xs text-slate-400">
-            Enter the 4-digit security PIN displayed in Hardware &amp; Diagnostics → Remote Access.
-          </p>
           <input
             type="password"
             inputMode="numeric"
+            aria-label="Enter the 4-digit security PIN displayed in Hardware & Diagnostics → Remote Access"
+            title="4-digit PIN — displayed in Hardware & Diagnostics → Remote Access"
             value={pinInput}
             onChange={(e) => setPinInput(e.target.value)}
-            placeholder="Enter PIN..."
+            placeholder="PIN"
             className="w-full h-11 px-3 rounded-lg border border-slate-700 bg-[#070A10] font-mono text-center text-lg tracking-widest text-white focus:outline-none focus:border-sky-400"
           />
           {authError && <div className="text-xs text-red-400 font-mono">{authError}</div>}
           <button
             type="submit"
-            className="w-full h-11 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-mono text-xs font-semibold uppercase"
+            title="Unlock the remote console"
+            className="w-full h-11 rounded-lg font-mono text-xs font-semibold uppercase cursor-pointer hw-key !bg-none !border-sky-500 !bg-sky-600 !text-white"
           >
-            Unlock Remote Console
+            UNLOCK
           </button>
           {onExitRemote && (
             <button
               type="button"
               onClick={onExitRemote}
-              className="w-full h-10 rounded-lg border border-slate-700 text-slate-300 font-mono text-xs"
+              title="Return to Desktop Console"
+              className="w-full h-10 rounded-lg font-mono text-xs cursor-pointer hw-key"
             >
-              Return to Desktop Console
+              DESKTOP CONSOLE
             </button>
           )}
         </form>
@@ -492,9 +496,10 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
             <button
               type="button"
               onClick={onExitRemote}
-              className="h-9 px-2.5 rounded border border-slate-700 bg-[#121824] font-mono text-[11px] text-slate-200 whitespace-nowrap"
+              title="Return to Desktop Console"
+              className="h-9 px-2.5 rounded font-mono text-[11px] text-slate-200 whitespace-nowrap cursor-pointer hw-key"
             >
-              Desktop UI
+              DESKTOP UI
             </button>
           )}
         </div>
@@ -513,10 +518,23 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
         {/* Hardware Capability & Live Bus Telemetry Strip */}
         <div className="rounded-lg border border-slate-800 bg-[#0E1524] p-3 flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-0.5">
-            <div className="font-mono text-[11px] text-slate-400">
-              {activeDevice.capabilities.perChannelFaderControl
-                ? 'Hardware-Linked Fader & Preamp Sync Active'
-                : 'Software DSP Return Sync (Physical mixer faders remain manual)'}
+            <div
+              className="font-mono text-[11px] text-slate-400 flex items-center gap-1.5"
+              title={activeDevice.capabilities.perChannelFaderControl
+                ? 'Hardware-linked fader & preamp sync active'
+                : 'Software DSP return sync — physical mixer faders remain manual'}
+            >
+              <span
+                className="hw-lamp"
+                style={{ width: 6, height: 6 }}
+                data-on={activeDevice.capabilities.perChannelFaderControl ? 'green' : 'cyan'}
+                aria-hidden="true"
+              />
+              <span>
+                {activeDevice.capabilities.perChannelFaderControl
+                  ? 'HW FADER SYNC'
+                  : 'SW DSP SYNC'}
+              </span>
             </div>
             <div className="font-mono text-xs text-slate-200 tabular-nums flex flex-wrap items-center gap-3">
               <span>
@@ -545,22 +563,22 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
           {permissions.allowMasterTrim && (
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 px-2.5 py-1.5 rounded border border-slate-800 bg-[#070A10]">
-                <span className="font-mono text-[10px] text-slate-400">MASTER TRIM</span>
+                <span className="font-mono text-[10px] text-slate-400 hw-engraved">MASTER TRIM</span>
                 <button
                   type="button"
                   onClick={() => sendMasterPatch({ inputTrimDb: Math.max(-18, Number((inputTrimDb - 0.5).toFixed(1))) })}
-                  className="w-8 h-8 rounded bg-[#162138] text-slate-100 font-mono text-sm"
+                  className="w-8 h-8 rounded font-mono text-sm cursor-pointer hw-key"
                   aria-label="Decrease master trim"
                 >
                   -
                 </button>
-                <span className="font-mono text-xs font-bold text-sky-300 w-14 text-center tabular-nums">
+                <span className="font-mono text-xs font-bold text-sky-300 w-14 text-center tabular-nums rounded px-1 hw-lcd">
                   {inputTrimDb > 0 ? `+${inputTrimDb.toFixed(1)}` : inputTrimDb.toFixed(1)} dB
                 </span>
                 <button
                   type="button"
                   onClick={() => sendMasterPatch({ inputTrimDb: Math.min(12, Number((inputTrimDb + 0.5).toFixed(1))) })}
-                  className="w-8 h-8 rounded bg-[#162138] text-slate-100 font-mono text-sm"
+                  className="w-8 h-8 rounded font-mono text-sm cursor-pointer hw-key"
                   aria-label="Increase master trim"
                 >
                   +
@@ -573,10 +591,11 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
                   hapticTap();
                   sendMasterPatch({ emergencyMuted: !emergencyMuted });
                 }}
-                className={`h-11 px-3 rounded font-mono text-xs font-bold flex items-center gap-1.5 border ${
+                title={emergencyMuted ? 'Unmute the PA' : 'Emergency mute the PA'}
+                className={`h-11 px-3 rounded font-mono text-xs font-bold flex items-center gap-1.5 border cursor-pointer hw-key ${
                   emergencyMuted
-                    ? 'bg-red-600 border-red-300 text-white'
-                    : 'border-red-500/50 bg-red-950/40 text-red-300'
+                    ? '!bg-none !border-red-300 !bg-red-600 !text-white'
+                    : '!bg-none !border-red-500/50 !bg-red-950/40 !text-red-300'
                 }`}
               >
                 <ShieldAlert className="w-4 h-4" />
@@ -597,10 +616,10 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
             role="tab"
             aria-selected={contentTab === 'zones'}
             onClick={() => setContentTab('zones')}
-            className={`h-11 rounded-md font-mono text-xs font-bold border flex items-center justify-center gap-1.5 ${
+            className={`h-11 rounded-md font-mono text-xs font-bold border flex items-center justify-center gap-1.5 cursor-pointer hw-key ${
               contentTab === 'zones'
-                ? 'border-teal-400 bg-teal-500/20 text-white'
-                : 'border-transparent text-slate-400'
+                ? '!bg-none !border-teal-400 !bg-teal-500/20 !text-white'
+                : ''
             }`}
           >
             <Speaker className="w-3.5 h-3.5" />
@@ -611,10 +630,10 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
             role="tab"
             aria-selected={contentTab === 'channels'}
             onClick={() => setContentTab('channels')}
-            className={`h-11 rounded-md font-mono text-xs font-bold border flex items-center justify-center gap-1.5 ${
+            className={`h-11 rounded-md font-mono text-xs font-bold border flex items-center justify-center gap-1.5 cursor-pointer hw-key ${
               contentTab === 'channels'
-                ? 'border-sky-400 bg-sky-500/20 text-white'
-                : 'border-transparent text-slate-400'
+                ? '!bg-none !border-sky-400 !bg-sky-500/20 !text-white'
+                : ''
             }`}
           >
             <Sliders className="w-3.5 h-3.5" />
@@ -625,8 +644,16 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
         {contentTab === 'zones' ? (
           /* Speaker Zone Control Cards */
           zones.length === 0 ? (
-            <div className="p-8 rounded-lg border border-slate-800 bg-[#0E1524] text-center font-mono text-xs text-slate-400">
-              Waiting for speaker zone sync from FOH host...
+            <div
+              className="p-8 rounded-lg border border-slate-800 bg-[#0E1524] flex items-center justify-center gap-2 font-mono text-xs text-slate-400"
+              title="Waiting for speaker zone sync from FOH host..."
+            >
+              <span
+                className="hw-lamp shrink-0"
+                style={{ width: 6, height: 6 }}
+                aria-hidden="true"
+              />
+              <span className="font-bold tracking-wider">ZONES · AWAITING SYNC</span>
             </div>
           ) : (
             <div className="space-y-2.5">
@@ -669,10 +696,10 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
                             hapticTap();
                             sendZonePatch(zone.id, { mute: !zone.mute });
                           }}
-                          className={`h-11 min-w-[72px] px-3 rounded-lg font-mono text-xs font-bold border flex items-center justify-center gap-1 shrink-0 ${
+                          className={`h-11 min-w-[72px] px-3 rounded-lg font-mono text-xs font-bold border flex items-center justify-center gap-1 shrink-0 cursor-pointer hw-key ${
                             zone.mute
-                              ? 'bg-red-600 border-red-300 text-white'
-                              : 'border-slate-700 bg-[#070A10] text-slate-300'
+                              ? '!bg-none !border-red-300 !bg-red-600 !text-white'
+                              : ''
                           }`}
                         >
                           {zone.mute ? (
@@ -690,7 +717,7 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
                         {/* Zone Level Fader */}
                         <div className="space-y-1.5">
                           <div className="flex items-center justify-between font-mono text-xs">
-                            <span className="text-slate-400">ZONE LEVEL</span>
+                            <span className="text-slate-400 hw-engraved">ZONE LEVEL</span>
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-white tabular-nums">
                                 {zone.levelDb > 0
@@ -701,7 +728,8 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
                               <button
                                 type="button"
                                 onClick={() => sendZonePatch(zone.id, { levelDb: 0 })}
-                                className="px-2 py-1 rounded border border-slate-700 bg-[#070A10] text-[10px] text-sky-300 flex items-center gap-1"
+                                title="Reset zone level to 0 dB"
+                                className="px-2 py-1 rounded border text-[10px] text-sky-300 flex items-center gap-1 cursor-pointer hw-key !text-sky-300"
                               >
                                 <RotateCcw className="w-3 h-3" />
                                 <span>0 dB</span>
@@ -716,7 +744,7 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
                                   levelDb: Math.max(-24, Number((zone.levelDb - 0.5).toFixed(1))),
                                 })
                               }
-                              className="w-11 h-11 rounded-lg border border-slate-700 bg-[#070A10] font-mono text-base text-slate-200 shrink-0"
+                              className="w-11 h-11 rounded-lg font-mono text-base text-slate-200 shrink-0 cursor-pointer hw-key"
                               aria-label={`Decrease ${zone.name} level`}
                             >
                               -
@@ -740,7 +768,7 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
                                   levelDb: Math.min(12, Number((zone.levelDb + 0.5).toFixed(1))),
                                 })
                               }
-                              className="w-11 h-11 rounded-lg border border-slate-700 bg-[#070A10] font-mono text-base text-slate-200 shrink-0"
+                              className="w-11 h-11 rounded-lg font-mono text-base text-slate-200 shrink-0 cursor-pointer hw-key"
                               aria-label={`Increase ${zone.name} level`}
                             >
                               +
@@ -750,8 +778,8 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
 
                         {/* Zone Delay (read-only — alignment is set from the FOH zone designer) */}
                         <div className="flex items-center justify-between font-mono text-[11px] pt-1.5 border-t border-slate-800/80">
-                          <span className="text-slate-400">DELAY</span>
-                          <span className="px-2 py-1 rounded border border-slate-800 bg-[#070A10] text-slate-300 tabular-nums">
+                          <span className="text-slate-400 hw-engraved">DELAY</span>
+                          <span className="px-2 py-1 rounded border border-slate-800 text-slate-300 tabular-nums hw-lcd">
                             {zone.delayMs.toFixed(1)} ms
                           </span>
                         </div>
@@ -759,7 +787,7 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
                     ) : (
                       <div className="flex items-center gap-2 font-mono text-[11px] text-slate-500 pt-1.5 border-t border-slate-800/80">
                         <Lock className="w-3.5 h-3.5 shrink-0" />
-                        <span>Level control disabled by FOH</span>
+                        <span title="Level control disabled by FOH">LEVEL LOCKED · FOH</span>
                       </div>
                     )}
                   </section>
@@ -784,10 +812,10 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
                   key={grp}
                   type="button"
                   onClick={() => setDcaFilter(grp)}
-                  className={`h-10 px-3 rounded-lg font-mono text-xs font-semibold whitespace-nowrap shrink-0 border ${
+                  className={`h-10 px-3 rounded-lg font-mono text-xs font-semibold whitespace-nowrap shrink-0 border cursor-pointer hw-key ${
                     dcaFilter === grp
-                      ? 'border-sky-400 bg-sky-500/20 text-white'
-                      : 'border-slate-800 bg-[#0E1524] text-slate-400'
+                      ? '!bg-none !border-sky-400 !bg-sky-500/20 !text-white'
+                      : ''
                   }`}
                 >
                   {grp === 'All' ? `All Channels (${channels.length})` : grp}
@@ -797,8 +825,16 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
 
             {/* Touch-Optimized Channel Fader & Preamp Gain Cards */}
             {filteredChannels.length === 0 ? (
-              <div className="p-8 rounded-lg border border-slate-800 bg-[#0E1524] text-center font-mono text-xs text-slate-400">
-                Waiting for channel sync from FOH host...
+              <div
+                className="p-8 rounded-lg border border-slate-800 bg-[#0E1524] flex items-center justify-center gap-2 font-mono text-xs text-slate-400"
+                title="Waiting for channel sync from FOH host..."
+              >
+                <span
+                  className="hw-lamp shrink-0"
+                  style={{ width: 6, height: 6 }}
+                  aria-hidden="true"
+                />
+                <span className="font-bold tracking-wider">CHANNELS · AWAITING SYNC</span>
               </div>
             ) : (
               <div className="space-y-2.5">
@@ -824,7 +860,7 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
                           </span>
                         </div>
                         <div className="font-mono text-[11px] text-slate-400">
-                          {ch.role} · {ch.dcaGroup} · {ch.phantom48v ? '+48V' : 'No Phantom'}
+                          {ch.role} · {ch.dcaGroup} · {ch.phantom48v ? '+48V' : '48V OFF'}
                         </div>
                       </div>
 
@@ -836,10 +872,8 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
                               hapticTap();
                               sendChannelPatch(ch.id, { solo: !ch.solo });
                             }}
-                            className={`h-11 min-w-[54px] px-3 rounded-lg font-mono text-xs font-bold border ${
-                              ch.solo
-                                ? 'bg-amber-500 border-amber-300 text-slate-950'
-                                : 'border-slate-700 bg-[#070A10] text-slate-300'
+                            className={`h-11 min-w-[54px] px-3 rounded-lg font-mono text-xs font-bold border cursor-pointer hw-key ${
+                              ch.solo ? '!bg-none !border-amber-300 !bg-amber-500 !text-slate-950' : ''
                             }`}
                           >
                             SOLO
@@ -850,10 +884,8 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
                               hapticTap();
                               sendChannelPatch(ch.id, { mute: !ch.mute });
                             }}
-                            className={`h-11 min-w-[64px] px-3 rounded-lg font-mono text-xs font-bold border flex items-center justify-center gap-1 ${
-                              ch.mute
-                                ? 'bg-red-600 border-red-300 text-white'
-                                : 'border-slate-700 bg-[#070A10] text-slate-300'
+                            className={`h-11 min-w-[64px] px-3 rounded-lg font-mono text-xs font-bold border flex items-center justify-center gap-1 cursor-pointer hw-key ${
+                              ch.mute ? '!bg-none !border-red-300 !bg-red-600 !text-white' : ''
                             }`}
                           >
                             {ch.mute ? <VolumeX className="w-3.5 h-3.5" /> : <Radio className="w-3.5 h-3.5" />}
@@ -878,13 +910,25 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
                           : 0;
                       return (
                         <div className="flex items-center gap-2">
-                          <div className="flex-1 h-2 rounded-xs bg-[#070A10] border border-slate-800 overflow-hidden">
-                            <div
-                              className={`h-full transition-[width] duration-75 ${
-                                chDb > -3 ? 'bg-red-500' : chDb > -14 ? 'bg-amber-400' : 'bg-emerald-400'
-                              }`}
-                              style={{ width: `${pct.toFixed(1)}%` }}
-                            />
+                          <div
+                            className="hw-led-track-h h-3 flex-1 min-w-0"
+                            role="meter"
+                            aria-label={`${ch.name} level meter`}
+                            aria-valuenow={Math.round(pct)}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                          >
+                            {Array.from({ length: 16 }).map((_, i) => {
+                              const lit = (i + 1) / 16 <= pct / 100;
+                              const color = chDb > -3 ? 'red' : chDb > -14 ? 'amber' : 'green';
+                              return (
+                                <span
+                                  key={i}
+                                  className="hw-led-seg"
+                                  data-lit={lit ? color : undefined}
+                                />
+                              );
+                            })}
                           </div>
                           <span className="font-mono text-[10px] text-slate-400 w-14 text-right tabular-nums">
                             {ch.mute
@@ -900,7 +944,7 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
                     {/* Fader Level Slider */}
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between font-mono text-xs">
-                        <span className="text-slate-400">FADER LEVEL</span>
+                        <span className="text-slate-400 hw-engraved">FADER LEVEL</span>
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-white tabular-nums">
                             {ch.faderDb > 0 ? `+${ch.faderDb.toFixed(1)}` : ch.faderDb.toFixed(1)} dB
@@ -908,7 +952,8 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
                           <button
                             type="button"
                             onClick={() => sendChannelPatch(ch.id, { faderDb: 0 })}
-                            className="px-2 py-1 rounded border border-slate-700 bg-[#070A10] text-[10px] text-sky-300 flex items-center gap-1"
+                            title="Reset fader to 0 dB"
+                            className="px-2 py-1 rounded border text-[10px] text-sky-300 flex items-center gap-1 cursor-pointer hw-key !text-sky-300"
                           >
                             <RotateCcw className="w-3 h-3" />
                             <span>0 dB</span>
@@ -923,7 +968,7 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
                               faderDb: Math.max(-48, Number((ch.faderDb - 1).toFixed(1))),
                             })
                           }
-                          className="w-11 h-11 rounded-lg border border-slate-700 bg-[#070A10] font-mono text-base text-slate-200 shrink-0"
+                          className="w-11 h-11 rounded-lg font-mono text-base text-slate-200 shrink-0 cursor-pointer hw-key"
                           aria-label={`${ch.name} decrease fader`}
                         >
                           -
@@ -947,7 +992,7 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
                               faderDb: Math.min(10, Number((ch.faderDb + 1).toFixed(1))),
                             })
                           }
-                          className="w-11 h-11 rounded-lg border border-slate-700 bg-[#070A10] font-mono text-base text-slate-200 shrink-0"
+                          className="w-11 h-11 rounded-lg font-mono text-base text-slate-200 shrink-0 cursor-pointer hw-key"
                           aria-label={`${ch.name} increase fader`}
                         >
                           +
@@ -959,7 +1004,7 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
                     {permissions.allowGainAdjustment && (
                       <div className="space-y-1.5 pt-2 border-t border-slate-800/80">
                         <div className="flex items-center justify-between font-mono text-xs">
-                          <span className="text-slate-400">PREAMP GAIN</span>
+                          <span className="text-slate-400 hw-engraved">PREAMP GAIN</span>
                           <span className="font-bold text-amber-300 tabular-nums">
                             +{ch.gainDb} dB
                           </span>
@@ -970,7 +1015,7 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
                             onClick={() =>
                               sendChannelPatch(ch.id, { gainDb: Math.max(0, ch.gainDb - 1) })
                             }
-                            className="w-11 h-11 rounded-lg border border-slate-700 bg-[#070A10] font-mono text-base text-slate-200 shrink-0"
+                            className="w-11 h-11 rounded-lg font-mono text-base text-slate-200 shrink-0 cursor-pointer hw-key"
                             aria-label={`${ch.name} decrease preamp gain`}
                           >
                             -
@@ -992,7 +1037,7 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
                             onClick={() =>
                               sendChannelPatch(ch.id, { gainDb: Math.min(60, ch.gainDb + 1) })
                             }
-                            className="w-11 h-11 rounded-lg border border-slate-700 bg-[#070A10] font-mono text-base text-slate-200 shrink-0"
+                            className="w-11 h-11 rounded-lg font-mono text-base text-slate-200 shrink-0 cursor-pointer hw-key"
                             aria-label={`${ch.name} increase preamp gain`}
                           >
                             +
@@ -1014,19 +1059,22 @@ export const RemoteCompanionView: React.FC<RemoteCompanionViewProps> = ({
               wsStatus === 'connected' ? 'text-emerald-400' : 'text-slate-600'
             }`}
           />
-          <span>Synced via FOH companion link</span>
+          <span title="Synced via FOH companion link">FOH LINK</span>
           <span className="text-slate-700" aria-hidden="true">
             ·
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span
-              className={`inline-block w-1.5 h-1.5 rounded-full ${
+              className="hw-lamp"
+              style={{ width: 5, height: 5 }}
+              data-on={
                 wsStatus === 'connected'
-                  ? 'bg-emerald-400 animate-pulse'
+                  ? 'green'
                   : wsStatus === 'connecting'
-                    ? 'bg-amber-400'
-                    : 'bg-red-400'
-              }`}
+                    ? 'amber'
+                    : 'red'
+              }
+              aria-hidden="true"
             />
             <span>LIVE SYNC · WS</span>
           </span>

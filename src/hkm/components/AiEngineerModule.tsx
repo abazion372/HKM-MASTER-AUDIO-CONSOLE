@@ -35,6 +35,10 @@ const QUICK_QUESTIONS = [
   'How can I improve the choir without feedback?',
 ];
 
+// Silkscreen keys for the quick questions — the full questions ride on
+// button tooltips / aria-labels and are sent unchanged to the AI chat.
+const QUICK_QUESTION_KEYS = ['MIC CLARITY', 'BASS HUM', 'REAR LEVEL', 'CHOIR FB'];
+
 export const AiEngineerModule: React.FC<AiEngineerModuleProps> = ({
   device,
   platform,
@@ -72,7 +76,7 @@ export const AiEngineerModule: React.FC<AiEngineerModuleProps> = ({
       });
       const data = await resp.json();
       if (!resp.ok || !data.ok) {
-        setDiagError(data.error || 'AI diagnostic engine returned an error.');
+        setDiagError(data.error || 'AI DIAG ERROR');
         return;
       }
       const r = data.result;
@@ -111,7 +115,7 @@ export const AiEngineerModule: React.FC<AiEngineerModuleProps> = ({
       };
       onAddFinding(newFinding);
     } catch (err) {
-      setDiagError(err instanceof Error ? err.message : 'Network error calling AI diagnostics.');
+      setDiagError(err instanceof Error ? err.message : 'NETWORK ERROR');
     } finally {
       setDiagnosing(false);
     }
@@ -148,12 +152,12 @@ export const AiEngineerModule: React.FC<AiEngineerModuleProps> = ({
       });
       const data = await resp.json();
       if (!resp.ok || !data.ok) {
-        setChatError(data.error || 'Failed to get AI Sound Engineer response.');
+        setChatError(data.error || 'AI CHAT ERROR');
         return;
       }
       setMessages((prev) => [...prev, { role: 'assistant', text: data.reply }]);
     } catch (err) {
-      setChatError(err instanceof Error ? err.message : 'Network error.');
+      setChatError(err instanceof Error ? err.message : 'NETWORK ERROR');
     } finally {
       setChatBusy(false);
     }
@@ -172,8 +176,11 @@ export const AiEngineerModule: React.FC<AiEngineerModuleProps> = ({
                 AI SOUND ENGINEER (EVIDENCE-BASED CLOSED LOOP)
               </h1>
             </div>
-            <p className="text-[11px] font-mono text-slate-400">
-              OBSERVE → DIAGNOSE → PROPOSE → ENGINEER APPROVES
+            <p
+              className="text-[9.5px] font-mono font-bold uppercase hw-engraved"
+              title="Observe → Diagnose → Propose → Engineer Approves (human-in-the-loop safety gate)"
+            >
+              OBSERVE → DIAGNOSE → PROPOSE → APPROVE
             </p>
           </div>
         </div>
@@ -182,7 +189,8 @@ export const AiEngineerModule: React.FC<AiEngineerModuleProps> = ({
           type="button"
           onClick={handleRunAiDiagnosis}
           disabled={diagnosing}
-          className="px-4 py-2 rounded bg-sky-600 hover:bg-sky-500 border border-sky-400/50 disabled:opacity-50 text-white text-xs font-mono font-semibold flex items-center gap-2 transition-colors self-start md:self-auto"
+          className="px-4 py-2 rounded hw-key !bg-none !bg-sky-600 hover:!bg-sky-500 !border-sky-400/50 disabled:opacity-50 !text-white text-xs font-mono font-semibold flex items-center gap-2 transition-colors self-start md:self-auto cursor-pointer"
+          title="Run AI diagnosis over live telemetry — findings queue for human approval"
         >
           <Sparkles className="w-3.5 h-3.5" />
           <span>{diagnosing ? 'ANALYZING TELEMETRY...' : 'RUN AI DIAGNOSIS'}</span>
@@ -258,7 +266,12 @@ export const AiEngineerModule: React.FC<AiEngineerModuleProps> = ({
       <div className="rounded-lg border border-slate-800 bg-[#0D1119] px-3 py-2 flex flex-wrap items-center justify-between gap-2 font-mono text-[9.5px] font-bold tracking-wider">
         <span className="flex items-center gap-1.5"
           title={`HW AUTHORITY (${device.model}) — ${device.capabilities.perChannelFaderControl ? 'Remote preamp & fader control active' : 'Manual physical knobs/faders required — software can only advise'}`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${device.capabilities.perChannelFaderControl ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+          <span
+            aria-hidden="true"
+            className="hw-lamp"
+            style={{ width: 5, height: 5 }}
+            data-on={device.capabilities.perChannelFaderControl ? 'green' : 'amber'}
+          />
           <span className="text-slate-500">HW AUTH</span>
           <span className={device.capabilities.perChannelFaderControl ? 'text-emerald-400' : 'text-amber-400'}>
             {device.capabilities.perChannelFaderControl ? 'REMOTE PRE/FADERS' : 'PHYSICAL KNOBS'}
@@ -266,7 +279,12 @@ export const AiEngineerModule: React.FC<AiEngineerModuleProps> = ({
         </span>
         <span className="flex items-center gap-1.5"
           title="SW DSP AUTHORITY — full CamillaDSP reach: PEQ, HPF, dynamics, limiter & stream bus">
-          <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+          <span
+            aria-hidden="true"
+            className="hw-lamp"
+            style={{ width: 5, height: 5 }}
+            data-on="cyan"
+          />
           <span className="text-slate-500">SW AUTH</span>
           <span className="text-sky-400">FULL DSP · PEQ · DYN · LIM · STREAM</span>
         </span>
@@ -281,21 +299,24 @@ export const AiEngineerModule: React.FC<AiEngineerModuleProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Diagnostic Approval Queue */}
         <div className="lg:col-span-7 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 space-y-3">
-          <div className="font-mono text-xs font-semibold text-white uppercase border-b border-slate-800 pb-2">
-            Diagnostic Findings &amp; Human-Approved DSP Queue ({findings.length})
+          <div className="font-mono text-xs font-semibold uppercase border-b border-slate-800 pb-2 hw-engraved">
+            Diagnostic Findings · Approval Queue ({findings.length})
           </div>
 
           {findings.length === 0 ? (
             <div className="py-10 flex flex-col items-center justify-center gap-2.5 text-center">
-              <span className="w-2.5 h-2.5 rounded-full bg-slate-600" />
+              <span aria-hidden="true" className="hw-lamp" style={{ width: 6, height: 6 }} />
               <span
                 className="font-mono text-[10px] font-bold tracking-wider text-slate-500"
                 title="Start the audio engine or run an AI diagnosis — findings queue here for human approval"
               >
                 QUEUE EMPTY — RUN AI DIAGNOSIS
               </span>
-              <span className="font-mono text-[8.5px] tracking-wider text-slate-600">
-                APPROVALS STAY IN ENGINEER HANDS
+              <span
+                className="font-mono text-[8.5px] font-bold tracking-wider text-slate-600"
+                title="Approvals stay in engineer hands — the AI proposes, the engineer approves"
+              >
+                HUMAN APPROVAL ONLY
               </span>
             </div>
           ) : (
@@ -350,16 +371,28 @@ export const AiEngineerModule: React.FC<AiEngineerModuleProps> = ({
                     <button
                       type="button"
                       onClick={() => onApproveFinding(f.id)}
-                      className="w-full py-2 px-3 rounded bg-sky-600 hover:bg-sky-500 text-white text-xs font-mono font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                      title={`Approve & apply patch: ${f.proposedPatch.description}`}
+                      className="w-full py-2 px-3 rounded hw-key !bg-none !bg-sky-600 hover:!bg-sky-500 !border-sky-400/60 !text-white text-xs font-mono font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                     >
                       <ShieldCheck className="w-3.5 h-3.5" />
-                      <span>APPROVE &amp; APPLY PATCH: {f.proposedPatch.description}</span>
+                      <span>APPROVE &amp; APPLY</span>
                     </button>
                   )}
 
                   {f.status === 'verified' && (
                     <div className="text-[11px] font-mono text-emerald-400 flex items-center justify-between pt-1 border-t border-slate-800">
-                      <span>APPROVED &amp; APPLIED TO CAMILLADSP</span>
+                      <span
+                        className="flex items-center gap-1.5"
+                        title="Approved and applied to the CamillaDSP processing chain"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="hw-lamp"
+                          style={{ width: 5, height: 5 }}
+                          data-on="green"
+                        />
+                        APPROVED · APPLIED
+                      </span>
                       {f.beforeSnapshot && f.afterSnapshot && (
                         <span>
                           {f.beforeSnapshot.rmsDb.toFixed(1)} → {f.afterSnapshot.rmsDb.toFixed(1)} dBFS
@@ -376,19 +409,21 @@ export const AiEngineerModule: React.FC<AiEngineerModuleProps> = ({
         {/* Conversational Sound Engineer Terminal */}
         <div className="lg:col-span-5 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 flex flex-col justify-between gap-3 h-[520px]">
           <div className="space-y-2">
-            <div className="font-mono text-xs font-semibold text-white uppercase border-b border-slate-800 pb-2">
-              AI Sound Engineer Console Terminal
+            <div className="font-mono text-xs font-semibold uppercase border-b border-slate-800 pb-2 hw-engraved">
+              AI Engineer Console Terminal
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {QUICK_QUESTIONS.map((q) => (
+              {QUICK_QUESTIONS.map((q, i) => (
                 <button
                   key={q}
                   type="button"
                   onClick={() => handleSendChat(q)}
                   disabled={chatBusy}
-                  className="text-[11px] px-2.5 py-1 rounded border border-slate-800 bg-[#090D14] text-slate-300 hover:border-sky-500/50 text-left transition-colors"
+                  title={q}
+                  aria-label={q}
+                  className="text-[10px] font-bold tracking-wider px-2.5 py-1 rounded hw-key hover:!border-sky-400/60 transition-colors disabled:opacity-40 cursor-pointer"
                 >
-                  {q}
+                  {QUICK_QUESTION_KEYS[i]}
                 </button>
               ))}
             </div>
@@ -440,13 +475,15 @@ export const AiEngineerModule: React.FC<AiEngineerModuleProps> = ({
               type="text"
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Ask about feedback, hum, gain staging, or zones..."
+              placeholder="FEEDBACK · HUM · GAIN · ZONES"
+              aria-label="Ask the AI sound engineer about feedback, hum, gain staging, or zones"
               className="flex-1 px-3 py-2 rounded border border-slate-700 bg-[#070A10] text-slate-100 text-xs font-mono"
             />
             <button
               type="submit"
               disabled={chatBusy || !chatInput.trim()}
-              className="px-3 py-2 rounded bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white text-xs font-medium flex items-center gap-1"
+              title="Send question to the AI Sound Engineer"
+              className="px-3 py-2 rounded hw-key !bg-none !bg-sky-600 hover:!bg-sky-500 !border-sky-400/60 !text-white disabled:opacity-40 text-xs font-medium flex items-center gap-1 cursor-pointer"
             >
               <Send className="w-3.5 h-3.5" />
             </button>

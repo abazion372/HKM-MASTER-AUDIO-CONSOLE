@@ -454,92 +454,10 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
           ========================================================================= */}
       {activeTab === 'inputs' && (
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-          {/* ---- Channel selector tab rail: one tab per input + live mini meters ---- */}
-          <div className="shrink-0 px-1.5 pt-1.5">
-            <div className="flex items-center justify-between px-0.5 pb-1 font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-slate-400">
-              <span>Channel Tabs</span>
-              <span className="text-slate-500 tabular-nums normal-case tracking-normal">
-                {channels.length} Inputs
-              </span>
-            </div>
-            <div className="grid grid-cols-8 gap-1 max-h-[118px] overflow-y-auto pr-0.5">
-              {channels.map((ch, i) => {
-                const tabSelected = ch.id === selectedChannel?.id;
-                const tabBridge =
-                  ch.index === 1 && (audioSource === 'desktop-audio' || audioSource === 'pink-noise');
-                const tabAssigned = Boolean(ch.hardwareInputId) || tabBridge;
-                const tRms =
-                  tabAssigned && engineRunning && !ch.mute
-                    ? fastChRms[i] ?? telemetry.channelLevels?.[i]?.rmsDb ?? -96
-                    : -96;
-                const tPeak =
-                  tabAssigned && engineRunning && !ch.mute
-                    ? fastChPeak[i] ?? telemetry.channelLevels?.[i]?.peakDb ?? -96
-                    : -96;
-                const tNorm = Math.max(0, Math.min(1, (tRms + 54) / 54));
-                const tabHot = tabAssigned && tPeak > -2.5;
-                return (
-                  <button
-                    key={ch.id}
-                    type="button"
-                    onClick={() => onSelectChannel(ch.id)}
-                    aria-pressed={tabSelected}
-                    title={`CH ${ch.index} — ${ch.name}${
-                      tabAssigned ? ` (${ch.hardwareInputLabel || ch.role})` : ' · Open Slot'
-                    } — click to load this channel into the input strip`}
-                    className={`relative h-8 rounded border font-mono text-[11px] font-bold overflow-hidden cursor-pointer transition-all shrink-0 ${
-                      tabSelected
-                        ? 'border-teal-300 bg-[#17282D] text-white ring-1 ring-[#2DD4BF]/45 shadow-[0_0_8px_rgba(45,212,191,0.35)] z-10'
-                        : tabAssigned
-                          ? tabHot
-                            ? 'border-amber-400/80 bg-gradient-to-b from-[#2A2015] to-[#161009] text-amber-200'
-                            : 'border-[#4B5D72] bg-gradient-to-b from-[#1E2732] to-[#131921] text-slate-200 hover:border-[#687F99] hover:text-white'
-                          : 'border-dashed border-[#2A3544] bg-[#0D1219]/70 text-slate-500 hover:text-slate-200'
-                    } ${ch.mute && tabAssigned ? 'text-rose-300 border-rose-500/70' : ''}`}
-                    aria-label={`Channel ${ch.index} tab${ch.mute && tabAssigned ? ' (muted)' : ''}`}
-                  >
-                    {/* live mini level fill rising from the bottom of the tab */}
-                    {tabAssigned && !ch.mute && tNorm > 0.02 && (
-                      <span
-                        className={`absolute bottom-0 left-0 right-0 z-0 pointer-events-none transition-[height] duration-75 ${
-                          tNorm > 0.93
-                            ? 'bg-rose-500/45'
-                            : tNorm > 0.8
-                              ? 'bg-amber-400/40'
-                              : 'bg-emerald-400/30'
-                        }`}
-                        style={{ height: `${Math.round(tNorm * 100)}%` }}
-                      />
-                    )}
-                    <span className="relative z-10 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-                      {ch.index}
-                    </span>
-                    {ch.solo && tabAssigned && (
-                      <span
-                        title="Solo engaged"
-                        className="absolute top-0 left-0 w-1.5 h-1.5 rounded-br bg-amber-400 z-10 pointer-events-none"
-                      />
-                    )}
-                    {ch.mute && tabAssigned && (
-                      <>
-                        {/* Muted channel tab: full-width red base bar + diagonal
-                            strike-through — readable even at this 32px tab size. */}
-                        <span
-                          title="Muted"
-                          className="absolute bottom-0 left-0 right-0 h-1 bg-rose-500 z-10 pointer-events-none"
-                        />
-                        <span
-                          aria-hidden="true"
-                          className="absolute left-[10%] right-[10%] top-1/2 h-[2px] -translate-y-1/2 rotate-[-32deg] bg-rose-400 z-10 pointer-events-none shadow-[0_0_4px_rgba(244,63,94,0.8)]"
-                        />
-                      </>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
+          {/* NOTE: the old channel tab rail (one numbered tab per input) was
+              removed in the reference-console redesign — the Input Bay rows
+              below are the single focus surface (click a row to load that
+              channel into the central INPUT CONDITIONING card, X32-style). */}
           {/* ---- SELECTED CHANNEL BAY ----
               The old duplicated control strip (input source, preamp, fader,
               48V/PAD/Ø, mute/solo, bus assigns) now lives exactly once, in
@@ -609,10 +527,11 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                           <button
                             type="button"
                             onClick={() => setPatchTrayOpen(true)}
-                            title="Open the hardware input patch tray below and route a live input into this channel"
-                            className="mt-1 font-mono text-[8.5px] text-cyan-300 hover:text-cyan-200 underline decoration-dotted underline-offset-2 cursor-pointer leading-tight block max-w-full truncate"
+                            title="Open Slot — tap to assign a hardware input (opens the patch tray below)"
+                            className="mt-1 flex items-center gap-1.5 font-mono text-[8.5px] font-bold tracking-wider text-cyan-300 hover:text-cyan-200 leading-tight cursor-pointer"
                           >
-                            OPEN SLOT — tap to assign a hardware input
+                            <span className="hw-lamp" style={{ width: 5, height: 5 }} aria-hidden="true" />
+                            OPEN SLOT · PATCH
                           </button>
                         )}
                       </div>
@@ -648,19 +567,33 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                   channel, quick per-row MUTE/SOLO, click a row to focus that
                   channel on the central console. ==== */}
               <div className="flex-1 min-h-[110px] flex flex-col px-1.5 pt-1.5">
-                <div className="flex items-center justify-between px-0.5 pb-1 font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-slate-400 shrink-0">
-                  <span>Channel Bay</span>
+                <div className="flex items-center justify-between px-0.5 pb-1 font-mono text-[8px] font-bold uppercase tracking-[0.16em] hw-engraved shrink-0">
+                  <span>Input Bay</span>
                   <span
-                    className="text-slate-500 tabular-nums normal-case tracking-normal"
+                    className="text-slate-400 tabular-nums normal-case tracking-normal flex items-center gap-1"
                     title="Live (assigned and unmuted) inputs / total input strips"
                   >
+                    <span
+                      aria-hidden="true"
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        channels.some(
+                          (c) =>
+                            !c.mute &&
+                            (Boolean(c.hardwareInputId) ||
+                              (c.index === 1 &&
+                                (audioSource === 'desktop-audio' || audioSource === 'pink-noise')))
+                        )
+                          ? 'bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.8)]'
+                          : 'bg-slate-600'
+                      }`}
+                    />
                     {channels.filter(
                       (c) =>
                         !c.mute &&
                         (Boolean(c.hardwareInputId) ||
                           (c.index === 1 && (audioSource === 'desktop-audio' || audioSource === 'pink-noise')))
                     ).length}
-                    /{channels.length} live
+                    /{channels.length}
                   </span>
                 </div>
                 <div
@@ -715,47 +648,50 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                               : 'border-dashed border-[#2A3544] bg-[#0D1219]/70'
                         }`}
                       >
-                        {/* channel number chip — console scribble strip */}
+                        {/* channel number badge — reference scribble strip:
+                            number + solo/mute state LEDs under it */}
                         <div
-                          className={`w-7 h-10 rounded flex flex-col items-center justify-center gap-0.5 shrink-0 font-mono ${
+                          className={`w-7 self-stretch rounded flex flex-col items-center justify-center gap-1 shrink-0 font-mono border ${
                             !assigned
-                              ? 'border border-[#222C39] bg-[#0B1017] text-slate-600'
+                              ? 'border-[#222C39] bg-[#0B1017] text-slate-600'
                               : ch.mute
-                                ? 'border border-rose-500/50 bg-[#1A0E12] text-rose-300'
+                                ? 'border-rose-500/50 bg-[#1A0E12] text-rose-300'
                                 : isSelected
-                                  ? 'border border-teal-300/50 bg-[#0E2A2E] text-[#5EEAD4]'
-                                  : 'border border-[#2E3A4A] bg-[#0C1218] text-slate-300'
+                                  ? 'border-teal-300/50 bg-[#0E2A2E] text-[#5EEAD4]'
+                                  : 'border-[#2E3A4A] bg-[#0C1218] text-slate-300'
                           }`}
                           aria-label={`Channel ${ch.index}`}
                         >
                           <span className="text-[13px] font-bold leading-none">{ch.index}</span>
-                          {ch.solo && assigned && (
-                            <span
-                              title="Solo engaged"
-                              className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_4px_rgba(251,191,36,0.9)]"
-                            />
-                          )}
-                          {ch.mute && assigned && (
-                            <span
-                              title="Muted"
-                              className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_4px_rgba(244,63,94,0.9)]"
-                            />
-                          )}
+                          <span className="flex items-center gap-[3px] h-[5px]">
+                            {ch.solo && assigned && (
+                              <span
+                                title="Solo engaged"
+                                className="w-[5px] h-[5px] rounded-full bg-amber-400 shadow-[0_0_4px_rgba(251,191,36,0.9)]"
+                              />
+                            )}
+                            {ch.mute && assigned && (
+                              <span
+                                title="Muted"
+                                className="w-[5px] h-[5px] rounded-full bg-rose-500 shadow-[0_0_4px_rgba(244,63,94,0.9)]"
+                              />
+                            )}
+                          </span>
                         </div>
 
-                        {/* live strip: name, source, meter, mode/gain/fader/bus */}
-                        <div className="flex-1 min-w-0 flex flex-col gap-[3px]">
+                        {/* name + live RMS readout + twin vertical segmented LED meters */}
+                        <div className="flex-1 min-w-0 flex flex-col gap-1">
                           <div className="flex items-baseline justify-between gap-1.5 min-w-0">
                             <span
-                              className={`text-[10.5px] font-semibold truncate leading-none ${
+                              className={`text-[10px] font-semibold truncate leading-none ${
                                 !assigned ? 'text-slate-500' : ch.mute ? 'text-rose-200' : 'text-slate-200'
                               }`}
-                              title={`CH${ch.index} — ${ch.name}`}
+                              title={`CH${ch.index} — ${ch.name}${assigned ? ` · ${sourceLabel}` : ' · Open Slot'}`}
                             >
                               {ch.name}
                             </span>
                             <span
-                              className={`font-mono text-[7.5px] tabular-nums shrink-0 leading-none ${
+                              className={`font-mono text-[7px] tabular-nums shrink-0 leading-none ${
                                 !assigned
                                   ? 'text-slate-600'
                                   : ch.mute
@@ -767,91 +703,114 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                                         : 'text-slate-400'
                               }`}
                             >
-                              {!assigned ? '--' : ch.mute ? 'MUTED' : fmtDb(rDb)}
+                              {!assigned ? '--' : ch.mute ? 'MUTE' : fmtDb(rDb)}
                             </span>
                           </div>
-                          <div
-                            className={`font-mono text-[7.5px] truncate leading-none ${
-                              assigned ? 'text-slate-500' : 'text-slate-600'
-                            }`}
-                            title={assigned ? sourceLabel : 'Open Slot — assign a hardware input in the patch tray below'}
-                          >
-                            {assigned ? sourceLabel : 'open slot'}
-                          </div>
-                          {/* live horizontal meter with peak tick */}
-                          <div
-                            className="relative h-1.5 rounded-[2px] bg-[#0A0F15] border border-[#1E2836] overflow-hidden"
-                            aria-label={`Channel ${ch.index} level meter`}
-                          >
-                            {assigned && !ch.mute && rNorm > 0.005 && (
-                              <span
-                                className={`absolute inset-y-0 left-0 rounded-[1px] transition-[width] duration-75 ${
-                                  rNorm > 0.93
-                                    ? 'bg-rose-500'
-                                    : rNorm > 0.8
-                                      ? 'bg-amber-400'
-                                      : 'bg-emerald-400'
-                                }`}
-                                style={{ width: `${Math.round(rNorm * 100)}%` }}
-                              />
-                            )}
-                            {assigned && !ch.mute && pNorm > 0.02 && pNorm > rNorm && (
-                              <span
-                                className={`absolute top-0 bottom-0 w-[2px] ${
-                                  pNorm > 0.93 ? 'bg-rose-300' : 'bg-slate-300/80'
-                                }`}
-                                style={{ left: `calc(${Math.min(99, pNorm * 100)}% - 2px)` }}
-                              />
-                            )}
-                          </div>
-                          <div className="flex items-center justify-between gap-2 min-w-0">
-                            <span className="flex items-center gap-1 min-w-0">
-                              <span
-                                className={`px-1 rounded border font-mono text-[6.5px] font-bold tracking-wider shrink-0 ${
-                                  mode === 'inst'
-                                    ? 'text-fuchsia-300 border-fuchsia-500/40 bg-fuchsia-950/40'
-                                    : mode === 'line'
-                                      ? 'text-emerald-300 border-emerald-500/40 bg-emerald-950/40'
-                                      : 'text-cyan-300 border-cyan-500/40 bg-cyan-950/40'
-                                }`}
-                              >
-                                {mSpec.shortLabel}
-                              </span>
-                              <span
-                                className="font-mono text-[7px] text-slate-500 tabular-nums truncate"
-                                title={`Preamp ${mSpec.formatGain(ch.gainDb)} dB · Fader ${ch.faderDb > 0 ? '+' : ''}${ch.faderDb.toFixed(1)} dB`}
-                              >
-                                G{mSpec.formatGain(ch.gainDb)} F{ch.faderDb > 0 ? '+' : ''}
-                                {ch.faderDb.toFixed(0)}
-                              </span>
-                            </span>
-                            <span
-                              className="flex items-center gap-[3px] shrink-0"
-                              title={`Mix bus assigns · PA ${paOn ? 'ON' : 'off'} · Stream ${stOn ? 'ON' : 'off'} · Sub ${sbOn ? 'ON' : 'off'}`}
+                          <div className="flex items-stretch gap-[3px] h-[32px]">
+                            {/* RMS column */}
+                            <div
+                              className="hw-led-track w-[9px]"
+                              role="meter"
+                              aria-label={`Channel ${ch.index} RMS level meter`}
+                              aria-valuenow={Math.round(rNorm * 100)}
+                              aria-valuemin={0}
+                              aria-valuemax={100}
                             >
-                              <span
-                                aria-hidden="true"
-                                className={`w-1.5 h-1.5 rounded-full ${
-                                  paOn ? 'bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.8)]' : 'bg-[#1B232E]'
-                                }`}
-                              />
-                              <span
-                                aria-hidden="true"
-                                className={`w-1.5 h-1.5 rounded-full ${
-                                  stOn ? 'bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.8)]' : 'bg-[#1B232E]'
-                                }`}
-                              />
-                              <span
-                                aria-hidden="true"
-                                className={`w-1.5 h-1.5 rounded-full ${
-                                  sbOn ? 'bg-fuchsia-400 shadow-[0_0_4px_rgba(232,121,249,0.8)]' : 'bg-[#1B232E]'
-                                }`}
-                              />
-                              <span className="sr-only">
-                                {`CH${ch.index} mix bus assigns: Main PA ${paOn ? 'on' : 'off'}, stream ${stOn ? 'on' : 'off'}, sub ${sbOn ? 'on' : 'off'}`}
-                              </span>
-                            </span>
+                              {Array.from({ length: 8 }).map((_, seg) => {
+                                const lit = assigned && !ch.mute && rNorm >= (seg + 1) / 8 - 0.999 / 8;
+                                const color = seg >= 7 ? 'red' : seg >= 6 ? 'amber' : 'green';
+                                return (
+                                  <span
+                                    key={seg}
+                                    className="hw-led-seg"
+                                    data-lit={lit ? color : undefined}
+                                  />
+                                );
+                              })}
+                            </div>
+                            {/* PEAK column */}
+                            <div
+                              className="hw-led-track w-[9px]"
+                              role="meter"
+                              aria-label={`Channel ${ch.index} peak level meter`}
+                              aria-valuenow={Math.round(pNorm * 100)}
+                              aria-valuemin={0}
+                              aria-valuemax={100}
+                            >
+                              {Array.from({ length: 8 }).map((_, seg) => {
+                                const lit = assigned && !ch.mute && pNorm >= (seg + 1) / 8 - 0.999 / 8;
+                                const color = seg >= 7 ? 'red' : seg >= 6 ? 'amber' : 'cyan';
+                                return (
+                                  <span
+                                    key={seg}
+                                    className="hw-led-seg"
+                                    data-lit={lit ? color : undefined}
+                                  />
+                                );
+                              })}
+                            </div>
                           </div>
+                        </div>
+
+                        {/* preamp gain position knob (machined display) + mix-bus LED column */}
+                        <div
+                          className="flex flex-col items-center justify-center gap-1.5 shrink-0"
+                          title={`CH${ch.index} ${mSpec.shortLabel} preamp ${mSpec.formatGain(ch.gainDb)} dB · fader ${ch.faderDb > 0 ? '+' : ''}${ch.faderDb.toFixed(1)} dB · mix bus: PA ${paOn ? 'ON' : 'off'} · STREAM ${stOn ? 'ON' : 'off'} · SUB ${sbOn ? 'ON' : 'off'} — adjust in the central INPUT CONDITIONING card`}
+                        >
+                          <div
+                            aria-hidden="true"
+                            className={`hw-knob-face relative w-[22px] h-[22px] rounded-full shrink-0 ring-1 ${
+                              mode === 'inst'
+                                ? 'ring-fuchsia-400/50'
+                                : mode === 'line'
+                                  ? 'ring-emerald-400/50'
+                                  : 'ring-cyan-400/50'
+                            }`}
+                          >
+                            <span
+                              className="absolute left-1/2 top-[2px] w-[1.5px] h-[8px] rounded-full bg-slate-100 shadow-[0_0_2px_rgba(0,0,0,0.9)]"
+                              style={{
+                                transformOrigin: '50% 9px',
+                                transform: `translateX(-50%) rotate(${
+                                  -135 +
+                                  270 *
+                                    Math.max(
+                                      0,
+                                      Math.min(
+                                        1,
+                                        (ch.gainDb - mSpec.gainMin) / (mSpec.gainMax - mSpec.gainMin)
+                                      )
+                                    )
+                                }deg)`,
+                              }}
+                            />
+                          </div>
+                          <span
+                            className="flex items-center gap-[3px]"
+                            title={`Mix bus assigns · PA ${paOn ? 'ON' : 'off'} · Stream ${stOn ? 'ON' : 'off'} · Sub ${sbOn ? 'ON' : 'off'}`}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className={`w-[5px] h-[5px] rounded-full ${
+                                paOn ? 'bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.8)]' : 'bg-[#1B232E]'
+                              }`}
+                            />
+                            <span
+                              aria-hidden="true"
+                              className={`w-[5px] h-[5px] rounded-full ${
+                                stOn ? 'bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.8)]' : 'bg-[#1B232E]'
+                              }`}
+                            />
+                            <span
+                              aria-hidden="true"
+                              className={`w-[5px] h-[5px] rounded-full ${
+                                sbOn ? 'bg-fuchsia-400 shadow-[0_0_4px_rgba(232,121,249,0.8)]' : 'bg-[#1B232E]'
+                              }`}
+                            />
+                            <span className="sr-only">
+                              {`CH${ch.index} mix bus assigns: Main PA ${paOn ? 'on' : 'off'}, stream ${stOn ? 'on' : 'off'}, sub ${sbOn ? 'on' : 'off'}`}
+                            </span>
+                          </span>
                         </div>
 
                         {/* quick per-row MUTE / SOLO keys */}
@@ -866,10 +825,10 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                             aria-pressed={assigned ? Boolean(ch.mute) : undefined}
                             aria-label={`Channel ${ch.index} mute — currently ${ch.mute ? 'MUTED' : 'active'} (click to ${ch.mute ? 'unmute' : 'mute'})`}
                             title={ch.mute ? `Unmute CH${ch.index}` : `Mute CH${ch.index}`}
-                            className={`w-[22px] h-[22px] rounded border font-mono text-[9px] font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                            className={`w-[22px] h-[22px] rounded border font-mono text-[9px] font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hw-key ${
                               assigned && ch.mute
-                                ? 'bg-rose-600 border-rose-300 text-white shadow-[0_0_6px_rgba(244,63,94,0.6)]'
-                                : 'hw-top-btn text-slate-300'
+                                ? '!bg-none !border-rose-300 !bg-rose-600 !text-white shadow-[0_0_6px_rgba(244,63,94,0.6)]'
+                                : ''
                             }`}
                           >
                             M
@@ -884,10 +843,10 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                             aria-pressed={assigned ? Boolean(ch.solo) : undefined}
                             aria-label={`Channel ${ch.index} solo — currently ${ch.solo ? 'SOLOED' : 'off'} (click to ${ch.solo ? 'clear solo' : 'solo'})`}
                             title={ch.solo ? `Clear solo CH${ch.index}` : `Solo CH${ch.index}`}
-                            className={`w-[22px] h-[22px] rounded border font-mono text-[9px] font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                            className={`w-[22px] h-[22px] rounded border font-mono text-[9px] font-bold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hw-key ${
                               assigned && ch.solo
-                                ? 'bg-amber-400 border-amber-200 text-slate-950 shadow-[0_0_6px_rgba(245,158,11,0.55)]'
-                                : 'hw-top-btn text-slate-300'
+                                ? '!bg-none !border-amber-200 !bg-amber-400 !text-slate-950 shadow-[0_0_6px_rgba(245,158,11,0.55)]'
+                                : ''
                             }`}
                           >
                             S
@@ -913,9 +872,13 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
               )}
             </div>
           ) : (
-            <div className="flex-1 min-h-0 flex items-center justify-center p-3">
-              <span className="font-mono text-[10px] text-slate-500">
-                No input channels — press + to add a strip.
+            <div
+              className="flex-1 min-h-0 flex items-center justify-center p-3"
+              title="No input channels — press + (panel header) to add a strip"
+            >
+              <span className="flex items-center gap-1.5 font-mono text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+                <span className="hw-lamp" style={{ width: 6, height: 6 }} aria-hidden="true" />
+                No Channels · ADD
               </span>
             </div>
           )}
@@ -930,7 +893,7 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
               >
                 <span className="flex items-center gap-1.5 min-w-0">
                   <Cable className="w-3 h-3 text-teal-300 shrink-0" />
-                  <span className="truncate">HARDWARE INPUTS ({inputDevices.length})</span>
+                  <span className="truncate">INPUT PATCH ({inputDevices.length})</span>
                   {desktopAudioStatus?.supported && (
                     <span
                       className={`px-1 py-0.2 rounded text-[7.5px] border shrink-0 ${
@@ -981,7 +944,7 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                   }`}
                 >
                   <RefreshCw className={`w-2.5 h-2.5 shrink-0 ${scanning ? 'animate-spin' : ''}`} />
-                  <span>{scanning ? 'RESCANNING INPUTS…' : `LIVE RESCAN INPUTS (${inputDevices.length} FOUND)`}</span>
+                  <span>{scanning ? 'SCANNING…' : `RESCAN · ${inputDevices.length}`}</span>
                 </button>
                 {onActivateSystemAudioBridge && (
                   <button
@@ -999,11 +962,15 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                   >
                     <span className="flex items-center gap-1 min-w-0 truncate">
                       <Radio className="w-2.5 h-2.5 shrink-0" />
-                      <span className="truncate">
-                        {audioSource === 'desktop-audio' && engineRunning
-                          ? 'Desktop Audio Bridge ON'
-                          : 'System Audio Bridge'}
-                      </span>
+                      <span className="truncate">AUDIO BRIDGE</span>
+                      <span
+                        aria-hidden="true"
+                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                          audioSource === 'desktop-audio' && engineRunning
+                            ? 'bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.85)]'
+                            : 'bg-slate-600'
+                        }`}
+                      />
                     </span>
                     <span className="text-[7.5px] opacity-85 shrink-0">
                       {audioSource === 'desktop-audio' && engineRunning
@@ -1025,12 +992,16 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                     className="w-full px-2 py-1 rounded border border-cyan-500/45 bg-cyan-950/35 hover:bg-cyan-900/50 text-cyan-200 font-mono text-[8.5px] font-bold flex items-center justify-center gap-1 cursor-pointer disabled:opacity-45"
                   >
                     <Speaker className="w-2.5 h-2.5 shrink-0 text-cyan-300" />
-                    <span className="truncate">Browser → Built-In Speakers (Mute Mic + DSP)</span>
+                    <span className="truncate">BROWSER → DSP SPEAKERS</span>
                   </button>
                 )}
                 {inputDevices.length === 0 ? (
-                  <div className="p-2 rounded border border-dashed border-[#344355] bg-[#0B1015] text-center font-mono text-[9px] text-slate-500">
-                    No inputs detected. Click refresh to scan USB / soundcard inputs.
+                  <div
+                    className="p-2 rounded border border-dashed border-[#344355] bg-[#0B1015] text-center font-mono text-[9px] text-slate-500 flex items-center justify-center gap-1.5"
+                    title="No inputs detected — press RESCAN to scan USB / soundcard inputs"
+                  >
+                    <span className="hw-lamp" style={{ width: 5, height: 5 }} aria-hidden="true" />
+                    NO INPUTS · RESCAN
                   </div>
                 ) : (
                   inputDevices.map((dev, idx) => {
@@ -1342,21 +1313,17 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                           </button>
                         )}
                       </div>
-                      <p className="font-mono text-[7px] leading-relaxed text-slate-500 px-0.5">
-                        {jackRouterStatus} ·{' '}
-                        {first.layout === '5.1' || first.layout === '7.1' ? (
-                          <>
-                            Windows speaker configuration for this device must be set to {first.layout} (Sound
-                            Control Panel) for 1:1 per-jack routing.
-                          </>
-                        ) : (
-                          <>
-                            Windows speaker configuration for this device must be configured for{' '}
-                            {first.channelCount} discrete channels (Sound Control Panel or vendor control
-                            panel) for 1:1 per-jack routing.
-                          </>
-                        )}
-                      </p>
+                      <div
+                        className="flex items-center gap-1.5 px-1 py-0.5 rounded border border-[#2A3644] bg-[#0C1118] font-mono text-[7px] font-bold tracking-wider text-slate-400"
+                        title={`${jackRouterStatus} · ${
+                          first.layout === '5.1' || first.layout === '7.1'
+                            ? `Windows speaker configuration for this device must be set to ${first.layout} (Sound Control Panel) for 1:1 per-jack routing.`
+                            : `Windows speaker configuration for this device must be configured for ${first.channelCount} discrete channels (Sound Control Panel or vendor control panel) for 1:1 per-jack routing.`
+                        }`}
+                      >
+                        <span className="hw-lamp" style={{ width: 5, height: 5 }} aria-hidden="true" />
+                        {jackRouterStatus} · WIN {first.layout ?? `${first.channelCount}CH`} REQ
+                      </div>
                     </div>
                   );
                 });
@@ -1509,8 +1476,12 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
             </div>
 
             {outputDevices.length === 0 ? (
-              <div className="p-3 rounded border border-dashed border-[#344355] bg-[#0B1015] text-center font-mono text-[10px] text-slate-500">
-                No audio output endpoints detected. Click refresh or plug in speakers/headphones.
+              <div
+                className="p-3 rounded border border-dashed border-[#344355] bg-[#0B1015] text-center font-mono text-[10px] font-bold tracking-wider text-slate-500 uppercase flex items-center justify-center gap-1.5"
+                title="No audio output endpoints detected — press RESCAN or plug in speakers/headphones"
+              >
+                <span className="hw-lamp" style={{ width: 5, height: 5 }} aria-hidden="true" />
+                No Outputs · Rescan
               </div>
             ) : (
               outputDevices.map((dev, idx) => {
@@ -1600,7 +1571,7 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                           }}
                           className="w-full h-6 px-1.5 rounded border border-[#2C394A] bg-[#0B1017] text-teal-200 font-mono text-[8.5px] cursor-pointer disabled:opacity-45"
                         >
-                          <option value="">+ Route Speaker Zone Here (Active Simultaneously)…</option>
+                          <option value="">+ ROUTE ZONE…</option>
                           {zones.map((z) => (
                             <option key={z.id} value={z.id}>
                               {z.hardwareOutputId === dev.deviceId ? `✓ ${z.name} (${z.role})` : `→ ${z.name} (${z.role})`}
@@ -1676,8 +1647,8 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
               <RefreshCw className={`w-3 h-3 shrink-0 ${scanning ? 'animate-spin' : ''}`} />
               <span>
                 {scanning
-                  ? 'RESCANNING OUTPUTS…'
-                  : `LIVE RESCAN OUTPUTS (${outputDevices.length} FOUND)`}
+                  ? 'SCANNING…'
+                  : `RESCAN · ${outputDevices.length}`}
               </span>
             </button>
             <div className="px-1 font-mono text-[9px] text-slate-300 flex items-center justify-between">

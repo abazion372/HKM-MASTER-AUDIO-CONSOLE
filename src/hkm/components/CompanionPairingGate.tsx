@@ -53,11 +53,18 @@ export const CompanionPairingGate: React.FC<CompanionPairingGateProps> = ({
             </h1>
           </div>
 
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Scan the pairing QR code shown in the desktop console (Hardware &amp;
-            Diagnostics → Remote Access) to link this device, or enter the
-            16-character pairing token manually.
-          </p>
+          <div
+            className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider hw-engraved"
+            title="Scan the pairing QR code shown in the desktop console (Hardware & Diagnostics → Remote Access) to link this device, or enter the 16-character pairing token manually."
+          >
+            <span
+              aria-hidden="true"
+              className="hw-lamp"
+              data-on="cyan"
+              style={{ width: 6, height: 6 }}
+            />
+            <span>Pair · QR or 16-Char Token</span>
+          </div>
 
           {errorMessage && (
             <div
@@ -88,12 +95,12 @@ export const CompanionPairingGate: React.FC<CompanionPairingGateProps> = ({
               value={tokenInput}
               onChange={(e) => setTokenInput(e.target.value.replace(/\s+/g, ''))}
               placeholder="PAIRING TOKEN"
-              className="w-full h-11 px-3 rounded-lg border border-slate-700 bg-[#070A10] font-mono text-center text-sm tracking-widest text-white focus:outline-none focus:border-sky-400"
+              className="w-full h-11 hw-lcd px-3 rounded-lg border border-slate-700 font-mono text-center text-sm tracking-widest text-white focus:outline-none focus:border-sky-400"
             />
             <button
               type="submit"
               disabled={!canConnect}
-              className="w-full h-11 rounded-lg bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:hover:bg-sky-600 text-white font-mono text-xs font-semibold uppercase"
+              className="w-full h-11 rounded-lg hw-key !bg-none !bg-sky-600 hover:!bg-sky-500 !border-sky-400/70 !text-white disabled:opacity-40 font-mono text-xs font-semibold uppercase tracking-wider"
             >
               Connect
             </button>
@@ -103,10 +110,11 @@ export const CompanionPairingGate: React.FC<CompanionPairingGateProps> = ({
         <button
           type="button"
           onClick={onOpenDesktop}
-          className="w-full h-11 rounded-lg border border-slate-700 bg-[#0E1524] text-slate-300 font-mono text-xs flex items-center justify-center gap-2"
+          title="Open Desktop Console"
+          className="w-full h-11 rounded-lg border hw-key !text-slate-300 font-mono text-xs flex items-center justify-center gap-2 uppercase tracking-wider"
         >
           <Monitor className="w-4 h-4" />
-          <span>Open Desktop Console</span>
+          <span>Desktop Console</span>
         </button>
       </div>
     </div>

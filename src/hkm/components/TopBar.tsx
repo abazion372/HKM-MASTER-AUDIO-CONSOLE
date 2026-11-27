@@ -16,7 +16,6 @@ import {
   ShieldCheck,
   Mic,
   Lock,
-  Unlock,
   Wrench,
   Clock,
   Route,
@@ -236,12 +235,12 @@ const TopBarInner: React.FC<TopBarProps> = ({
         title={`${venueName} · ${roomName} · ${driver} · ${(sampleRate / 1000).toFixed(1)} kHz (${bufferSize} smp)`}
       >
         <AppLogo className="w-7 h-7 shrink-0 rounded-md border border-[#324050] shadow-[0_0_12px_rgba(45,212,191,0.28)]" />
-        <div className="flex flex-col leading-tight min-w-0">
+        <div className="flex flex-col leading-tight min-w-0" title="Live Church Sound System">
           <span className="font-display font-bold text-sm tracking-[0.06em] text-slate-100 whitespace-nowrap truncate">
             AUDIO DSP ENGINE
           </span>
           <span className="text-[10px] font-sans text-slate-400 tracking-wide whitespace-nowrap truncate">
-            Live Church Sound System
+            HKM MASTER CONSOLE
           </span>
         </div>
       </div>
@@ -321,8 +320,7 @@ const TopBarInner: React.FC<TopBarProps> = ({
             }`}
           >
             <Wrench className="w-3 h-3 text-teal-300" />
-            <span className="tabular-nums hidden sm:inline">TOOLS · {tapTempo.bpm} BPM</span>
-            <span className="sm:hidden">TOOLS</span>
+            <span>TOOLS</span>
           </button>
 
           {showToolsPopover && (
@@ -781,24 +779,29 @@ const TopBarInner: React.FC<TopBarProps> = ({
           )}
         </div>
 
-        {/* Reference-Styled Hardware LOCKED / UNLOCKED Status Pill */}
+        {/* Hardware LOCK key — latching LED when engaged */}
         {onToggleLock && (
           <button
             type="button"
             onClick={onToggleLock}
+            aria-pressed={consoleLocked}
             title={consoleLocked ? 'Console Controls Locked (Click to unlock)' : 'Console Unlocked (Click to lock controls against accidental edits)'}
-            className={`h-7 px-2.5 rounded border font-mono text-[10px] font-bold flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+            className={`h-7 px-2.5 rounded border font-mono text-[10px] font-bold flex items-center gap-1.5 whitespace-nowrap cursor-pointer hw-key ${
               consoleLocked
-                ? 'bg-[#211C13] border-amber-500/70 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.25)]'
-                : 'bg-[#10151C] border-[#2D3846] text-slate-300 hover:border-slate-500 hover:text-white'
+                ? '!border-amber-500/70 !text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.25),inset_0_2px_4px_rgba(0,0,0,0.6)]'
+                : ''
             }`}
           >
-            {consoleLocked ? (
-              <Lock className="w-3 h-3 text-amber-400" />
-            ) : (
-              <Unlock className="w-3 h-3 text-teal-400" />
-            )}
-            <span>{consoleLocked ? 'LOCKED' : 'UNLOCKED'}</span>
+            <span
+              aria-hidden="true"
+              className={`w-1.5 h-1.5 rounded-full ${
+                consoleLocked
+                  ? 'bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.9)]'
+                  : 'bg-slate-600'
+              }`}
+            />
+            <Lock className="w-3 h-3" />
+            <span>LOCK</span>
           </button>
         )}
 

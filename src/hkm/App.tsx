@@ -1083,7 +1083,12 @@ export default function App() {
           />
 
           {/* CENTER PANEL: ALL 16 MODULES DELIVER THEIR CONTENT HERE */}
-          <main className="flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col">
+          <main className="relative flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col hw-deck rounded-lg">
+            {/* Deck corner screws — the console's master section is bolted in */}
+            <span aria-hidden="true" className="hw-screw absolute left-1.5 top-1.5 z-10" />
+            <span aria-hidden="true" className="hw-screw absolute right-1.5 top-1.5 z-10" />
+            <span aria-hidden="true" className="hw-screw absolute left-1.5 bottom-1.5 z-10" />
+            <span aria-hidden="true" className="hw-screw absolute right-1.5 bottom-1.5 z-10" />
             {[audio.audioError, hardware.outputRouteError]
               .filter((message): message is string => Boolean(message))
               .map((message) => (
@@ -1138,7 +1143,7 @@ export default function App() {
                 onRemoveEqBand={session.handleRemoveEqBand}
               />
             ) : (
-              <div className="flex-1 min-h-0 overflow-y-auto hw-panel rounded-lg p-3.5">
+              <div className="flex-1 min-h-0 overflow-y-auto p-3.5">
                 {activeModule === 'feedback' ? (
                   <FeedbackAnalyzerModule
                     telemetry={audio.telemetry}

@@ -98,6 +98,9 @@ const PEQ_BAND_STYLES = [
   },
 ];
 
+/* Silkscreen check keys for the instrument-rig LED chips — full notes live in tooltips */
+const INSTRUMENT_RIG_KEYS = ['HI-Z JACK', '48V LOCK', 'GAIN SET'];
+
 export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
   channels,
   onUpdateChannel,
@@ -334,16 +337,28 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
       <div className="h-8 shrink-0 bg-gradient-to-b from-[#141B28] to-[#0D121C] border-b border-slate-700/70 px-3 flex items-center justify-between gap-3">
         {/* Left: Console Identity & Hardware Lock */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <div className="w-2 h-5 rounded-xs bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.75)] shrink-0" />
+          <span
+            className="hw-lamp shrink-0"
+            data-on={telemetry?.isRunning ? 'green' : undefined}
+            style={{ width: 6, height: 6 }}
+            aria-hidden="true"
+          />
           <div className="flex items-center gap-2 min-w-0 font-mono">
             <span className="text-[11px] font-bold text-emerald-400 tracking-wider whitespace-nowrap">
               HKM CONSOLE INSTRUMENT
             </span>
             <span className="text-slate-600 hidden md:inline">|</span>
-            <span className="text-[10px] text-slate-400 truncate hidden md:inline">
+            <span
+              className="text-[10px] text-slate-400 truncate hidden md:inline"
+              title={
+                telemetry?.isRunning
+                  ? `LIVE AUDIO ENGINE · ${(telemetry.sampleRate / 1000).toFixed(1)} kHz · ACTIVE`
+                  : 'LIVE AUDIO ENGINE · READY'
+              }
+            >
               {telemetry?.isRunning
-                ? `LIVE AUDIO ENGINE · ${(telemetry.sampleRate / 1000).toFixed(1)} kHz · ACTIVE`
-                : 'LIVE AUDIO ENGINE · READY'}
+                ? `ENGINE LIVE · ${(telemetry.sampleRate / 1000).toFixed(1)} kHz`
+                : 'ENGINE READY'}
             </span>
           </div>
         </div>
@@ -352,25 +367,49 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
         <div className="hidden sm:flex items-center gap-2 bg-[#05070C] px-2.5 py-1 rounded border border-slate-700/80 font-mono text-[9px] shrink-0">
           <span className="text-slate-400 font-semibold">MAIN L/R</span>
           <div className="flex flex-col gap-0.5 w-20">
-            <div className="h-1.5 w-full bg-slate-900 rounded-xs overflow-hidden">
-              <div
-                className={`h-full transition-all duration-75 ${
-                  telemetry.postPeakDb > -3 ? 'bg-amber-400' : 'bg-emerald-400'
-                }`}
-                style={{ width: `${meterPct}%` }}
-              />
+            <div className="hw-led-track-h h-[9px] w-full">
+              {Array.from({ length: 12 }).map((_, seg) => {
+                const lit = meterPct >= ((seg + 1) / 12) * 100;
+                return (
+                  <span
+                    key={seg}
+                    className="hw-led-seg"
+                    data-lit={
+                      lit
+                        ? seg >= 11
+                          ? 'red'
+                          : seg >= 9 || telemetry.postPeakDb > -3
+                            ? 'amber'
+                            : 'green'
+                        : undefined
+                    }
+                  />
+                );
+              })}
             </div>
-            <div className="h-1.5 w-full bg-slate-900 rounded-xs overflow-hidden">
-              <div
-                className={`h-full transition-all duration-75 ${
-                  telemetry.postPeakDb > -3 ? 'bg-amber-400' : 'bg-emerald-400'
-                }`}
-                style={{ width: `${Math.max(0, meterPct - 2)}%` }}
-              />
+            <div className="hw-led-track-h h-[9px] w-full">
+              {Array.from({ length: 12 }).map((_, seg) => {
+                const lit = Math.max(0, meterPct - 2) >= ((seg + 1) / 12) * 100;
+                return (
+                  <span
+                    key={seg}
+                    className="hw-led-seg"
+                    data-lit={
+                      lit
+                        ? seg >= 11
+                          ? 'red'
+                          : seg >= 9 || telemetry.postPeakDb > -3
+                            ? 'amber'
+                            : 'green'
+                        : undefined
+                    }
+                  />
+                );
+              })}
             </div>
           </div>
           <span
-            className={`font-bold tabular-nums w-14 text-right ${
+            className={`hw-lcd rounded px-1.5 font-bold tabular-nums w-14 text-right ${
               telemetry.postPeakDb > -3 ? 'text-amber-400' : 'text-emerald-400'
             }`}
           >
@@ -490,24 +529,28 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
             <div className="flex items-center justify-between border-b border-amber-500/25 pb-1.5 shrink-0">
               <div className="flex items-center gap-2">
                 <span
-                  className={`w-2.5 h-2.5 rounded-full ${
-                    selectedAssigned
-                      ? 'bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.8)]'
-                      : 'bg-slate-600'
-                  }`}
+                  className={`hw-lamp shrink-0 ${selectedAssigned ? '' : 'opacity-60'}`}
+                  data-on={selectedAssigned ? 'amber' : undefined}
+                  style={{ width: 6, height: 6 }}
+                  aria-hidden="true"
                 />
                 <h3 className="font-mono text-xs font-bold text-amber-100 tracking-wider uppercase">
-                  PHASE 1 · STAGE PREAMP &amp; GROUND HUM TRAPS — {selectedAssigned ? selectedChannel.name : `Open Slot CH${selectedChannel.index}`}
+                  PHASE 1 · STAGE PREAMP &amp; GROUND HUM TRAPS — {selectedAssigned ? selectedChannel.name : `CH${selectedChannel.index} OPEN`}
                 </h3>
               </div>
               <span
                 className={`font-mono text-[11px] font-semibold ${
                   selectedAssigned ? 'text-amber-400' : 'text-slate-400'
                 }`}
+                title={
+                  selectedAssigned
+                    ? `Input: ${selectedChannel.hardwareInputLabel || selectedChannel.name}`
+                    : 'Open Slot — No Input Assigned'
+                }
               >
                 {selectedAssigned
-                  ? `Input: ${selectedChannel.hardwareInputLabel || selectedChannel.name}`
-                  : 'Open Slot — No Input Assigned'}
+                  ? `IN · ${selectedChannel.hardwareInputLabel || selectedChannel.name}`
+                  : 'OPEN · NO INPUT'}
               </span>
               <span
                 className={`font-mono text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${
@@ -561,7 +604,7 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
 
               {/* Group B: Input Mode Selector + Phantom, Pad & Polarity Switches */}
               <div className="h-full rounded-lg border border-slate-700/70 bg-[#0D1017] p-3 flex flex-col justify-center gap-2 font-mono text-xs">
-                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                <span className="hw-engraved text-[10px] uppercase font-bold tracking-wider">
                   Input Stage &amp; Conditioning
                 </span>
                 <div
@@ -581,14 +624,14 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
                         disabled={locked}
                         onClick={() => switchSelectedInputMode(m)}
                         title={`${spec.fullLabel} — ${spec.domainNote}`}
-                        className={`py-1.5 rounded font-bold text-[10px] border transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                        className={`py-1.5 rounded font-bold text-[10px] border transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hw-key ${
                           active
                             ? m === 'mic'
-                              ? 'bg-cyan-500 text-slate-950 border-cyan-300 shadow-[0_0_10px_rgba(34,211,238,0.45)]'
+                              ? '!bg-none !border-cyan-300 !bg-cyan-500 !text-slate-950 shadow-[0_0_10px_rgba(34,211,238,0.45)]'
                               : m === 'line'
-                                ? 'bg-emerald-500 text-slate-950 border-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.45)]'
-                                : 'bg-fuchsia-500 text-slate-950 border-fuchsia-300 shadow-[0_0_10px_rgba(217,70,239,0.5)]'
-                            : 'bg-[#141925] border-slate-700 text-slate-400 hover:text-slate-200'
+                                ? '!bg-none !border-emerald-300 !bg-emerald-500 !text-slate-950 shadow-[0_0_10px_rgba(16,185,129,0.45)]'
+                                : '!bg-none !border-fuchsia-300 !bg-fuchsia-500 !text-slate-950 shadow-[0_0_10px_rgba(217,70,239,0.5)]'
+                            : ''
                         }`}
                       >
                         {spec.shortLabel}
@@ -612,10 +655,10 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
                           : '+48V unavailable on LINE jacks (mic domain only)'
                         : '+48V Phantom Power for condenser microphones'
                     }
-                    className={`py-2 rounded font-bold border transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1 text-[11px] ${
+                    className={`py-2 rounded font-bold border transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1 text-[11px] hw-key ${
                       selectedAssigned && selectedChannel.phantom48v && selModeSpec.phantomAllowed
-                        ? 'bg-red-600 text-white border-red-400 shadow-[0_0_12px_rgba(239,68,68,0.7)]'
-                        : 'bg-[#141925] border-slate-700 text-slate-400 hover:text-slate-200'
+                        ? '!bg-none !border-red-400 !bg-red-600 !text-white shadow-[0_0_12px_rgba(239,68,68,0.7)]'
+                        : ''
                     }`}
                   >
                     <Zap className="w-3.5 h-3.5" />
@@ -629,10 +672,10 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
                         padDb: !selectedChannel.padDb,
                       })
                     }
-                    className={`py-2 rounded font-bold border transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-[11px] ${
+                    className={`py-2 rounded font-bold border transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-[11px] hw-key ${
                       selectedAssigned && selectedChannel.padDb
-                        ? 'bg-amber-500 text-slate-950 border-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.6)]'
-                        : 'bg-[#141925] border-slate-700 text-slate-400 hover:text-slate-200'
+                        ? '!bg-none !border-amber-300 !bg-amber-500 !text-slate-950 shadow-[0_0_10px_rgba(245,158,11,0.6)]'
+                        : ''
                     }`}
                   >
                     -20 dB PAD
@@ -646,19 +689,24 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
                       polarityInverted: !selectedChannel.polarityInverted,
                     })
                   }
-                  className={`py-1.5 rounded font-bold border transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-[11px] ${
+                  title={
                     selectedAssigned && selectedChannel.polarityInverted
-                      ? 'bg-sky-500 text-slate-950 border-sky-300'
-                      : 'bg-[#141925] border-slate-700 text-slate-400 hover:text-slate-200'
+                      ? 'Polarity inverted (180°)'
+                      : 'Polarity normal (0°)'
+                  }
+                  className={`py-1.5 rounded font-bold border transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-[11px] hw-key ${
+                    selectedAssigned && selectedChannel.polarityInverted
+                      ? '!bg-none !border-sky-300 !bg-sky-500 !text-slate-950'
+                      : ''
                   }`}
                 >
-                  POLARITY {selectedAssigned && selectedChannel.polarityInverted ? 'Ø INVERTED' : 'NORMAL (0°)'}
+                  POLARITY {selectedAssigned && selectedChannel.polarityInverted ? 'Ø 180°' : '0°'}
                 </button>
               </div>
 
               {/* Group C: Mains Hum Notch Trap */}
               <div className="h-full rounded-lg border border-emerald-500/25 bg-[#08100E] p-3 flex flex-col justify-center gap-2 font-mono text-xs">
-                <span className="text-[10px] text-emerald-300 uppercase font-bold tracking-wider">
+                <span className="hw-engraved !text-emerald-300 text-[10px] uppercase font-bold tracking-wider">
                   Mains Hum Notch Trap
                 </span>
                 <div className="grid grid-cols-3 gap-1.5">
@@ -677,10 +725,10 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
                           },
                         })
                       }
-                      className={`py-2 rounded font-bold text-[11px] border transition cursor-pointer ${
+                      className={`py-2 rounded font-bold text-[11px] border transition cursor-pointer hw-key ${
                         dsp.cleanStandby?.mainsHumNotch === mode
-                          ? 'bg-emerald-500 text-slate-950 border-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.5)]'
-                          : 'bg-[#101816] border-slate-800 text-slate-400 hover:text-slate-200'
+                          ? '!bg-none !border-emerald-300 !bg-emerald-500 !text-slate-950 shadow-[0_0_10px_rgba(16,185,129,0.5)]'
+                          : ''
                       }`}
                     >
                       {mode.toUpperCase()}
@@ -688,10 +736,10 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
                   ))}
                 </div>
                 <span
-                  className="font-mono text-[9px] font-bold tracking-wider text-slate-500 uppercase"
+                  className="hw-engraved font-mono text-[9px] font-bold tracking-wider uppercase"
                   title="Eliminates 50/60 Hz AC ground hum & harmonics with zero phase smear — pick your mains region"
                 >
-                  50/60 HZ AC HUM · ZERO PHASE SMEAR
+                  50/60 HZ AC HUM
                 </span>
               </div>
             </div>
@@ -702,17 +750,28 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
                 title={INSTRUMENT_RIG_CHECKLIST.map((n, i) => `${i + 1}. ${n}`).join('\n')}
               >
                 <div className="flex items-center justify-between font-mono text-[10px] font-bold tracking-wider uppercase">
-                  <span className="text-fuchsia-300">
-                    Instrument Rig Checklist — Guitar / Bass (Hi-Z · CH{selectedChannel.index})
+                  <span
+                    className="text-fuchsia-300"
+                    title={`Instrument Rig Checklist — Guitar / Bass (Hi-Z · CH${selectedChannel.index})`}
+                  >
+                    INST RIG · CH{selectedChannel.index}
                   </span>
                   <span className="text-emerald-400 font-semibold">48V LOCKED · PAD READY · NOTCH ARMED</span>
                 </div>
                 <div className="mt-1 grid grid-cols-3 gap-2 font-mono text-[9px] leading-snug text-slate-300">
                   {INSTRUMENT_RIG_CHECKLIST.slice(0, 3).map((note, i) => (
-                    <span key={i} className="flex gap-1" title={note}>
+                    <span key={i} className="flex items-center gap-1.5 min-w-0" title={note}>
                       <span className="text-fuchsia-400 font-bold shrink-0">{i + 1}.</span>
                       <span className="sr-only">{note}</span>
-                      <span className="min-w-0 truncate">{note.split(/[.,]/)[0].slice(0, 26)}…</span>
+                      <span
+                        className="hw-lamp shrink-0"
+                        data-on="green"
+                        style={{ width: 5, height: 5 }}
+                        aria-hidden="true"
+                      />
+                      <span className="min-w-0 truncate font-bold tracking-wider uppercase">
+                        {INSTRUMENT_RIG_KEYS[i] ?? `CHK ${i + 1}`}
+                      </span>
                     </span>
                   ))}
                 </div>
@@ -720,7 +779,7 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
             ) : (
               <div className="px-3 py-1.5 rounded border border-slate-800 bg-[#050609] flex items-center justify-between font-mono text-[9px] font-bold tracking-wider uppercase shrink-0">
                 <span className="flex items-center gap-1.5 text-slate-400" title="Subsonic DC protection: 18 Hz Butterworth, always active ahead of the fader">
-                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400" /> DC GUARD 18 HZ BW
+                  <span className="hw-lamp" data-on="cyan" style={{ width: 5, height: 5 }} aria-hidden="true" /> DC GUARD 18 HZ BW
                 </span>
                 <span className="flex items-center gap-1.5 text-emerald-400" title="PFL headroom: +18 dBFS">
                   PFL +18 DBFS
@@ -735,7 +794,7 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
           <div className="h-full min-h-0 flex flex-col justify-between p-3 rounded-lg border border-cyan-500/40 bg-gradient-to-b from-[#0A171C] via-[#071014] to-[#04090C] shadow-inner">
             <div className="flex items-center justify-between border-b border-cyan-500/25 pb-1.5 shrink-0">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+                <span className="hw-lamp" data-on="cyan" style={{ width: 6, height: 6 }} aria-hidden="true" />
                 <h3 className="font-mono text-xs font-bold text-cyan-100 tracking-wider uppercase">
                   PHASE 2 · BANDPASS FILTERS &amp; NOISE GATE — {selectedChannel.name}
                 </h3>
@@ -749,16 +808,16 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
               {/* Group A: Steep Surgical Filters */}
               <div className="h-full rounded-lg border border-cyan-500/30 bg-[#061116] p-3 flex flex-col justify-between">
                 <div className="flex items-center justify-between font-mono text-[10px]">
-                  <span className="text-cyan-300 font-bold uppercase tracking-wider">
+                  <span className="hw-engraved !text-cyan-300 font-bold uppercase tracking-wider">
                     18 dB/Oct Butterworth Filters
                   </span>
                   <button
                     type="button"
                     onClick={() => onUpdateDsp({ hpfEnabled: !dsp.hpfEnabled })}
-                    className={`px-2 py-0.5 rounded font-bold border cursor-pointer ${
+                    className={`px-2 py-0.5 rounded font-bold border cursor-pointer hw-key ${
                       dsp.hpfEnabled
-                        ? 'bg-cyan-500 text-slate-950 border-cyan-300'
-                        : 'bg-slate-800 border-slate-700 text-slate-400'
+                        ? '!bg-none !border-cyan-300 !bg-cyan-500 !text-slate-950'
+                        : ''
                     }`}
                   >
                     {dsp.hpfEnabled ? 'HPF IN' : 'HPF OUT'}
@@ -795,7 +854,7 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
               {/* Group B: Expander / Standby Gate */}
               <div className="h-full rounded-lg border border-emerald-500/30 bg-[#071410] p-3 flex flex-col justify-between">
                 <div className="flex items-center justify-between font-mono text-[10px]">
-                  <span className="text-emerald-300 font-bold uppercase tracking-wider">
+                  <span className="hw-engraved !text-emerald-300 font-bold uppercase tracking-wider">
                     Expander / Standby Gate
                   </span>
                   <button
@@ -803,10 +862,10 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
                     onClick={() =>
                       onUpdateDsp({ gate: { ...dsp.gate, enabled: !dsp.gate.enabled } })
                     }
-                    className={`px-2 py-0.5 rounded font-bold border cursor-pointer ${
+                    className={`px-2 py-0.5 rounded font-bold border cursor-pointer hw-key ${
                       dsp.gate.enabled
-                        ? 'bg-emerald-500 text-slate-950 border-emerald-300'
-                        : 'bg-slate-800 border-slate-700 text-slate-400'
+                        ? '!bg-none !border-emerald-300 !bg-emerald-500 !text-slate-950'
+                        : ''
                     }`}
                   >
                     {dsp.gate.enabled ? 'GATE ACTIVE' : 'BYPASSED'}
@@ -846,7 +905,12 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
             </div>
 
             <div className="px-3 py-1.5 rounded border border-slate-800 bg-[#05080A] flex items-center justify-between font-mono text-[11px] text-slate-400 shrink-0">
-              <span>Removes stage floor rumble, mic handling thumps &amp; idle room hiss.</span>
+              <span
+                className="hw-engraved uppercase"
+                title="Removes stage floor rumble, mic handling thumps & idle room hiss."
+              >
+                RUMBLE · THUMP · HISS
+              </span>
               <span className="text-cyan-400 font-semibold">
                 HPF: {dsp.hpfHz} Hz · LPF: {(dsp.lpfHz / 1000).toFixed(1)} kHz
               </span>
@@ -860,14 +924,17 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 shrink-0">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.8)]" />
+                <span className="hw-lamp" data-on="cyan" style={{ width: 6, height: 6 }} aria-hidden="true" />
                 <h3 className="font-mono text-xs font-bold text-white tracking-wider uppercase">
                   PHASE 3 · 4-BAND PARAMETRIC EQ &amp; LIVE RTA — {selectedChannel.name}
                 </h3>
               </div>
               <div className="flex items-center gap-2 font-mono text-[10px]">
-                <span className="text-slate-400">
-                  Bands: {dsp.eqBands.length} · ±18 dB
+                <span
+                  className="hw-engraved uppercase"
+                  title={`Bands: ${dsp.eqBands.length} · ±18 dB`}
+                >
+                  BANDS {dsp.eqBands.length} · ±18 dB
                 </span>
                 {dsp.eqBands.length > 4 && (
                   <button
@@ -875,7 +942,7 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
                     onClick={() =>
                       setPeqPageOffset((p) => (p + 4 >= dsp.eqBands.length ? 0 : p + 4))
                     }
-                    className="px-2 py-0.5 rounded border border-sky-500/50 bg-sky-500/15 text-sky-200 hover:bg-sky-500/30 cursor-pointer font-bold"
+                    className="px-2 py-0.5 rounded border font-bold cursor-pointer hw-key !bg-none !border-sky-500/50 !bg-sky-500/15 !text-sky-200 hover:!bg-sky-500/30"
                   >
                     BANDS {peqPageOffset + 1}–{Math.min(dsp.eqBands.length, peqPageOffset + 4)} ▸
                   </button>
@@ -889,7 +956,7 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
                         setPeqPageOffset(Math.floor(dsp.eqBands.length / 4) * 4);
                       }
                     }}
-                    className="px-2 py-0.5 rounded border border-emerald-500/50 bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/30 cursor-pointer font-bold"
+                    className="px-2 py-0.5 rounded border font-bold cursor-pointer hw-key !bg-none !border-emerald-500/50 !bg-emerald-500/15 !text-emerald-200 hover:!bg-emerald-500/30"
                   >
                     + BAND
                   </button>
@@ -901,7 +968,7 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
                       eqBands: dsp.eqBands.map((b) => ({ ...b, gainDb: 0 })),
                     })
                   }
-                  className="px-2 py-0.5 rounded border border-slate-600 bg-[#141C2B] text-slate-200 hover:bg-slate-700 cursor-pointer flex items-center gap-1 font-bold"
+                  className="px-2 py-0.5 rounded border cursor-pointer flex items-center gap-1 font-bold hw-key"
                 >
                   <RotateCcw className="w-3 h-3 text-sky-400" />
                   FLAT RESET
@@ -990,10 +1057,10 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
                           );
                           onUpdateDsp({ eqBands: updated });
                         }}
-                        className={`px-1.5 py-0.5 rounded text-[9px] font-bold border cursor-pointer shrink-0 ${
+                        className={`px-1.5 py-0.5 rounded text-[9px] font-bold border cursor-pointer shrink-0 hw-key ${
                           band.enabled
-                            ? 'bg-emerald-500 text-slate-950 border-emerald-300'
-                            : 'bg-slate-800 text-slate-400 border-slate-700'
+                            ? '!bg-none !border-emerald-300 !bg-emerald-500 !text-slate-950'
+                            : ''
                         }`}
                       >
                         {band.enabled ? 'IN' : 'OUT'}
@@ -1064,7 +1131,7 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
           <div className="h-full min-h-0 flex flex-col justify-between p-3 rounded-lg border border-emerald-500/40 bg-gradient-to-b from-[#091813] via-[#06100D] to-[#040907] shadow-inner">
             <div className="flex items-center justify-between border-b border-emerald-500/25 pb-1.5 shrink-0">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                <span className="hw-lamp" data-on="green" style={{ width: 6, height: 6 }} aria-hidden="true" />
                 <h3 className="font-mono text-xs font-bold text-emerald-100 tracking-wider uppercase">
                   PHASE 4 · VCA DYNAMICS COMPRESSOR &amp; DE-ESSER — {selectedChannel.name}
                 </h3>
@@ -1078,24 +1145,19 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
               {/* 12-Segment Gain Reduction LED Meter */}
               <div className="h-full w-20 shrink-0 rounded-lg border border-slate-700/80 bg-[#05080B] p-2 flex flex-col items-center justify-between font-mono">
                 <span className="text-[9px] font-bold text-amber-400">GR (dB)</span>
-                <div className="flex-1 w-5 flex flex-col justify-between py-1 gap-0.5">
+                <div className="hw-led-track flex-1 w-5">
                   {Array.from({ length: grSegments }).map((_, idx) => {
                     const lit = idx < activeGrCount;
                     return (
-                      <div
+                      <span
                         key={idx}
-                        className={`flex-1 w-full rounded-xs transition-colors ${
-                          lit
-                            ? idx > 8
-                              ? 'bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)]'
-                              : 'bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.7)]'
-                            : 'bg-slate-800/80'
-                        }`}
+                        className="hw-led-seg"
+                        data-lit={lit ? (idx > 8 ? 'red' : 'amber') : undefined}
                       />
                     );
                   })}
                 </div>
-                <span className="text-[10px] text-slate-300 font-bold tabular-nums">
+                <span className="hw-lcd rounded px-1 text-[10px] text-slate-300 font-bold tabular-nums">
                   -{Math.abs(telemetry.gainReductionDb).toFixed(1)}
                 </span>
               </div>
@@ -1186,8 +1248,11 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
             </div>
 
             <div className="px-3 py-1.5 rounded border border-slate-800 bg-[#050807] flex items-center justify-between font-mono text-[11px] shrink-0">
-              <span className="text-slate-400">
-                Smooth RMS VCA peak-leveler with transparent auto-release.
+              <span
+                className="hw-engraved uppercase"
+                title="Smooth RMS VCA peak-leveler with transparent auto-release."
+              >
+                RMS VCA · AUTO RELEASE
               </span>
               <button
                 type="button"
@@ -1196,10 +1261,10 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
                     compressor: { ...dsp.compressor, enabled: !dsp.compressor.enabled },
                   })
                 }
-                className={`px-3 py-1 rounded text-[11px] font-bold border transition cursor-pointer ${
+                className={`px-3 py-1 rounded text-[11px] font-bold border transition cursor-pointer hw-key ${
                   dsp.compressor.enabled
-                    ? 'bg-emerald-500 text-slate-950 border-emerald-300'
-                    : 'bg-slate-800 border-slate-700 text-slate-400'
+                    ? '!bg-none !border-emerald-300 !bg-emerald-500 !text-slate-950'
+                    : ''
                 }`}
               >
                 {dsp.compressor.enabled ? 'COMPRESSOR ACTIVE' : 'BYPASSED'}
@@ -1227,7 +1292,7 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
           <div className="h-full min-h-0 flex flex-col justify-between p-3 rounded-lg border border-orange-500/40 bg-gradient-to-b from-[#1A100A] via-[#100B07] to-[#080604] shadow-inner">
             <div className="flex items-center justify-between border-b border-orange-500/25 pb-1.5 shrink-0">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-orange-400 shadow-[0_0_8px_rgba(251,146,60,0.8)]" />
+                <span className="hw-lamp" data-on="amber" style={{ width: 6, height: 6 }} aria-hidden="true" />
                 <h3 className="font-mono text-xs font-bold text-orange-100 tracking-wider uppercase">
                   PHASE 7 · OUTPUT BUS MATRIX &amp; SPEAKER PEAK LIMITER
                 </h3>
@@ -1273,27 +1338,33 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
               </div>
 
               <div className="h-full rounded-lg border border-slate-700/80 bg-[#0A0C12] p-3 flex flex-col justify-center gap-1.5 font-mono text-[10px]">
-                <span className="text-slate-400 uppercase font-bold">
-                  Active Matrix Outputs ({zones.length || 3} Zones)
+                <span
+                  className="hw-engraved uppercase font-bold"
+                  title={`Active Matrix Outputs (${zones.length || 3} Zones)`}
+                >
+                  MATRIX OUTPUTS · {zones.length || 3} ZONES
                 </span>
                 <div className="flex justify-between bg-[#05070B] px-2.5 py-1.5 rounded border border-slate-800">
-                  <span>Main Sanctuary PA L/R</span>
+                  <span title="Main Sanctuary PA L/R">MAIN PA L/R</span>
                   <span className="text-emerald-400 font-bold">ACTIVE · 0.0 ms</span>
                 </div>
                 <div className="flex justify-between bg-[#05070B] px-2.5 py-1.5 rounded border border-slate-800">
-                  <span>Aux 1 Dedicated Sub Array</span>
+                  <span title="Aux 1 Dedicated Sub Array">AUX 1 · SUB ARRAY</span>
                   <span className="text-fuchsia-400 font-bold">ACTIVE · 4.5 ms</span>
                 </div>
                 <div className="flex justify-between bg-[#05070B] px-2.5 py-1.5 rounded border border-slate-800">
-                  <span>Matrix 2 Balcony Delays</span>
+                  <span title="Matrix 2 Balcony Delays">MTX 2 · BALCONY</span>
                   <span className="text-sky-400 font-bold">ACTIVE · 24.2 ms</span>
                 </div>
               </div>
             </div>
 
             <div className="px-3 py-1.5 rounded border border-slate-800 bg-[#070504] flex items-center justify-between font-mono text-[11px] shrink-0">
-              <span className="text-slate-400">
-                0 ms Lookahead True-Peak Limiter prevents horn clipping &amp; speaker thermal overload.
+              <span
+                className="hw-engraved uppercase"
+                title="0 ms Lookahead True-Peak Limiter prevents horn clipping & speaker thermal overload."
+              >
+                TRUE-PEAK · 0 MS LOOKAHEAD
               </span>
               <button
                 type="button"
@@ -1302,10 +1373,10 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
                     limiter: { ...dsp.limiter, enabled: !dsp.limiter.enabled },
                   })
                 }
-                className={`px-3 py-1 rounded text-[11px] font-bold border transition cursor-pointer ${
+                className={`px-3 py-1 rounded text-[11px] font-bold border transition cursor-pointer hw-key ${
                   dsp.limiter.enabled
-                    ? 'bg-orange-500 text-slate-950 border-orange-300'
-                    : 'bg-slate-800 border-slate-700 text-slate-400'
+                    ? '!bg-none !border-orange-300 !bg-orange-500 !text-slate-950'
+                    : ''
                 }`}
               >
                 {dsp.limiter.enabled ? 'LIMITER ENGAGED' : 'BYPASSED'}

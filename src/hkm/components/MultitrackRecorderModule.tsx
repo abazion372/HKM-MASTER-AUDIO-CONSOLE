@@ -209,17 +209,23 @@ export const MultitrackRecorderModule: React.FC<MultitrackRecorderModuleProps> =
             <Waves className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-display text-base font-bold text-white">
-              Multitrack Live Service Recorder
+            <h2
+              className="font-display text-base font-bold text-white"
+              title="Multitrack Live Service Recorder"
+            >
+              MULTITRACK RECORDER
             </h2>
-            <p className="font-mono text-[11px] text-slate-400">
-              Armed Stems: {armedIds.length}/{channels.length} · Engine: {engineRunning ? 'LIVE 48kHz' : 'STANDBY'}
+            <p
+              className="font-mono text-[11px] text-slate-400"
+              title={`Armed stems ${armedIds.length}/${channels.length} · engine ${engineRunning ? 'live 48kHz' : 'standby'}`}
+            >
+              ARM {armedIds.length}/{channels.length} · {engineRunning ? 'LIVE 48kHz' : 'STANDBY'}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-3 font-mono">
-          <div className="px-3 py-1.5 rounded bg-[#04060B] border border-slate-800 text-sm font-bold text-emerald-400 tabular-nums">
+          <div className="px-3 py-1.5 rounded bg-[#04060B] border border-slate-800 text-sm font-bold text-emerald-400 tabular-nums hw-lcd">
             {formatClock(recording ? elapsedSec : playheadSec)}
           </div>
 
@@ -228,7 +234,8 @@ export const MultitrackRecorderModule: React.FC<MultitrackRecorderModuleProps> =
               type="button"
               disabled={armedIds.length === 0}
               onClick={() => void handleStartRecord()}
-              className="px-3.5 py-1.5 rounded bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+              title="Start multitrack recording — armed stems are captured"
+              className="px-3.5 py-1.5 rounded bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-40 hw-key !bg-none !border-rose-400 !bg-rose-600 !text-white"
             >
               <Circle className="w-3.5 h-3.5 fill-current" />
               REC ARMED ({armedIds.length})
@@ -237,7 +244,8 @@ export const MultitrackRecorderModule: React.FC<MultitrackRecorderModuleProps> =
             <button
               type="button"
               onClick={handleStopRecord}
-              className="px-3.5 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 cursor-pointer animate-pulse"
+              title="Stop recording and file the take"
+              className="px-3.5 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 cursor-pointer animate-pulse hw-key !bg-none !border-amber-400 !bg-amber-500 !text-slate-950"
             >
               <Square className="w-3.5 h-3.5 fill-current" />
               STOP REC
@@ -248,18 +256,21 @@ export const MultitrackRecorderModule: React.FC<MultitrackRecorderModuleProps> =
             type="button"
             disabled={!activeTake?.blobUrl}
             onClick={handleTogglePlay}
-            className="px-3 py-1.5 rounded border border-sky-500/50 bg-sky-500/15 hover:bg-sky-500/30 text-sky-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+            title="Play back the selected take"
+            className="px-3 py-1.5 rounded border border-sky-500/50 bg-sky-500/15 hover:bg-sky-500/30 text-sky-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-40 hw-key !bg-none !border-sky-500/50 !bg-sky-500/15 !text-sky-200"
           >
             {playing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-            {playing ? 'PAUSE' : 'AUDITION TAKE'}
+            {playing ? 'PAUSE' : 'AUDITION'}
           </button>
         </div>
       </div>
 
       {/* Channel Multitrack Lanes */}
       <div className="rounded-xl border border-slate-800 bg-[#080B13] p-3 space-y-2">
-        <div className="flex items-center justify-between font-mono text-[11px] text-slate-400 pb-1 border-b border-slate-800">
-          <span>PER-CHANNEL STEM LANES · ARM = REC</span>
+        <div className="flex items-center justify-between font-mono text-[11px] text-slate-400 pb-1 border-b border-slate-800 hw-engraved">
+          <span title="Per-channel stem lanes — ARM keys the stem for REC capture">
+            STEM LANES · ARM = REC
+          </span>
           <span>24-BIT / 48.0 kHz</span>
         </div>
 
@@ -288,10 +299,8 @@ export const MultitrackRecorderModule: React.FC<MultitrackRecorderModuleProps> =
                     type="button"
                     disabled={recording}
                     onClick={() => toggleArm(ch.id)}
-                    className={`px-2 py-0.5 rounded text-[10px] font-bold border cursor-pointer disabled:opacity-50 ${
-                      isArmed
-                        ? 'bg-rose-600 text-white border-rose-400'
-                        : 'bg-slate-900 border-slate-700 text-slate-400'
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold border cursor-pointer disabled:opacity-50 hw-key ${
+                      isArmed ? '!bg-none !border-rose-400 !bg-rose-600 !text-white' : ''
                     }`}
                   >
                     ARM
@@ -299,7 +308,7 @@ export const MultitrackRecorderModule: React.FC<MultitrackRecorderModuleProps> =
                 </div>
 
                 {/* Live / Take Waveform Strip */}
-                <div className="flex-1 h-9 rounded bg-[#04060B] border border-slate-800 overflow-hidden flex items-center px-1 gap-0.5">
+                <div className="flex-1 h-9 rounded bg-[#04060B] border border-slate-800 overflow-hidden flex items-center px-1 gap-1">
                   {slices.length === 0 ? (
                     isArmed ? (
                       /* Armed & waiting: live LED ladder driven by channel
@@ -312,26 +321,29 @@ export const MultitrackRecorderModule: React.FC<MultitrackRecorderModuleProps> =
                         const norm = Math.max(0, Math.min(1, (lvl + 54) / 54));
                         return (
                           <>
-                            {Array.from({ length: 24 }).map((_, i) => {
-                              const lit = norm > (i + 1) / 24;
-                              const hot = i >= 21;
-                              return (
-                                <span
-                                  key={i}
-                                  className={`w-1 h-3.5 rounded-[1px] shrink-0 transition-colors duration-75 ${
-                                    lit
-                                      ? hot
-                                        ? 'bg-rose-500'
-                                        : i >= 18
-                                          ? 'bg-amber-400'
-                                          : 'bg-emerald-400'
-                                      : 'bg-slate-800/80'
-                                  }`}
-                                />
-                              );
-                            })}
+                            <div
+                              className="hw-led-track-h h-6 flex-1 min-w-0"
+                              role="meter"
+                              aria-label={`Channel ${ch.index} live level`}
+                              aria-valuenow={Math.round(norm * 100)}
+                              aria-valuemin={0}
+                              aria-valuemax={100}
+                            >
+                              {Array.from({ length: 24 }).map((_, i) => {
+                                const lit = norm > (i + 1) / 24;
+                                return (
+                                  <span
+                                    key={i}
+                                    className="hw-led-seg"
+                                    data-lit={
+                                      lit ? (i >= 21 ? 'red' : i >= 18 ? 'amber' : 'green') : undefined
+                                    }
+                                  />
+                                );
+                              })}
+                            </div>
                             <span
-                              className="ml-2 text-[9px] font-mono font-bold tracking-[0.14em] text-rose-300 shrink-0"
+                              className="ml-1 text-[9px] font-mono font-bold tracking-[0.14em] text-rose-300 shrink-0"
                               title="Armed — REC captures this stem's waveform"
                             >
                               REC READY
@@ -368,8 +380,8 @@ export const MultitrackRecorderModule: React.FC<MultitrackRecorderModuleProps> =
       {/* Recorded Takes Library */}
       {takes.length > 0 && (
         <div className="rounded-xl border border-slate-800 bg-[#080B13] p-3 space-y-2">
-          <div className="font-mono text-[11px] text-slate-400 uppercase font-bold">
-            Recorded Service Takes ({takes.length})
+          <div className="font-mono text-[11px] text-slate-400 uppercase font-bold hw-engraved" title="Recorded service takes">
+            TAKES ({takes.length})
           </div>
           <div className="space-y-1.5">
             {takes.map((t) => (

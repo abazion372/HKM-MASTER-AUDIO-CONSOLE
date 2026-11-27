@@ -92,8 +92,8 @@ const SupportLogPanel: React.FC = () => {
   return (
     <div className="rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 space-y-2.5">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
-        <div className="font-mono text-xs font-semibold text-white uppercase flex items-center gap-2">
-          Support Log — This Session
+        <div className="font-mono text-xs font-semibold text-white uppercase flex items-center gap-2 hw-engraved">
+          Support Log
           <span
             className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${
               errorCount > 0
@@ -105,17 +105,18 @@ const SupportLogPanel: React.FC = () => {
           </span>
           {warnCount > 0 && (
             <span className="px-1.5 py-0.5 rounded text-[9px] font-bold border bg-amber-500/15 border-amber-500/50 text-amber-300">
-              {warnCount} WARNINGS
+              {warnCount} WARN
             </span>
           )}
         </div>
         <button
           type="button"
           onClick={handleCopy}
-          className="px-2.5 py-1 rounded border border-sky-500/40 bg-sky-500/15 hover:bg-sky-500/30 text-sky-200 text-[10px] font-bold flex items-center gap-1.5 cursor-pointer"
+          title="Copy Support Log — full report with app version, platform, uptime and every recorded event"
+          className="px-2.5 py-1 rounded text-[10px] font-bold flex items-center gap-1.5 cursor-pointer hw-key !text-sky-200"
         >
           {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-          {copied ? 'COPIED' : 'COPY SUPPORT LOG'}
+          {copied ? 'COPIED' : 'COPY LOG'}
         </button>
       </div>
 
@@ -124,9 +125,12 @@ const SupportLogPanel: React.FC = () => {
         aria-label="Session support log events"
       >
         {events.length === 0 ? (
-          <div className="py-3 text-slate-500">
-            No events recorded this session — the console has not hit any errors, warnings or
-            notable system events since launch.
+          <div
+            className="py-3 flex items-center gap-2 font-mono text-[10px] font-bold tracking-wider text-slate-500"
+            title="No events recorded this session — the console has not hit any errors, warnings or notable system events since launch."
+          >
+            <span className="hw-lamp" style={{ width: 5, height: 5 }} aria-hidden="true" />
+            NO EVENTS · SESSION
           </div>
         ) : (
           [...events].reverse().map((e, i) => (
@@ -153,11 +157,12 @@ const SupportLogPanel: React.FC = () => {
           ))
         )}
       </div>
-      <p className="text-[10px] text-slate-500">
-        The log is kept in memory for this session only (last 250 events). &ldquo;Copy Support
-        Log&rdquo; includes the app version, platform and uptime — paste it when reporting an
-        issue.
-      </p>
+      <div
+        className="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded border border-slate-800 bg-[#070A10] font-mono text-[9px] font-bold tracking-wider text-slate-500 hw-engraved"
+        title="The log is kept in memory for this session only (last 250 events). Copy Support Log includes the app version, platform and uptime — paste it when reporting an issue."
+      >
+        SESSION ONLY · 250 EVT MAX
+      </div>
     </div>
   );
 };
@@ -417,9 +422,9 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
     setPluginSuccess(null);
     const res = onLoadCustomPlugin(pluginDraft);
     if (!res.ok) {
-      setPluginError(res.error || 'Failed to register plugin manifest.');
+      setPluginError(res.error || 'PLUGIN MANIFEST REJECTED');
     } else {
-      setPluginSuccess('Plugin registered and hot-loaded into active runtime.');
+      setPluginSuccess('PLUGIN REGISTERED · HOT-LOADED');
     }
   };
 
@@ -430,13 +435,23 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
         <div className="flex items-center gap-3">
           <div className="w-2.5 h-8 rounded-xs bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.6)]" />
           <div>
-            <h1 className="font-display text-lg font-semibold text-white tracking-tight">
-              System Diagnostics, Hardware Adapters &amp; Remote Access
+            <h1
+              className="font-display text-lg font-semibold text-white tracking-tight"
+              title="System Diagnostics, Hardware Adapters & Remote Access"
+            >
+              SYSTEM DIAGNOSTICS &amp; HARDWARE
             </h1>
-            <p className="text-[11px] font-mono text-slate-400">
+            <p
+              className="text-[11px] font-mono text-slate-400 hw-engraved"
+              title={
+                desktopBuild
+                  ? 'Windows desktop foundation · Browser-visible devices · Native audio adapters in progress'
+                  : 'Tier 1–4 Mixers & Interfaces · QR Mobile FOH Control · Hot-Loadable Plugins · Windows / macOS / Linux'
+              }
+            >
               {desktopBuild
-                ? 'Windows desktop foundation · Browser-visible devices · Native audio adapters in progress'
-                : 'Tier 1–4 Mixers & Interfaces · QR Mobile FOH Control · Hot-Loadable Plugins · Windows / macOS / Linux'}
+                ? 'DESKTOP BUILD · BROWSER DEVICES · ADAPTERS WIP'
+                : 'TIER 1–4 MIXERS · QR FOH · PLUGINS · WIN / MAC / LINUX'}
             </p>
           </div>
         </div>
@@ -477,8 +492,8 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
       <div className="rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
         <div className="md:col-span-9 grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div>
-            <label className="block font-mono text-[10px] text-slate-400 uppercase mb-1">
-              Target OS Platform
+            <label className="block font-mono text-[10px] text-slate-400 uppercase mb-1 hw-engraved">
+              Target OS
             </label>
             <select
               value={platform}
@@ -566,14 +581,18 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
             <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
               <div className="flex items-center gap-2">
                 <QrCode className="w-4 h-4 text-sky-400" />
-                <span className="font-mono text-xs font-semibold text-white uppercase">
-                  FOH Mobile Companion QR Pairing
+                <span
+                  className="font-mono text-xs font-semibold text-white uppercase hw-engraved"
+                  title="FOH Mobile Companion QR Pairing"
+                >
+                  QR PAIRING · FOH MOBILE
                 </span>
               </div>
               <button
                 type="button"
                 onClick={onRotateRemoteToken}
-                className="px-2.5 py-1 rounded border border-slate-700 bg-[#121824] hover:border-sky-500/50 text-[11px] font-mono text-slate-200 flex items-center gap-1"
+                title="Rotate the remote session token (invalidates old pairing links)"
+                className="px-2.5 py-1 rounded font-mono text-[11px] flex items-center gap-1 cursor-pointer hw-key"
               >
                 <RefreshCw className="w-3 h-3 text-sky-400" />
                 <span>ROTATE TOKEN</span>
@@ -590,20 +609,26 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                   />
                 ) : (
                   <div className="w-44 h-44 flex items-center justify-center text-xs font-mono text-slate-600">
-                    Generating QR...
+                    GENERATING QR
                   </div>
                 )}
               </div>
 
               <div className="space-y-2.5 text-xs min-w-0 flex-1">
-                <div className="font-semibold text-white">
-                  Walk the sanctuary with live fader &amp; gain control
+                <div className="flex flex-wrap gap-1.5 font-mono text-[9px] font-bold tracking-wider">
+                  <span
+                    className="px-1.5 py-0.5 rounded border border-sky-500/35 bg-sky-950/30 text-sky-300"
+                    title="Walk the sanctuary with live fader &amp; gain control"
+                  >
+                    LIVE REMOTE MIX
+                  </span>
+                  <span
+                    className="px-1.5 py-0.5 rounded border border-sky-500/35 bg-sky-950/30 text-sky-300"
+                    title="Scan this QR code on a phone or tablet on the same sanctuary Wi-Fi network (or current session URL) to adjust channel faders, preamp gain, mutes, and master trim in real time over WebSocket."
+                  >
+                    SAME-LAN WI-FI · WS LIVE SYNC
+                  </span>
                 </div>
-                <p className="text-slate-400 leading-relaxed">
-                  Scan this QR code on a phone or tablet on the same sanctuary Wi-Fi network (or
-                  current session URL) to adjust channel faders, preamp gain, mutes, and master
-                  trim in real time over WebSocket.
-                </p>
                 <div className="font-mono text-[11px] text-sky-400 break-all bg-[#070A10] border border-slate-800 rounded p-2">
                   {pairingUrl}
                 </div>
@@ -611,7 +636,8 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                   <button
                     type="button"
                     onClick={handleCopyPairingUrl}
-                    className="px-3 py-1.5 rounded border border-slate-700 bg-[#121824] hover:border-sky-500/50 text-[11px] font-mono text-slate-200 flex items-center gap-1.5"
+                    title="Copy the pairing link to the clipboard"
+                    className="px-3 py-1.5 rounded font-mono flex items-center gap-1.5 cursor-pointer hw-key"
                   >
                     {copiedUrl ? (
                       <Check className="w-3.5 h-3.5 text-emerald-400" />
@@ -623,7 +649,7 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                   <button
                     type="button"
                     onClick={() => onOpenRemoteCompanion(remoteAccess.sessionToken)}
-                    className="px-3 py-1.5 rounded bg-sky-600 hover:bg-sky-500 text-white text-[11px] font-mono font-semibold flex items-center gap-1.5"
+                    className="px-3 py-1.5 rounded font-mono font-semibold flex items-center gap-1.5 cursor-pointer hw-key !bg-none !border-sky-400 !bg-sky-600 !text-white"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                     <span>OPEN MOBILE VIEW</span>
@@ -634,8 +660,8 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
 
             {/* LAN Host Selection for Offline Windows Wi-Fi */}
             <div className="pt-2 border-t border-slate-800 space-y-2">
-              <label className="block font-mono text-[10px] text-slate-400 uppercase">
-                Sanctuary LAN Host / URL Override (Offline Windows Wi-Fi)
+              <label className="block font-mono text-[10px] text-slate-400 uppercase hw-engraved">
+                LAN Host / URL Override
               </label>
               <div className="flex flex-wrap gap-1.5">
                 <button
@@ -647,7 +673,7 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                       : 'border-slate-800 bg-[#070A10] text-slate-400'
                   }`}
                 >
-                  Auto ({window.location.host})
+                  AUTO · {window.location.host}
                 </button>
                 {lanInterfaces.map((iface) => (
                   <button
@@ -668,7 +694,7 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                 type="text"
                 value={remoteAccess.lanHostOverride}
                 onChange={(e) => onUpdateRemoteAccess({ lanHostOverride: e.target.value })}
-                placeholder="Optional custom host e.g. http://192.168.1.50:3000"
+                placeholder="HOST / IP : PORT"
                 className="w-full h-9 px-2.5 rounded border border-slate-700 bg-[#070A10] text-xs font-mono text-slate-200 focus:outline-none focus:border-sky-400"
               />
             </div>
@@ -677,8 +703,11 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
             <div className="pt-2 border-t border-slate-800 space-y-2.5">
               <div className="flex items-center gap-2">
                 <Download className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="font-mono text-[10px] font-semibold text-white uppercase tracking-wider">
-                  HKM FOH Companion App (Android)
+                <span
+                  className="font-mono text-[10px] font-semibold text-white uppercase tracking-wider hw-engraved"
+                  title="HKM FOH Companion App (Android)"
+                >
+                  COMPANION APP · ANDROID
                 </span>
               </div>
               <div className="flex flex-col sm:flex-row items-center gap-4">
@@ -691,7 +720,7 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                     />
                   ) : (
                     <div className="w-32 h-32 flex items-center justify-center text-[10px] font-mono text-slate-600">
-                      Generating QR...
+                      GENERATING QR
                     </div>
                   )}
                   <div className="text-center font-mono text-[8px] text-slate-700 mt-1 uppercase tracking-wider">
@@ -699,25 +728,34 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                   </div>
                 </div>
                 <div className="space-y-2 text-xs min-w-0 flex-1">
-                  <p className="text-slate-400 leading-relaxed">
-                    Install the companion APK on an Android phone, then scan this QR with the phone
-                    camera — the app opens already paired to this console. Works fully offline on
-                    the sanctuary Wi-Fi; the same live fader, mute, zone and master-trim sync as
-                    the browser companion.
-                  </p>
+                  <div className="flex flex-wrap gap-1.5 font-mono text-[9px] font-bold tracking-wider">
+                    <span
+                      className="px-1.5 py-0.5 rounded border border-emerald-500/35 bg-emerald-950/30 text-emerald-300"
+                      title="Install the companion APK on an Android phone, then scan this QR with the phone camera — the app opens already paired to this console."
+                    >
+                      APK PAIR · CAMERA SCAN
+                    </span>
+                    <span
+                      className="px-1.5 py-0.5 rounded border border-emerald-500/35 bg-emerald-950/30 text-emerald-300"
+                      title="Works fully offline on the sanctuary Wi-Fi; the same live fader, mute, zone and master-trim sync as the browser companion."
+                    >
+                      OFFLINE · FULL SYNC
+                    </span>
+                  </div>
                   <a
                     href="/downloads/HKM-FOH-Companion.apk"
                     download="HKM-FOH-Companion.apk"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-mono font-semibold no-underline"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded font-mono font-semibold no-underline cursor-pointer hw-key !bg-none !border-emerald-400 !bg-emerald-600 !text-white"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    <span>DOWNLOAD APK (~4 MB)</span>
+                    <span>DOWNLOAD APK · 4 MB</span>
                   </a>
-                  <p className="text-[10px] text-slate-500 font-mono leading-relaxed">
-                    Android 7.0+ · debug-signed build · enable “Install unknown apps” when prompted.
-                    The QR above also works without the app: the standard pairing QR (left) opens
-                    the browser companion instead.
-                  </p>
+                  <div
+                    className="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded border border-slate-800 bg-[#070A10] font-mono text-[9px] font-bold tracking-wider text-slate-500"
+                    title="Android 7.0+ · debug-signed build · enable Install unknown apps when prompted. The QR above also works without the app: the standard pairing QR (left) opens the browser companion instead."
+                  >
+                    ANDROID 7.0+ · DEBUG SIGNED · BROWSER QR FALLBACK
+                  </div>
                 </div>
               </div>
             </div>
@@ -727,23 +765,33 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
           <div className="lg:col-span-7 space-y-4">
             <div className="rounded-lg border border-slate-800 bg-[#0D1119] p-4 space-y-3">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="font-mono text-xs font-semibold text-white uppercase flex items-center gap-2">
+                <span
+                  className="font-mono text-xs font-semibold text-white uppercase flex items-center gap-2 hw-engraved"
+                  title="FOH Companion Permissions & PIN Guard"
+                >
                   <Lock className="w-3.5 h-3.5 text-sky-400" />
-                  <span>FOH Companion Permissions &amp; PIN Guard</span>
+                  <span>PERMISSIONS · PIN GUARD</span>
                 </span>
-                <span className="font-mono text-[10px] text-slate-400">
+                <span
+                  className="font-mono text-[10px] text-slate-400"
+                  title={
+                    activeDevice.capabilities.perChannelFaderControl
+                      ? 'Hardware Link — the console drives physical faders on this device'
+                      : 'Software DSP Return — control is applied inside the software DSP chain'
+                  }
+                >
                   {activeDevice.capabilities.perChannelFaderControl
-                    ? `Hardware Link: ${activeDevice.model}`
-                    : `Software DSP Return: ${activeDevice.model}`}
+                    ? `HW LINK · ${activeDevice.model}`
+                    : `SW DSP · ${activeDevice.model}`}
                 </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <div className="p-3 rounded border border-slate-800 bg-[#070A10] flex items-center justify-between gap-3">
-                  <div>
-                    <div className="font-semibold text-slate-100">Require 4-Digit PIN</div>
-                    <div className="text-[11px] text-slate-400">
-                      Prompts mobile devices before unlocking faders
+                  <div title="Require 4-digit PIN — prompts mobile devices before unlocking faders">
+                    <div className="font-semibold text-slate-100">PIN GATE</div>
+                    <div className="text-[9px] font-mono font-bold tracking-wider text-slate-500 uppercase">
+                      MOBILE LOCK
                     </div>
                   </div>
                   <ConsolePushButton
@@ -755,9 +803,11 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                 </div>
 
                 <div className="p-3 rounded border border-slate-800 bg-[#070A10] flex items-center justify-between gap-3">
-                  <div>
-                    <div className="font-semibold text-slate-100">Session Security PIN</div>
-                    <div className="text-[11px] text-slate-400">4–8 digit FOH passcode</div>
+                  <div title="Session Security PIN — 4–8 digit FOH passcode">
+                    <div className="font-semibold text-slate-100">PIN CODE</div>
+                    <div className="text-[9px] font-mono font-bold tracking-wider text-slate-500 uppercase">
+                      4–8 DIGIT
+                    </div>
                   </div>
                   <input
                     type="text"
@@ -769,10 +819,10 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                 </div>
 
                 <div className="p-3 rounded border border-slate-800 bg-[#070A10] flex items-center justify-between gap-3">
-                  <div>
-                    <div className="font-semibold text-slate-100">Preamp Gain Adjustment</div>
-                    <div className="text-[11px] text-slate-400">
-                      Allow mobile gain &amp; +48V trim control
+                  <div title="Preamp Gain Adjustment — allow mobile gain & +48V trim control">
+                    <div className="font-semibold text-slate-100">GAIN / +48V</div>
+                    <div className="text-[9px] font-mono font-bold tracking-wider text-slate-500 uppercase">
+                      MOBILE GAIN
                     </div>
                   </div>
                   <ConsolePushButton
@@ -788,10 +838,10 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                 </div>
 
                 <div className="p-3 rounded border border-slate-800 bg-[#070A10] flex items-center justify-between gap-3">
-                  <div>
-                    <div className="font-semibold text-slate-100">Mute / Solo &amp; Master</div>
-                    <div className="text-[11px] text-slate-400">
-                      Allow channel mutes &amp; master trim
+                  <div title="Mute / Solo & Master — allow channel mutes & master trim">
+                    <div className="font-semibold text-slate-100">MUTE / MASTER</div>
+                    <div className="text-[9px] font-mono font-bold tracking-wider text-slate-500 uppercase">
+                      MOBILE MUTE
                     </div>
                   </div>
                   <ConsolePushButton
@@ -812,24 +862,27 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
             {/* Active Connected Mobile Companions */}
             <div className="rounded-lg border border-slate-800 bg-[#0D1119] p-4 space-y-3">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="font-mono text-xs font-semibold text-white uppercase flex items-center gap-2">
+                <span className="font-mono text-xs font-semibold text-white uppercase flex items-center gap-2 hw-engraved">
                   <Wifi className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Linked Companion Devices ({remoteClients.length})</span>
+                  <span>LINKED DEVICES ({remoteClients.length})</span>
                 </span>
-                <span className="font-mono text-[10px] text-slate-400">
-                  Real-Time WebSocket Sync (/ws)
+                <span
+                  className="font-mono text-[10px] text-slate-400"
+                  title="Real-Time WebSocket Sync (/ws)"
+                >
+                  WS SYNC · /WS
                 </span>
               </div>
 
               {remoteClients.length === 0 ? (
-                <div className="p-5 rounded border border-slate-800 bg-[#070A10] text-center space-y-1.5">
-                  <div className="text-xs font-semibold text-slate-200">
-                    No companion devices currently linked
-                  </div>
-                  <div className="text-[11px] font-mono text-slate-400">
-                    Scan the QR code on a phone/tablet or click Open Mobile View to verify live
-                    fader and gain synchronization.
-                  </div>
+                <div
+                  className="p-4 rounded border border-slate-800 bg-[#070A10] flex items-center justify-center gap-2"
+                  title="No companion devices currently linked. Scan the QR code on a phone/tablet or click Open Mobile View to verify live fader and gain synchronization."
+                >
+                  <span className="hw-lamp" style={{ width: 5, height: 5 }} aria-hidden="true" />
+                  <span className="font-mono text-[10px] font-bold tracking-wider text-slate-400">
+                    NO DEVICES · SCAN QR
+                  </span>
                 </div>
               ) : (
                 <div className="divide-y divide-slate-800">
@@ -844,13 +897,14 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                           <span className="font-mono text-[10px] text-emerald-400">LIVE</span>
                         </div>
                         <div className="font-mono text-[11px] text-slate-400 tabular-nums">
-                          IP: {cli.ip} · Connected {new Date(cli.connectedAt).toLocaleTimeString()}
+                          IP: {cli.ip} · CONN {new Date(cli.connectedAt).toLocaleTimeString()}
                         </div>
                       </div>
                       <button
                         type="button"
                         onClick={() => onDisconnectRemoteClient(cli.clientId)}
-                        className="px-2.5 py-1 rounded border border-red-500/40 bg-red-950/30 hover:bg-red-950/60 text-red-300 font-mono text-[11px] flex items-center gap-1 shrink-0"
+                        title="Revoke this companion device and close its WebSocket sync"
+                        className="px-2.5 py-1 rounded font-mono text-[11px] flex items-center gap-1 shrink-0 cursor-pointer hw-key !border-red-500/40 !text-red-300"
                       >
                         <UserX className="w-3.5 h-3.5" />
                         <span>REVOKE</span>
@@ -872,17 +926,25 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
               <div className="space-y-1">
                 <div className="font-mono text-xs font-bold text-cyan-300 uppercase tracking-wide flex flex-wrap items-center gap-2">
                   <span
-                    className={`w-2.5 h-2.5 rounded-full ${
+                    className="hw-lamp shrink-0"
+                    style={{ width: 8, height: 8 }}
+                    data-on={
                       audioSource === 'desktop-audio' && engineRunning
                         ? desktopBridgeState?.selfLoopbackBlocked
-                          ? 'bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.9)]'
-                          : 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]'
+                          ? 'amber'
+                          : 'green'
                         : desktopBuild && desktopAudioStatus?.supported
-                          ? 'bg-emerald-400/70'
-                          : 'bg-sky-400'
-                    }`}
+                          ? 'green'
+                          : 'cyan'
+                    }
+                    aria-hidden="true"
                   />
-                  <span>System Audio Input Bridge (Desktop / Media / Browser Audio · Loopback Guarded)</span>
+                  <span
+                    className="font-mono text-xs font-bold text-cyan-300 uppercase tracking-wide"
+                    title="System Audio Input Bridge (Desktop / Media / Browser Audio · Loopback Guarded)"
+                  >
+                    SYSTEM AUDIO INPUT BRIDGE
+                  </span>
                   {desktopBridgeState && (
                     <span
                       className={`px-2 py-0.5 rounded text-[9.5px] font-mono border ${
@@ -894,7 +956,7 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                       }`}
                     >
                       {desktopBridgeState.loopbackRisk === 'unsafe-shared-bus'
-                        ? 'FIREWALL: MON MUTED (SHARED BUS)'
+                        ? 'FIREWALL · MON MUTED'
                         : desktopBridgeState.loopbackRisk === 'safe-tab-isolated'
                           ? 'SAFE · TAB ISOLATED'
                           : desktopBridgeState.loopbackRisk === 'safe-separate-output'
@@ -908,13 +970,18 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                 {/* Safety status line — engraved status chip; the full safety
                     reason + method walkthrough lives in Help Desk → System & Hardware */}
                 <div className="flex items-center gap-2 max-w-4xl">
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${
-                    desktopBridgeState?.selfLoopbackBlocked
-                      ? 'bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.8)]'
-                      : desktopBridgeState?.active
-                        ? 'bg-emerald-400 shadow-[0_0_6px_rgba(74,222,128,0.85)]'
-                        : 'bg-slate-600'
-                  }`} />
+                  <span
+                    className="hw-lamp shrink-0"
+                    style={{ width: 6, height: 6 }}
+                    data-on={
+                      desktopBridgeState?.selfLoopbackBlocked
+                        ? 'amber'
+                        : desktopBridgeState?.active
+                          ? 'green'
+                          : undefined
+                    }
+                    aria-hidden="true"
+                  />
                   <span className="font-mono text-[10px] text-slate-300 truncate" title={desktopBridgeState?.safetyReason ?? undefined}>
                     {desktopBridgeState?.safetyReason
                       ? 'SAFETY: ' + desktopBridgeState.safetyReason
@@ -938,7 +1005,8 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                   <button
                     type="button"
                     onClick={onRefreshDesktopAudio}
-                    className="px-2.5 py-1.5 rounded border border-cyan-500/40 bg-[#0B1720] hover:border-cyan-400 text-cyan-200 font-mono text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer"
+                    title="Refresh detected desktop audio apps & APO status"
+                    className="px-2.5 py-1.5 rounded font-mono text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer hw-key !border-cyan-500/40 !text-cyan-200"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                     <span>REFRESH APPS &amp; APO</span>
@@ -957,15 +1025,15 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                         }
                       }
                     }}
-                    className={`px-3 py-1.5 rounded font-mono text-[11px] font-semibold border transition-colors cursor-pointer ${
+                    className={`px-3 py-1.5 rounded font-mono text-[11px] font-semibold cursor-pointer hw-key ${
                       audioSource === 'desktop-audio' && engineRunning
-                        ? 'bg-emerald-600 border-emerald-400 text-white'
-                        : 'bg-[#091015] border-emerald-500/50 text-emerald-300 hover:bg-emerald-500/15'
+                        ? '!bg-none !border-emerald-400 !bg-emerald-600 !text-white'
+                        : '!border-emerald-500/50 !text-emerald-300'
                     }`}
                   >
                     {audioSource === 'desktop-audio' && engineRunning
-                      ? 'RE-PICK TAB / SYSTEM AUDIO'
-                      : 'SHARE BROWSER / SYSTEM AUDIO'}
+                      ? 'RE-PICK TAB'
+                      : 'SHARE SYSTEM AUDIO'}
                   </button>
                 )}
               </div>
@@ -975,8 +1043,11 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
                 <div className="lg:col-span-6 rounded-md border border-slate-800 bg-[#070B11] p-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-[11px] font-bold text-cyan-300 uppercase">
-                      Method 1 · Web Audio getDisplayMedia (Zero Driver)
+                    <span
+                      className="font-mono text-[11px] font-bold text-cyan-300 uppercase"
+                      title="Method 1 · Web Audio getDisplayMedia (Zero Driver)"
+                    >
+                      METHOD 1 · GETDISPLAYMEDIA
                     </span>
                     <button
                       type="button"
@@ -1011,14 +1082,21 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
 
                 <div className="lg:col-span-6 rounded-md border border-slate-800 bg-[#070B11] p-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-[11px] font-bold text-emerald-300 uppercase">
-                      Method 2 · Specialized Virtual Interface ({specializedDesktopInputs.length})
+                    <span
+                      className="font-mono text-[11px] font-bold text-emerald-300 uppercase"
+                      title="Method 2 · Specialized Virtual Interface"
+                    >
+                      METHOD 2 · VIRTUAL CABLE ({specializedDesktopInputs.length})
                     </span>
                   </div>
                   {specializedDesktopInputs.length === 0 ? (
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-600 shrink-0" />
+                        <span
+                          className="hw-lamp shrink-0"
+                          style={{ width: 5, height: 5 }}
+                          aria-hidden="true"
+                        />
                         <span
                           className="font-mono text-[10px] text-slate-400 truncate"
                           title="No virtual audio bridge detected yet (VB-Audio Cable, BlackHole, Stereo Mix, or VoiceMeeter). Click Refresh Hardware after installing or enabling Stereo Mix in Windows Sound settings."
@@ -1078,8 +1156,11 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                 {/* Engine 1 Panel */}
                 <div className="lg:col-span-5 rounded-md border border-slate-800 bg-[#070B11] p-3 space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-[11px] font-bold text-cyan-300 uppercase">
-                      Engine 1 · Driverless Process Loopback
+                    <span
+                      className="font-mono text-[11px] font-bold text-cyan-300 uppercase"
+                      title="Engine 1 · Driverless Process Loopback"
+                    >
+                      ENGINE 1 · PROCESS LOOPBACK
                     </span>
                     <span
                       className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border ${
@@ -1112,15 +1193,19 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
 
                   {/* Quick Browser -> DSP -> Built-In Speakers Strip */}
                   <div className="rounded border border-cyan-500/35 bg-[#0A131C] p-2.5 space-y-2">
-                    <div className="font-mono text-[10px] font-bold text-cyan-200 uppercase">
-                      Browser → DSP → Built-In Speakers (Source Isolation)
+                    <div
+                      className="font-mono text-[10px] font-bold text-cyan-200 uppercase hw-engraved"
+                      title="Browser → DSP → Built-In Speakers (Source Isolation)"
+                    >
+                      BROWSER → DSP → SPEAKERS
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5">
                       {onEnableBrowserDspSpeakers && (
                         <button
                           type="button"
                           onClick={onEnableBrowserDspSpeakers}
-                          className="px-2.5 py-1 rounded border border-cyan-400/60 bg-cyan-600/25 hover:bg-cyan-600/40 text-cyan-100 font-mono text-[10px] font-bold cursor-pointer"
+                          title="One click: route browser audio through DSP to the built-in speakers"
+                          className="px-2.5 py-1 rounded font-mono text-[10px] font-bold cursor-pointer hw-key !border-cyan-400/60 !text-cyan-100"
                         >
                           1-CLICK BROWSER → DSP → SPEAKERS
                         </button>
@@ -1129,28 +1214,59 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                         <button
                           type="button"
                           onClick={onOpenWindowsSoundMixer}
-                          className="px-2.5 py-1 rounded border border-slate-600 bg-[#0E1621] hover:border-slate-400 text-slate-200 font-mono text-[10px] font-semibold cursor-pointer"
+                          className="px-2.5 py-1 rounded font-mono text-[10px] font-semibold cursor-pointer hw-key"
                         >
                           OPEN WINDOWS VOLUME MIXER
                         </button>
                       )}
                     </div>
-                    <p className="font-mono text-[9.5px] text-slate-300 leading-relaxed">
+                    <div
+                      className={`flex flex-wrap items-center gap-1.5 font-mono text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded border w-fit ${
+                        desktopSourceIsolationStatus?.enabled
+                          ? 'border-emerald-500/35 bg-emerald-950/30 text-emerald-300'
+                          : desktopSourceIsolationStatus?.skippedSessions
+                            ? 'border-amber-500/35 bg-amber-950/30 text-amber-300'
+                            : 'border-slate-700 bg-[#0A0F16] text-slate-400'
+                      }`}
+                      title={
+                        desktopSourceIsolationStatus?.enabled
+                          ? `Source isolation is active; HKM is managing mute states for ${desktopSourceIsolationStatus.mutedSessions} Windows app session(s). New sessions are checked about once per second.`
+                          : desktopSourceIsolationStatus?.skippedSessions
+                            ? `Speaker monitoring is held off because ${desktopSourceIsolationStatus.skippedSessions} Windows audio session(s) could not be safely isolated. ${desktopSourceIsolationStatus.message || ''}`
+                            : 'No virtual cable is needed. Windows process loopback captures app audio before session mute; HKM temporarily mutes source-app sessions while its processed output is sent to the speakers.'
+                      }
+                    >
+                      <span
+                        className="hw-lamp shrink-0"
+                        style={{ width: 5, height: 5 }}
+                        data-on={
+                          desktopSourceIsolationStatus?.enabled
+                            ? 'green'
+                            : desktopSourceIsolationStatus?.skippedSessions
+                              ? 'amber'
+                              : undefined
+                        }
+                        aria-hidden="true"
+                      />
                       {desktopSourceIsolationStatus?.enabled
-                        ? `Source isolation is active; HKM is managing mute states for ${desktopSourceIsolationStatus.mutedSessions} Windows app session(s). New sessions are checked about once per second.`
+                        ? `ISOLATION ON · ${desktopSourceIsolationStatus.mutedSessions} APPS MUTED`
                         : desktopSourceIsolationStatus?.skippedSessions
-                          ? `Speaker monitoring is held off because ${desktopSourceIsolationStatus.skippedSessions} Windows audio session(s) could not be safely isolated. ${desktopSourceIsolationStatus.message || ''}`
-                          : 'No virtual cable is needed. Windows process loopback captures app audio before session mute; HKM temporarily mutes source-app sessions while its processed output is sent to the speakers.'}
-                    </p>
+                          ? `ISOLATION HOLD · ${desktopSourceIsolationStatus.skippedSessions} SKIPPED`
+                          : 'LOOPBACK PRE-MUTE · NO CABLE REQ'}
+                    </div>
                   </div>
 
                   <div className="pt-1 border-t border-slate-800/90 space-y-1">
-                    <div className="font-mono text-[9.5px] text-slate-400 uppercase font-semibold">
-                      Detected Active Audio Apps ({desktopAudioSessions.length})
+                    <div className="font-mono text-[9.5px] text-slate-400 uppercase font-semibold hw-engraved">
+                      ACTIVE AUDIO APPS ({desktopAudioSessions.length})
                     </div>
                     {desktopAudioSessions.length === 0 ? (
-                      <div className="text-[10px] font-mono text-slate-500 italic">
-                        Start playing audio in Chrome, Edge, Spotify, or VLC to see individual app sessions here or in the left patch tray.
+                      <div
+                        className="flex items-center gap-2 font-mono text-[9px] font-bold tracking-wider text-slate-500"
+                        title="Start playing audio in Chrome, Edge, Spotify, or VLC to see individual app sessions here or in the left patch tray."
+                      >
+                        <span className="hw-lamp" style={{ width: 5, height: 5 }} aria-hidden="true" />
+                        NO APP SESSIONS
                       </div>
                     ) : (
                       <div className="flex flex-wrap gap-1.5">
@@ -1160,9 +1276,10 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                             className="px-2 py-0.5 rounded border border-cyan-500/35 bg-cyan-950/30 font-mono text-[10px] text-cyan-200 flex items-center gap-1"
                           >
                             <span
-                              className={`w-1.5 h-1.5 rounded-full ${
-                                s.state === 'active' ? 'bg-emerald-400' : 'bg-slate-500'
-                              }`}
+                              className="hw-lamp shrink-0"
+                              style={{ width: 5, height: 5 }}
+                              data-on={s.state === 'active' ? 'green' : undefined}
+                              aria-hidden="true"
                             />
                             {s.name}
                           </span>
@@ -1187,8 +1304,11 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                     return (
                       <>
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="font-mono text-[11px] font-bold text-amber-300 uppercase">
-                            Engine 2 · Opt-In System APO (Single-Speaker Zero-Doubling)
+                          <span
+                            className="font-mono text-[11px] font-bold text-amber-300 uppercase"
+                            title="Engine 2 · Opt-In System APO (Single-Speaker Zero-Doubling)"
+                          >
+                            ENGINE 2 · SYSTEM APO
                           </span>
                           <div className="flex flex-wrap items-center gap-1 font-mono text-[9px]">
                             <span
@@ -1223,8 +1343,8 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
 
                         <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
                           <div className="sm:col-span-7">
-                            <label className="block font-mono text-[9.5px] text-slate-400 uppercase mb-1">
-                              Target Physical Speaker ({activeEp?.rawSupported ? 'WASAPI RAW Supported' : 'Check RAW Support'})
+                            <label className="block font-mono text-[9.5px] text-slate-400 uppercase mb-1 hw-engraved">
+                              TARGET SPEAKER · {activeEp?.rawSupported ? 'RAW OK' : 'CHECK RAW'}
                             </label>
                             <select
                               value={effectiveEpId}
@@ -1232,7 +1352,7 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                               className="w-full h-8 px-2 rounded border border-slate-700 bg-[#0B1018] text-slate-100 text-[11px] font-mono"
                             >
                               {endpoints.length === 0 ? (
-                                <option value="">Default System Render Endpoint</option>
+                                <option value="">System Default Endpoint</option>
                               ) : (
                                 endpoints.map((ep) => (
                                   <option key={ep.id} value={ep.id}>
@@ -1250,15 +1370,16 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                               type="button"
                               disabled={!effectiveEpId || apoBusy || !onInstallApo}
                               onClick={() => effectiveEpId && onInstallApo?.(effectiveEpId)}
-                              className="flex-1 h-8 px-2 rounded border border-amber-500/50 bg-amber-500/15 hover:bg-amber-500/25 text-amber-200 font-mono text-[10px] font-bold disabled:opacity-40 cursor-pointer"
+                              title="Install the APO on the selected speaker (requires Admin elevation)"
+                              className="flex-1 h-8 px-2 rounded font-mono text-[10px] font-bold disabled:opacity-40 cursor-pointer hw-key !border-amber-500/50 !text-amber-200"
                             >
-                              {apoBusy ? 'WORKING...' : 'INSTALL APO (ADMIN)'}
+                              {apoBusy ? 'WORKING…' : 'INSTALL APO · ADMIN'}
                             </button>
                             <button
                               type="button"
                               disabled={!effectiveEpId || apoBusy || !onUninstallApo}
                               onClick={() => effectiveEpId && onUninstallApo?.(effectiveEpId)}
-                              className="h-8 px-2 rounded border border-slate-700 bg-[#0D131D] hover:border-slate-500 text-slate-300 font-mono text-[10px] font-bold disabled:opacity-40 cursor-pointer"
+                              className="h-8 px-2 rounded font-mono text-[10px] font-bold disabled:opacity-40 cursor-pointer hw-key"
                             >
                               UNINSTALL
                             </button>
@@ -1275,15 +1396,15 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                               onClick={() =>
                                 onToggleSingleSpeakerMode(!singleSpeakerMode, effectiveEpId || undefined)
                               }
-                              className={`px-3 py-1 rounded border font-mono text-[10px] font-bold shrink-0 cursor-pointer ${
+                              className={`px-3 py-1 rounded font-mono text-[10px] font-bold shrink-0 cursor-pointer hw-key ${
                                 singleSpeakerMode
-                                  ? 'bg-emerald-600 border-emerald-400 text-white'
-                                  : 'bg-[#0F1722] border-cyan-500/50 text-cyan-200 hover:bg-cyan-500/15'
+                                  ? '!bg-none !border-emerald-400 !bg-emerald-600 !text-white'
+                                  : '!border-cyan-500/50 !text-cyan-200'
                               }`}
                             >
                               {singleSpeakerMode
-                                ? '✓ ZERO-DOUBLING ACTIVE (RAW OUT)'
-                                : 'ENABLE SINGLE-SPEAKER ZERO-DOUBLING'}
+                                ? 'ZERO-DOUBLING ON · RAW OUT'
+                                : 'ENGAGE ZERO-DOUBLING'}
                             </button>
                           )}
                         </div>
@@ -1315,8 +1436,11 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
               <div className="flex items-center gap-2">
                 <Radar className="w-4 h-4 text-sky-400" />
                 <div className="min-w-0">
-                  <div className="font-mono text-xs font-semibold text-white uppercase">
-                    Auto-Recognized Connected Hardware (Internal &amp; External)
+                  <div
+                    className="font-mono text-xs font-semibold text-white uppercase hw-engraved"
+                    title="Auto-Recognized Connected Hardware (Internal & External)"
+                  >
+                    AUTO-RECOGNIZED HARDWARE · INT + EXT
                   </div>
                   {/* Recognition capabilities as engraved chips — details in
                       Help Desk → System & Hardware */}
@@ -1337,7 +1461,8 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                   <button
                     type="button"
                     onClick={onClearHardwareCache}
-                    className="px-2.5 py-1.5 rounded border border-slate-700 bg-[#090D14] hover:border-slate-500 text-slate-300 font-mono text-[11px]"
+                    title="Clear the remembered-device cache (IndexedDB)"
+                    className="px-2.5 py-1.5 rounded font-mono text-[11px] cursor-pointer hw-key"
                   >
                     CLEAR CACHE
                   </button>
@@ -1346,10 +1471,11 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                   type="button"
                   onClick={() => onScanHardware(true)}
                   disabled={scanningHardware}
-                  className="px-3 py-1.5 rounded border border-sky-400/50 bg-sky-500/15 hover:bg-sky-500/25 text-sky-200 font-mono text-[11px] font-semibold flex items-center gap-1.5 disabled:opacity-50"
+                  title="Re-scan USB / internal / LAN hardware endpoints"
+                  className="px-3 py-1.5 rounded font-mono text-[11px] font-semibold flex items-center gap-1.5 disabled:opacity-50 cursor-pointer hw-key !border-sky-400/50 !text-sky-200"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${scanningHardware ? 'animate-spin' : ''}`} />
-                  <span>{scanningHardware ? 'SCANNING BUS...' : 'RE-SCAN HARDWARE'}</span>
+                  <span>{scanningHardware ? 'SCANNING BUS…' : 'RE-SCAN HARDWARE'}</span>
                 </button>
               </div>
             </div>
@@ -1357,7 +1483,7 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
             {detectedEndpoints.length === 0 ? (
               <div className="p-3 rounded border border-slate-800 bg-[#070A10] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="w-2 h-2 rounded-full bg-slate-600 shrink-0" />
+                  <span className="hw-lamp shrink-0" style={{ width: 6, height: 6 }} aria-hidden="true" />
                   <span
                     className="font-mono text-[11px] text-slate-300"
                     title="Plug in any USB mixer or audio interface on Windows/macOS/Linux, or click Re-Scan Hardware to unlock browser MediaDevices labels and probe local cards. Remembered devices persist in IndexedDB for instant offline recall."
@@ -1368,7 +1494,7 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                 <button
                   type="button"
                   onClick={() => onScanHardware(true)}
-                  className="px-3 py-1.5 rounded bg-sky-600 hover:bg-sky-500 text-white font-mono text-[11px] font-semibold shrink-0 cursor-pointer"
+                  className="px-3 py-1.5 rounded font-mono text-[11px] font-semibold shrink-0 cursor-pointer hw-key !bg-none !border-sky-400 !bg-sky-600 !text-white"
                 >
                   GRANT &amp; SCAN INTERFACES
                 </button>
@@ -1405,7 +1531,7 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                             {ep.isDefault ? ' · DEFAULT' : ''}
                           </span>
                           <span className="font-mono text-[10px] text-slate-400 tabular-nums">
-                            {ep.cachedFromIndexedDb ? 'IndexedDB Cached' : 'Live on Bus'}
+                            {ep.cachedFromIndexedDb ? 'IDB CACHED' : 'LIVE ON BUS'}
                           </span>
                         </div>
 
@@ -1415,9 +1541,9 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
 
                         <div className="font-mono text-[11px] text-slate-400 space-y-0.5 tabular-nums">
                           <div>
-                            Profile: {ep.matchedLabel} ·{' '}
+                            PROFILE: {ep.matchedLabel} ·{' '}
                             {ep.confidence === 'auto-synthesized'
-                              ? 'Universal Auto-Profile'
+                              ? 'AUTO-PROFILE'
                               : ep.confidence}
                           </div>
                           <div>
@@ -1430,7 +1556,7 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                                 : ep.hostAddress
                                   ? `Host IP: ${ep.hostAddress}`
                                   : 'System Audio'}
-                              {ep.seenCount ? ` · Seen ${ep.seenCount}×` : ''}
+                              {ep.seenCount ? ` · SEEN ${ep.seenCount}×` : ''}
                             </div>
                           )}
                         </div>
@@ -1439,13 +1565,18 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                       <button
                         type="button"
                         onClick={() => onBindDetectedEndpoint(ep)}
-                        className={`w-full py-1.5 px-2.5 rounded font-mono text-[11px] font-semibold transition-colors ${
+                        title={
                           isBound
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-sky-600 hover:bg-sky-500 text-white'
+                            ? 'Bound — profile recalled'
+                            : 'Auto-bind this endpoint and recall its mix profile'
+                        }
+                        className={`w-full py-1.5 px-2.5 rounded font-mono text-[11px] font-semibold transition-colors cursor-pointer hw-key ${
+                          isBound
+                            ? '!bg-none !border-emerald-400 !bg-emerald-600 !text-white'
+                            : '!bg-none !border-sky-400 !bg-sky-600 !text-white'
                         }`}
                       >
-                        {isBound ? 'BOUND & PROFILE RECALLED' : 'AUTO-BIND & RECALL MIX'}
+                        {isBound ? 'BOUND · RECALLED' : 'AUTO-BIND'}
                       </button>
                     </div>
                   );
@@ -1459,8 +1590,11 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
       {tab === 'plugins' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           <div className="lg:col-span-6 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 space-y-3">
-            <div className="font-mono text-xs font-semibold text-white uppercase border-b border-slate-800 pb-2">
-              Registered Hardware Driver &amp; DSP Modules
+            <div
+              className="font-mono text-xs font-semibold text-white uppercase border-b border-slate-800 pb-2 hw-engraved"
+              title="Registered Hardware Driver & DSP Modules"
+            >
+              REGISTERED MODULES
             </div>
             <div className="divide-y divide-slate-800/80">
               {plugins.map((pl) => (
@@ -1501,23 +1635,28 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
           <div className="lg:col-span-6 space-y-4">
             <div className="rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-mono text-xs font-semibold text-white uppercase">
-                  Hot-Load Plugin Manifest (JSON)
+                <span
+                  className="font-mono text-xs font-semibold text-white uppercase hw-engraved"
+                  title="Hot-Load Plugin Manifest (JSON)"
+                >
+                  HOT-LOAD MANIFEST · JSON
                 </span>
                 <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => setPluginDraft(SAMPLE_CUSTOM_HARDWARE_PLUGIN)}
-                    className="text-[11px] font-mono px-2 py-1 rounded border border-slate-700 bg-[#070A10] text-slate-300 hover:border-sky-500/50"
+                    title="Load the Midas M32R sample manifest"
+                    className="text-[11px] font-mono px-2 py-1 rounded cursor-pointer hw-key"
                   >
-                    Midas M32R Sample
+                    M32R SAMPLE
                   </button>
                   <button
                     type="button"
                     onClick={() => setPluginDraft(SAMPLE_CUSTOM_DSP_PLUGIN)}
-                    className="text-[11px] font-mono px-2 py-1 rounded border border-slate-700 bg-[#070A10] text-slate-300 hover:border-sky-500/50"
+                    title="Load the Choir Air sample manifest"
+                    className="text-[11px] font-mono px-2 py-1 rounded cursor-pointer hw-key"
                   >
-                    Choir Air Sample
+                    CHOIR AIR SAMPLE
                   </button>
                 </div>
               </div>
@@ -1535,16 +1674,20 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
               <button
                 type="button"
                 onClick={handleInstallPlugin}
-                className="w-full py-2 px-3 rounded bg-sky-600 hover:bg-sky-500 text-white text-xs font-mono font-semibold flex items-center justify-center gap-1.5"
+                title="Register & hot-load the plugin manifest into the runtime"
+                className="w-full py-2 px-3 rounded font-mono text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer hw-key !bg-none !border-sky-400 !bg-sky-600 !text-white"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>REGISTER &amp; HOT-LOAD PLUGIN</span>
+                <span>HOT-LOAD PLUGIN</span>
               </button>
             </div>
 
             <div className="rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 space-y-2">
-              <div className="font-mono text-xs font-semibold text-white uppercase">
-                Plugin Authoring SDK Contract
+              <div
+                className="font-mono text-xs font-semibold text-white uppercase hw-engraved"
+                title="Plugin Authoring SDK Contract"
+              >
+                PLUGIN SDK CONTRACT
               </div>
               <pre className="p-3 rounded bg-[#070A10] border border-slate-800 text-[11px] font-mono text-slate-300 overflow-x-auto leading-relaxed">
                 {PLUGIN_SDK_CONTRACT_SNIPPET}
@@ -1601,7 +1744,12 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                   </pre>
                 </div>
 
-                <p className="text-xs text-slate-400 leading-relaxed">{spec.notes}</p>
+                <div
+                  className="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded border border-slate-700 bg-[#070A10] font-mono text-[9px] font-bold tracking-wider text-slate-400"
+                  title={spec.notes}
+                >
+                  DRIVER NOTES · {osKey.toUpperCase()}
+                </div>
               </div>
             );
           })}
@@ -1616,7 +1764,7 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
               value={systemCpuPercent ?? 0}
               max={100}
               displayValue={systemCpuPercent === null ? '—' : `${systemCpuPercent}%`}
-              sublabel={systemCpuPercent === null ? 'Unavailable on this platform' : 'System-wide total'}
+              sublabel={systemCpuPercent === null ? 'N/A · PLATFORM' : 'SYSTEM-WIDE'}
               tone={
                 systemCpuPercent === null
                   ? 'sky'
@@ -1640,7 +1788,7 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
               tone={telemetry.isRunning ? 'emerald' : 'sky'}
             />
             <ArcGauge
-              label="Clip / Headroom Guard"
+              label="CLIP GUARD"
               value={Math.max(10, 100 - telemetry.clippingEvents * 10)}
               max={100}
               displayValue={`${telemetry.clippingEvents} Clips`}
@@ -1651,22 +1799,25 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
             <div className="lg:col-span-5 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 space-y-3">
-              <div className="font-mono text-xs font-semibold text-white uppercase border-b border-slate-800 pb-2">
-                Engine Watchdog Telemetry
+              <div
+                className="font-mono text-xs font-semibold text-white uppercase border-b border-slate-800 pb-2 hw-engraved"
+                title="Engine Watchdog Telemetry"
+              >
+                WATCHDOG TELEMETRY
               </div>
               <div className="divide-y divide-slate-800 text-xs">
                 {[
-                  { label: 'Supervision Architecture', val: 'Decoupled Audio Core + UI' },
+                  { label: 'SUPERVISION', val: 'Decoupled Audio Core + UI' },
                   {
-                    label: 'Engine Sample Rate',
+                    label: 'ENGINE RATE',
                     val: telemetry.isRunning
                       ? `${telemetry.sampleRate} Hz (Running)`
                       : `${sampleRate} Hz (Standby)`,
                   },
-                  { label: 'Buffer Quantum', val: `${bufferSize} samples (${latencyMs} ms)` },
-                  { label: 'Clipping Incidents', val: `${telemetry.clippingEvents} events` },
+                  { label: 'BUFFER QTM', val: `${bufferSize} samples (${latencyMs} ms)` },
+                  { label: 'CLIP EVENTS', val: `${telemetry.clippingEvents} events` },
                   {
-                    label: 'Local Persistence',
+                    label: 'PERSISTENCE',
                     val: 'Atomic JSON Store (tmp+rename, SHA1 dedup) + WS Sync',
                   },
                 ].map((row) => (
@@ -1682,8 +1833,11 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
             </div>
 
             <div className="lg:col-span-7 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 space-y-3">
-              <div className="font-mono text-xs font-semibold text-white uppercase border-b border-slate-800 pb-2">
-                Configuration &amp; System Audit Trail
+              <div
+                className="font-mono text-xs font-semibold text-white uppercase border-b border-slate-800 pb-2 hw-engraved"
+                title="Configuration & System Audit Trail"
+              >
+                AUDIT TRAIL
               </div>
               <div className="divide-y divide-slate-800 max-h-72 overflow-y-auto">
                 {auditEvents.map((evt) => (

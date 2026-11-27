@@ -77,12 +77,12 @@ export const PresetsServiceModule: React.FC<PresetsServiceModuleProps> = ({
       try {
         const parsed = JSON.parse(String(reader.result ?? '')) as ServicePreset;
         if (!parsed.dsp || !parsed.name) {
-          setImportError('Invalid Church Audio preset JSON.');
+          setImportError('INVALID PRESET JSON');
           return;
         }
         onImportPresetJson({ ...parsed, id: `imported-${Date.now()}` });
       } catch {
-        setImportError('Could not parse JSON file.');
+        setImportError('JSON PARSE FAIL');
       }
     };
     reader.readAsText(file);
@@ -108,14 +108,20 @@ export const PresetsServiceModule: React.FC<PresetsServiceModuleProps> = ({
                 PRESETS, SERVICE PROFILES &amp; SNAPSHOT VAULT
               </h1>
             </div>
-            <p className="text-[11px] font-mono text-slate-400">
-              Active Profile: {activePreset.name} (v{activePreset.version}) · {device.model} · OBS {obsStatus.activeScene}
+            <p
+              className="text-[9.5px] font-mono font-bold uppercase hw-engraved"
+              title={`Active profile: ${activePreset.name} (v${activePreset.version}) · ${device.model} · OBS ${obsStatus.activeScene}`}
+            >
+              ACTIVE {activePreset.name} · V{activePreset.version} · {device.model} · OBS {obsStatus.activeScene}
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <label className="px-2.5 py-1.5 rounded border border-slate-700 bg-[#121824] text-[11px] font-mono font-semibold text-slate-200 hover:border-sky-500/50 cursor-pointer flex items-center gap-1.5">
+          <label
+            className="px-2.5 py-1.5 rounded hw-key hover:!border-sky-500/50 text-[11px] font-mono font-semibold flex items-center gap-1.5 cursor-pointer"
+            title="Import a console preset JSON export"
+          >
             <Upload className="w-3.5 h-3.5 text-sky-400" />
             <span>IMPORT JSON</span>
             <input type="file" accept=".json" onChange={handleImportJson} className="hidden" />
@@ -123,7 +129,8 @@ export const PresetsServiceModule: React.FC<PresetsServiceModuleProps> = ({
           <button
             type="button"
             onClick={handleExportConfig}
-            className="px-2.5 py-1.5 rounded border border-slate-700 bg-[#121824] text-[11px] font-mono font-semibold text-slate-200 hover:border-sky-500/50 flex items-center gap-1.5"
+            className="px-2.5 py-1.5 rounded hw-key hover:!border-sky-500/50 text-[11px] font-mono font-semibold flex items-center gap-1.5 cursor-pointer"
+            title="Export the active preset as a JSON file"
           >
             <Download className="w-3.5 h-3.5 text-sky-400" />
             <span>EXPORT ACTIVE</span>
@@ -132,7 +139,7 @@ export const PresetsServiceModule: React.FC<PresetsServiceModuleProps> = ({
       </div>
 
       {importError && (
-        <div className="p-3 rounded border border-red-500/40 bg-red-500/10 text-xs text-red-300">
+        <div className="p-3 rounded border border-red-500/40 bg-red-500/10 text-xs text-red-300" title="Import failed — select a valid Church Audio preset JSON export">
           {importError}
         </div>
       )}
@@ -140,9 +147,12 @@ export const PresetsServiceModule: React.FC<PresetsServiceModuleProps> = ({
       {/* Service Order Cue Sequencer */}
       <div className="rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 space-y-2.5">
         <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-          <span className="font-mono text-xs font-semibold text-white uppercase flex items-center gap-1.5">
+          <span
+            className="font-mono text-xs font-semibold uppercase flex items-center gap-1.5 hw-engraved"
+            title="Sunday service cue sequencer — DSP + OBS linked recall"
+          >
             <Layers className="w-3.5 h-3.5 text-sky-400" />
-            <span>Sunday Service Cue Sequencer (DSP + OBS Linked Recall)</span>
+            <span>Service Cue Sequencer · DSP + OBS</span>
           </span>
             <span
               className="font-mono text-[10px] text-slate-400"
@@ -160,10 +170,10 @@ export const PresetsServiceModule: React.FC<PresetsServiceModuleProps> = ({
                 key={cue.id}
                 type="button"
                 onClick={() => handleFireServiceCue(cue)}
-                className={`p-2.5 rounded border text-left transition-colors ${
+                className={`p-2.5 rounded text-left transition-colors hw-key ${
                   active
-                    ? 'border-sky-400 bg-sky-500/15'
-                    : 'border-slate-800 bg-[#070A10] hover:border-slate-600'
+                    ? '!bg-none !border-sky-400 !bg-sky-500/15'
+                    : 'hover:!border-slate-500'
                 }`}
               >
                 <div className="flex items-center justify-between font-mono text-[10px] text-sky-400">
@@ -185,7 +195,7 @@ export const PresetsServiceModule: React.FC<PresetsServiceModuleProps> = ({
         {/* Scene Memory Table (Clean Console Rows — Zero Stuffy Cards) */}
         <div className="xl:col-span-7 rounded-lg border border-slate-800 bg-[#0A0E17] p-3 flex flex-col justify-between gap-2">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <span className="font-mono text-xs font-bold text-white uppercase tracking-wider">
+            <span className="font-mono text-xs font-bold uppercase tracking-wider hw-engraved">
               Scene Memory Bank ({presets.length} Profiles)
             </span>
             <span
@@ -271,7 +281,7 @@ export const PresetsServiceModule: React.FC<PresetsServiceModuleProps> = ({
             >
               <strong className="text-sky-300">{comparePreset.name}</strong>
             </span>
-            <span className="text-slate-500 shrink-0">v{comparePreset.version}</span>
+            <span className="text-slate-400 shrink-0 hw-lcd rounded px-1.5 py-0.5">v{comparePreset.version}</span>
           </div>
         </div>
 
@@ -280,7 +290,7 @@ export const PresetsServiceModule: React.FC<PresetsServiceModuleProps> = ({
           {/* Parameter Diff Preview */}
           <div className="space-y-2">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <span className="font-mono text-xs font-semibold text-white uppercase">
+              <span className="font-mono text-xs font-semibold uppercase hw-engraved">
                 Parameter Diff Inspector
               </span>
               <span className="font-mono text-[10px] text-amber-400 truncate max-w-[180px]">
@@ -326,10 +336,10 @@ export const PresetsServiceModule: React.FC<PresetsServiceModuleProps> = ({
                 <div key={row.label} className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-1.5 min-w-0">
                     <span
-                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                        row.delta ? 'bg-amber-400 shadow-[0_0_5px_rgba(245,158,11,0.7)]' : 'bg-emerald-400'
-                      }`}
-                      title={row.delta ? 'Changes on recall' : 'Identical'}
+                      aria-hidden="true"
+                      className="hw-lamp shrink-0"
+                      style={{ width: 5, height: 5 }}
+                      data-on={row.delta ? 'amber' : 'green'}
                     />
                     <span className="text-slate-400">{row.label}</span>
                   </span>
@@ -345,7 +355,7 @@ export const PresetsServiceModule: React.FC<PresetsServiceModuleProps> = ({
 
           {/* Snapshot Save & Rollback */}
           <div className="space-y-2.5 border-t border-slate-800 pt-3 flex-1 flex flex-col">
-            <div className="font-mono text-xs font-semibold text-white uppercase">
+            <div className="font-mono text-xs font-semibold uppercase hw-engraved">
               Versioned Configuration Vault
             </div>
 
@@ -354,12 +364,14 @@ export const PresetsServiceModule: React.FC<PresetsServiceModuleProps> = ({
                 type="text"
                 value={snapshotNote}
                 onChange={(e) => setSnapshotNote(e.target.value)}
-                placeholder="Snapshot note (e.g. Sunday Sermon Trim)..."
+                placeholder="SNAPSHOT NOTE"
+                aria-label="Snapshot note (e.g. Sunday Sermon Trim)"
                 className="flex-1 px-2.5 py-1.5 rounded border border-slate-700 bg-[#070A10] text-xs font-mono text-slate-100"
               />
               <button
                 type="submit"
-                className="px-3 py-1.5 rounded bg-sky-600 hover:bg-sky-500 text-white text-xs font-mono font-semibold flex items-center gap-1 shrink-0"
+                title="Store a versioned configuration snapshot in the vault"
+                className="px-3 py-1.5 rounded hw-key !bg-none !bg-sky-600 hover:!bg-sky-500 !border-sky-400/60 !text-white text-xs font-mono font-semibold flex items-center gap-1 shrink-0 cursor-pointer"
               >
                 <Save className="w-3.5 h-3.5" />
                 <span>STORE</span>
@@ -369,7 +381,7 @@ export const PresetsServiceModule: React.FC<PresetsServiceModuleProps> = ({
             <div className="divide-y divide-slate-800/80 max-h-56 overflow-y-auto bg-[#090D14] rounded border border-slate-800 px-3 flex-1">
               {versions.length === 0 ? (
                 <div className="py-6 flex flex-col items-center justify-center gap-2 text-center">
-                  <span className="w-2 h-2 rounded-full bg-slate-600" />
+                  <span aria-hidden="true" className="hw-lamp" style={{ width: 6, height: 6 }} />
                   <span
                     className="font-mono text-[10px] font-bold tracking-wider text-slate-500"
                     title="Save a baseline snapshot before live service edits — snapshots become your rollback points"
@@ -392,7 +404,8 @@ export const PresetsServiceModule: React.FC<PresetsServiceModuleProps> = ({
                     <button
                       type="button"
                       onClick={() => onRollbackVersion(v)}
-                      className="px-2.5 py-1 rounded border border-slate-700 bg-[#121824] text-[11px] font-mono text-slate-200 hover:border-sky-500/60 flex items-center gap-1 shrink-0"
+                      className="px-2.5 py-1 rounded hw-key hover:!border-sky-500/60 text-[11px] font-mono font-semibold flex items-center gap-1 shrink-0 cursor-pointer"
+                      title={`Roll back to ${v.presetName} ${v.version}`}
                     >
                       <RotateCcw className="w-3 h-3 text-sky-400" />
                       <span>RECALL</span>

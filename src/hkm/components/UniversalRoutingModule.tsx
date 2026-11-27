@@ -84,12 +84,12 @@ export const UniversalRoutingModule: React.FC<UniversalRoutingModuleProps> = ({
       }
       setGuardNotice(
         resetFromCh1
-          ? `Scanned ${inputs.length} unique live input(s) and assigned CH1–CH${Math.max(1, inputs.length)} 1-to-1 (unused tail slots left open).`
-          : `Scanned ${inputs.length} unique live input(s). Any new hardware inputs were automatically placed in the next open channel slot.`
+          ? `SCAN OK · ${inputs.length} IN · CH1–CH${Math.max(1, inputs.length)} 1:1`
+          : `SCAN OK · ${inputs.length} IN · NEW → OPEN SLOTS`
       );
       window.setTimeout(() => setGuardNotice(null), 5000);
     } catch (err) {
-      setGuardNotice(`Input scan failed: ${err instanceof Error ? err.message : String(err)}`);
+      setGuardNotice(`SCAN FAIL · ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setScanningPorts(false);
     }
@@ -123,12 +123,12 @@ export const UniversalRoutingModule: React.FC<UniversalRoutingModuleProps> = ({
       }
       setGuardNotice(
         autoMap
-          ? `SCAN OK — ${outputs.length} PORTS · ZONES AUTO-ASSIGNED`
-          : `SCAN OK — ${outputs.length} PORTS · ASSIGN BELOW`
+          ? `SCAN OK · ${outputs.length} PORTS · AUTO-ASSIGNED`
+          : `SCAN OK · ${outputs.length} PORTS · MANUAL`
       );
       window.setTimeout(() => setGuardNotice(null), 5000);
     } catch (err) {
-      setGuardNotice(`Output scan failed: ${err instanceof Error ? err.message : String(err)}`);
+      setGuardNotice(`SCAN FAIL · ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setScanningPorts(false);
     }
@@ -152,13 +152,13 @@ export const UniversalRoutingModule: React.FC<UniversalRoutingModuleProps> = ({
     const targetCh = channels.find((c) => c.id === chId);
     if (sourceRoute === 'loopback-pa' && targetCh && !targetCh.mute) {
       setGuardNotice(
-        `Cycle Guard Blocked: "${targetCh.name}" cannot patch Main PA Loopback while unmuted (prevents infinite feedback loop).`
+        `CYCLE GUARD BLOCKED · ${targetCh.name} UNMUTED · LOOP RISK`
       );
       window.setTimeout(() => setGuardNotice(null), 4500);
       return;
     }
     setVirtualPatch((prev) => ({ ...prev, [chId]: sourceRoute }));
-    setGuardNotice(`Patched ${targetCh?.name ?? chId} → ${sourceRoute} (DAG Cycle Guard Verified).`);
+    setGuardNotice(`PATCHED · ${targetCh?.name ?? chId} → ${sourceRoute}`);
     window.setTimeout(() => setGuardNotice(null), 3000);
   };
 
@@ -171,11 +171,17 @@ export const UniversalRoutingModule: React.FC<UniversalRoutingModuleProps> = ({
             <Cable className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-display text-base font-bold text-white">
-              Universal Bus Matrix &amp; Cycle-Guarded Virtual Patchbay
+            <h2
+              className="font-display text-base font-bold text-white"
+              title="Universal Bus Matrix & Cycle-Guarded Virtual Patchbay"
+            >
+              BUS MATRIX · PATCHBAY
             </h2>
-            <p className="font-mono text-[11px] text-slate-400">
-              {channels.length} Input Strips × 4 Aux/Matrix Buses × {zones.length} Speaker Zones · DAG Feedback Protection Active
+            <p
+              className="font-mono text-[11px] text-slate-400 hw-engraved"
+              title={`${channels.length} input strips × 4 aux/matrix buses × ${zones.length} speaker zones · DAG feedback protection active`}
+            >
+              {channels.length} CH × 4 BUS × {zones.length} ZONES · CYCLE GUARD ON
             </p>
           </div>
         </div>
@@ -185,29 +191,32 @@ export const UniversalRoutingModule: React.FC<UniversalRoutingModuleProps> = ({
             type="button"
             disabled={scanningPorts}
             onClick={() => void handleScanAndAutoAssignInputs(true)}
-            className="px-2.5 py-1 rounded bg-emerald-500/20 border border-emerald-400/50 text-emerald-200 hover:bg-emerald-500/35 font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            title="Auto-Scan & Map Inputs — scan live inputs and re-slot CH1..CHN 1-to-1"
+            className="px-2.5 py-1 rounded font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 hw-key !bg-none !border-emerald-400/50 !bg-emerald-500/20 !text-emerald-200"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${scanningPorts ? 'animate-spin' : ''}`} />
-            Auto-Scan &amp; Map Inputs
+            SCAN + MAP
           </button>
           {onAddChannel && (
             <button
               type="button"
               onClick={() => onAddChannel()}
-              className="px-2.5 py-1 rounded bg-sky-500/20 border border-sky-400/50 text-sky-200 hover:bg-sky-500/35 font-bold flex items-center gap-1 cursor-pointer"
+              title="Add input channel strip"
+              className="px-2.5 py-1 rounded font-bold flex items-center gap-1 cursor-pointer hw-key !bg-none !border-sky-400/50 !bg-sky-500/20 !text-sky-200"
             >
               <Plus className="w-3.5 h-3.5" />
-              Add Input
+              ADD CH
             </button>
           )}
           {onAddZone && (
             <button
               type="button"
               onClick={() => onAddZone()}
-              className="px-2.5 py-1 rounded bg-violet-500/20 border border-violet-400/50 text-violet-200 hover:bg-violet-500/35 font-bold flex items-center gap-1 cursor-pointer"
+              title="Add output zone / bus"
+              className="px-2.5 py-1 rounded font-bold flex items-center gap-1 cursor-pointer hw-key !bg-none !border-violet-400/50 !bg-violet-500/20 !text-violet-200"
             >
               <Plus className="w-3.5 h-3.5" />
-              Add Output Bus
+              ADD ZONE
             </button>
           )}
           <span className="px-2.5 py-1 rounded bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 flex items-center gap-1.5 font-bold">
@@ -218,18 +227,29 @@ export const UniversalRoutingModule: React.FC<UniversalRoutingModuleProps> = ({
             <button
               type="button"
               onClick={() => onOpenSignalJourney(selectedCh.id)}
-              className="px-3 py-1 rounded bg-sky-500/20 border border-sky-400/50 text-sky-200 font-bold flex items-center gap-1.5 cursor-pointer"
+              title={`Trace the signal journey of ${selectedCh.name}`}
+              className="px-3 py-1 rounded font-bold flex items-center gap-1.5 cursor-pointer hw-key !bg-none !border-sky-400/50 !bg-sky-500/20 !text-sky-200"
             >
               <GitBranch className="w-3.5 h-3.5" />
-              Trace {selectedCh.name}
+              TRACE {selectedCh.name}
             </button>
           )}
         </div>
       </div>
 
       {guardNotice && (
-        <div className="px-4 py-2 rounded-lg border border-amber-500/50 bg-amber-950/60 text-amber-200 font-mono text-xs">
-          {guardNotice}
+        <div
+          className="px-4 py-2 rounded-lg border border-amber-500/50 bg-amber-950/60 text-amber-200 font-mono text-xs flex items-center gap-2"
+          role="status"
+          title={guardNotice}
+        >
+          <span
+            className="hw-lamp shrink-0"
+            style={{ width: 5, height: 5 }}
+            data-on="amber"
+            aria-hidden="true"
+          />
+          <span>{guardNotice}</span>
         </div>
       )}
 
@@ -241,11 +261,17 @@ export const UniversalRoutingModule: React.FC<UniversalRoutingModuleProps> = ({
             <div className="flex items-center gap-2">
               <Mic className="w-4 h-4 text-sky-400" />
               <div>
-                <h3 className="font-display text-sm font-bold text-white">
-                  Input Channel Scanner &amp; Port Assignment ({channels.length})
+                <h3
+                  className="font-display text-sm font-bold text-white"
+                  title="Input Channel Scanner & Port Assignment"
+                >
+                  INPUT PORTS · CH ({channels.length})
                 </h3>
-                <p className="font-mono text-[10px] text-slate-400">
-                  {inputDevices.length} INPUT PORTS · UNLIMITED STRIPS · AUTO / MANUAL MAP
+                <p
+                  className="font-mono text-[10px] text-slate-400 hw-engraved"
+                  title={`${inputDevices.length} input ports · unlimited strips · auto / manual map`}
+                >
+                  {inputDevices.length} PORTS · AUTO/MANUAL MAP
                 </p>
               </div>
             </div>
@@ -254,28 +280,29 @@ export const UniversalRoutingModule: React.FC<UniversalRoutingModuleProps> = ({
                 type="button"
                 disabled={scanningPorts}
                 onClick={() => void handleScanAndAutoAssignInputs(false)}
-                className="px-2 py-1 rounded bg-slate-800 border border-slate-600 text-slate-200 hover:bg-slate-700 font-bold cursor-pointer"
+                className="px-2 py-1 rounded font-bold cursor-pointer disabled:opacity-50 hw-key"
                 title="Scan live inputs and place newly connected hardware into the next open channel slot"
               >
-                Scan New Inputs
+                SCAN NEW
               </button>
               <button
                 type="button"
                 disabled={scanningPorts}
                 onClick={() => void handleScanAndAutoAssignInputs(true)}
-                className="px-2 py-1 rounded bg-emerald-500/20 border border-emerald-400/50 text-emerald-200 hover:bg-emerald-500/35 font-bold cursor-pointer"
+                className="px-2 py-1 rounded font-bold cursor-pointer disabled:opacity-50 hw-key !bg-none !border-emerald-400/50 !bg-emerald-500/20 !text-emerald-200"
                 title="Reset CH1..CHN 1-to-1 from currently connected live inputs"
               >
-                Re-Slot CH1..N
+                RE-SLOT CH1..N
               </button>
               {onAddChannel && (
                 <button
                   type="button"
                   onClick={() => onAddChannel()}
-                  className="px-2 py-1 rounded bg-sky-500/20 border border-sky-400/50 text-sky-200 hover:bg-sky-500/35 font-bold flex items-center gap-1 cursor-pointer"
+                  title="Add input channel strip"
+                  className="px-2 py-1 rounded font-bold flex items-center gap-1 cursor-pointer hw-key !bg-none !border-sky-400/50 !bg-sky-500/20 !text-sky-200"
                 >
                   <Plus className="w-3 h-3" />
-                  + Channel
+                  + CH
                 </button>
               )}
             </div>
@@ -312,7 +339,7 @@ export const UniversalRoutingModule: React.FC<UniversalRoutingModuleProps> = ({
                   }}
                   className="col-span-6 bg-[#070A10] border border-slate-700 rounded px-2 py-1 text-slate-200 text-[11px] focus:outline-none focus:border-sky-400"
                 >
-                  <option value="">Unassigned / Console Direct</option>
+                  <option value="">Open Slot</option>
                   {inputDevices.map((d, idx) => (
                     <option key={`${d.deviceId}-${idx}`} value={d.deviceId}>
                       {d.label || `Audio Input ${idx + 1}`}
@@ -342,11 +369,14 @@ export const UniversalRoutingModule: React.FC<UniversalRoutingModuleProps> = ({
             <div className="flex items-center gap-2">
               <Speaker className="w-4 h-4 text-violet-400" />
               <div>
-                <h3 className="font-display text-sm font-bold text-white">
-                  Output Speaker &amp; Port Assignment ({zones.length})
+                <h3
+                  className="font-display text-sm font-bold text-white"
+                  title="Output Speaker & Port Assignment"
+                >
+                  OUTPUT ZONES · PORTS ({zones.length})
                 </h3>
-                <p className="font-mono text-[10px] text-slate-400">
-                  {outputDevices.length} OUTPUT PORTS · FRONT / REAR / SUBS / FREE
+                <p className="font-mono text-[10px] text-slate-400 hw-engraved">
+                  {outputDevices.length} PORTS · FRONT / REAR / SUBS / FREE
                 </p>
               </div>
             </div>
@@ -355,17 +385,19 @@ export const UniversalRoutingModule: React.FC<UniversalRoutingModuleProps> = ({
                 type="button"
                 disabled={scanningPorts}
                 onClick={() => void handleScanAndAutoAssignOutputs(false)}
-                className="px-2 py-1 rounded bg-slate-800 border border-slate-600 text-slate-200 hover:bg-slate-700 font-bold cursor-pointer"
+                title="Scan output devices"
+                className="px-2 py-1 rounded font-bold cursor-pointer disabled:opacity-50 hw-key"
               >
-                Scan Outputs
+                SCAN
               </button>
               <button
                 type="button"
                 disabled={scanningPorts}
                 onClick={() => void handleScanAndAutoAssignOutputs(true)}
-                className="px-2 py-1 rounded bg-emerald-500/20 border border-emerald-400/50 text-emerald-200 hover:bg-emerald-500/35 font-bold cursor-pointer"
+                title="Scan and auto-assign zones to output ports"
+                className="px-2 py-1 rounded font-bold cursor-pointer disabled:opacity-50 hw-key !bg-none !border-emerald-400/50 !bg-emerald-500/20 !text-emerald-200"
               >
-                Auto-Assign
+                AUTO-ASSIGN
               </button>
               {onAddZone && (
                 <div className="flex items-center gap-1">
@@ -388,10 +420,11 @@ export const UniversalRoutingModule: React.FC<UniversalRoutingModuleProps> = ({
                         SPEAKER_ROLE_OPTIONS.find((r) => r.value === newZoneRole)?.label ?? 'Speaker';
                       onAddZone(`${roleLabel} ${zones.length + 1}`, newZoneRole);
                     }}
-                    className="px-2 py-1 rounded bg-violet-500/25 border border-violet-400/60 text-violet-100 hover:bg-violet-500/40 font-bold flex items-center gap-1 cursor-pointer"
+                    title="Add speaker zone"
+                    className="px-2 py-1 rounded font-bold flex items-center gap-1 cursor-pointer hw-key !bg-none !border-violet-400/60 !bg-violet-500/25 !text-violet-100"
                   >
                     <Plus className="w-3 h-3" />
-                    Add
+                    ADD
                   </button>
                 </div>
               )}
@@ -400,16 +433,20 @@ export const UniversalRoutingModule: React.FC<UniversalRoutingModuleProps> = ({
 
           <div className="p-2.5 rounded-lg border border-emerald-500/30 bg-emerald-950/20 grid grid-cols-1 sm:grid-cols-2 gap-2 font-mono text-[10px]">
             <label className="space-y-1 block">
-              <span className="text-slate-300 font-bold uppercase block">
-                1. Physical Speaker / PA Output (Built-in / DAC)
+              <span
+                className="text-slate-300 font-bold uppercase block hw-engraved"
+                title="1. Physical speaker / PA output (built-in / DAC)"
+              >
+                1 · MAIN PA OUT
               </span>
               <select
                 aria-label="Physical Speaker Output"
+                title="Physical speaker / PA output (built-in / DAC)"
                 value={preferredOutputDeviceId}
                 onChange={(e) => onSelectOutputDevice?.(e.target.value)}
                 className="w-full bg-[#070A10] border border-slate-700 rounded px-2 py-1 text-slate-200"
               >
-                <option value="">Windows Taskbar Default Speaker</option>
+                <option value="">System Default</option>
                 {outputDevices.map((d, idx) => (
                   <option key={`phys-${d.deviceId}-${idx}`} value={d.deviceId}>
                     {d.label || `Speaker Output ${idx + 1}`}
@@ -418,16 +455,20 @@ export const UniversalRoutingModule: React.FC<UniversalRoutingModuleProps> = ({
               </select>
             </label>
             <label className="space-y-1 block">
-              <span className="text-emerald-300 font-bold uppercase block">
-                2. Optional Secondary Playback Device
+              <span
+                className="text-emerald-300 font-bold uppercase block hw-engraved !text-emerald-300"
+                title="2. Optional secondary playback device"
+              >
+                2 · SECONDARY OUT
               </span>
               <select
                 aria-label="Optional Secondary Stream Output Device"
+                title="Optional secondary playback device — not needed for OBS app capture"
                 value={preferredStreamOutputDeviceId}
                 onChange={(e) => onSelectStreamOutputDevice?.(e.target.value)}
                 className="w-full bg-[#070A10] border border-emerald-500/40 rounded px-2 py-1 text-emerald-200"
               >
-                <option value="">Disabled (Not needed for OBS)</option>
+                <option value="">Disabled</option>
                 {outputDevices.map((d, idx) => (
                   <option key={`vb-${d.deviceId}-${idx}`} value={d.deviceId}>
                     {d.label || `Virtual / Stream Output ${idx + 1}`}
@@ -559,15 +600,17 @@ export const UniversalRoutingModule: React.FC<UniversalRoutingModuleProps> = ({
                     </td>
                     <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
                       <select
+                        aria-label={`Channel ${ch.index} patchbay input`}
+                        title="Patchbay input source for this channel"
                         value={patchVal}
                         onChange={(e) => handleAssignVirtualCable(ch.id, e.target.value)}
                         className="bg-[#05080F] border border-slate-700 rounded px-2 py-1 text-[11px] text-slate-200 cursor-pointer"
                       >
-                        <option value="hw-direct">Hardware ADC Direct</option>
-                        <option value="internal-vc-browser">Internal Patch A (Browser / Tab Audio)</option>
-                        <option value="internal-vc-media">Internal Patch B (Media Player / File)</option>
-                        <option value="obs-return">Internal Patch C (OBS Return)</option>
-                        <option value="loopback-pa">Main PA Loopback (Cycle Guarded)</option>
+                        <option value="hw-direct">HW ADC DIRECT</option>
+                        <option value="internal-vc-browser">PATCH A · TAB</option>
+                        <option value="internal-vc-media">PATCH B · MEDIA</option>
+                        <option value="obs-return">PATCH C · OBS RET</option>
+                        <option value="loopback-pa">PA LOOPBACK · GUARDED</option>
                       </select>
                     </td>
                     {BUS_COLUMNS.map((b) => {
@@ -584,11 +627,12 @@ export const UniversalRoutingModule: React.FC<UniversalRoutingModuleProps> = ({
                         >
                           <button
                             type="button"
-                            className={`px-2.5 py-1 rounded text-[10px] font-bold border cursor-pointer transition ${
+                            className={`px-2.5 py-1 rounded text-[10px] font-bold border cursor-pointer transition hw-key ${
                               active
-                                ? 'bg-emerald-500/20 border-emerald-400/60 text-emerald-300'
-                                : 'bg-slate-900 border-slate-800 text-slate-500'
+                                ? '!bg-none !border-emerald-400/60 !bg-emerald-500/20 !text-emerald-300'
+                                : ''
                             }`}
+                            title={`${b.label} send — click to toggle (currently ${active ? `${valDb.toFixed(0)} dB` : 'OFF'})`}
                           >
                             {active ? `${valDb.toFixed(0)} dB` : 'OFF'}
                           </button>
@@ -611,8 +655,11 @@ export const UniversalRoutingModule: React.FC<UniversalRoutingModuleProps> = ({
         <div className="p-3.5 rounded-xl border border-slate-800 bg-[#0A0F18] flex flex-wrap items-center justify-between gap-4 font-mono text-xs">
           <div className="flex items-center gap-2">
             <Sliders className="w-4 h-4 text-sky-400" />
-            <span className="font-bold text-white">
-              Aux Send Trims — CH {selectedCh.index} ({selectedCh.name})
+            <span
+              className="font-bold text-white hw-engraved"
+              title={`Aux send trims — CH ${selectedCh.index} (${selectedCh.name})`}
+            >
+              AUX SEND TRIM · CH {selectedCh.index} · {selectedCh.name}
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-4">

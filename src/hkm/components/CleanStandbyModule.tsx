@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Activity, Zap, VolumeX, Radio, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Activity, Zap, VolumeX, Radio } from 'lucide-react';
 import type { DspConfig, CleanStandbyConfig, SignalTelemetry } from '../types/audio.ts';
 import { ConsolePushButton, RotaryKnob } from './StudioControls.tsx';
 
@@ -47,21 +47,27 @@ export const CleanStandbyModule: React.FC<CleanStandbyModuleProps> = ({
           <div className="w-2.5 h-8 rounded-xs bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.6)]" />
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-[11px] font-bold text-emerald-400">CLEAN ENGINE</span>
-              <h2 className="font-display text-base font-semibold text-white tracking-tight">
-                Zero-Hum Standby &amp; Ultra-Clean Output Conditioning
+              <span className="font-mono text-[11px] font-bold text-emerald-400 uppercase hw-engraved !text-emerald-400">CLEAN ENGINE</span>
+              <h2
+                className="font-display text-base font-semibold text-white tracking-tight"
+                title="Zero-Hum Standby & Ultra-Clean Output Conditioning"
+              >
+                Zero-Hum Standby
               </h2>
             </div>
-            <p className="text-[11px] font-mono text-slate-400">
-              Adaptive Standby Gate · 18 Hz DC Offset Blocker · 50/60 Hz Mains Hum &amp; Harmonics Notch Filters
+            <p
+              className="text-[10px] font-mono text-slate-400 hw-engraved uppercase"
+              title="Adaptive Standby Gate · 18 Hz DC Offset Blocker · 50/60 Hz Mains Hum & Harmonics Notch Filters"
+            >
+              Adaptive Gate · DC Blocker 18 Hz · Hum Notch 50/60 Hz
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded border border-emerald-500/40 bg-emerald-950/20 text-emerald-300 font-mono text-xs">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>STANDBY HUM PROTECTION ARMED</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded border border-emerald-500/40 bg-emerald-950/20 text-emerald-300 font-mono text-xs uppercase tracking-wider">
+            <span className="hw-lamp" data-on="green" style={{ width: 6, height: 6 }} aria-hidden="true" />
+            <span title="Standby hum protection armed">Protection Armed</span>
           </div>
         </div>
       </div>
@@ -71,18 +77,37 @@ export const CleanStandbyModule: React.FC<CleanStandbyModuleProps> = ({
         {/* Block 1: Adaptive Standby Gate */}
         <div className="rounded-lg border border-slate-800 bg-[#0E131C] p-3 flex flex-col justify-between gap-3">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <span className="font-mono text-xs font-bold text-emerald-300 uppercase flex items-center gap-1.5">
+            <span
+              className="font-mono text-xs font-bold text-emerald-300 uppercase flex items-center gap-1.5 hw-engraved !text-emerald-300"
+              title="Adaptive Standby Gate"
+            >
               <VolumeX className="w-3.5 h-3.5 text-emerald-400" />
-              1. Adaptive Standby Gate
+              1 · Standby Gate
             </span>
-            <span className="font-mono text-[10px] text-slate-400">
+            <span className="font-mono text-[10px] text-slate-400 uppercase tracking-wider">
               {standby.adaptiveStandbyGate || standby.standbyGateEnabled ? 'ENABLED' : 'DISABLED'}
             </span>
           </div>
 
-          <p className="text-xs text-slate-300 leading-relaxed">
-            Eliminates quiescent amplifier hiss and cable idle hum when audio stops. After silence persists for {standby.standbyGateHoldMs ?? 1000} ms, output drops smoothly to complete silence (-96 dB) and snaps active in 5 ms when speech or music begins.
-          </p>
+          <div
+            className="text-[10px] font-mono text-slate-400 space-y-0.5 hw-engraved uppercase"
+            title={`Eliminates quiescent amplifier hiss and cable idle hum when audio stops. After silence persists for ${
+              standby.standbyGateHoldMs ?? 1000
+            } ms, output drops smoothly to complete silence (-96 dB) and snaps active in 5 ms when speech or music begins.`}
+          >
+            <div className="flex justify-between">
+              <span>Floor</span>
+              <span>-96 dB</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Hold</span>
+              <span>{standby.standbyGateHoldMs ?? 1000} ms</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Reopen</span>
+              <span>5 ms</span>
+            </div>
+          </div>
 
           <div className="flex items-center justify-around py-2">
             <RotaryKnob
@@ -125,21 +150,23 @@ export const CleanStandbyModule: React.FC<CleanStandbyModuleProps> = ({
         {/* Block 2: Sub-Sonic DC Blocker */}
         <div className="rounded-lg border border-slate-800 bg-[#0E131C] p-3 flex flex-col justify-between gap-3">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <span className="font-mono text-xs font-bold text-sky-300 uppercase flex items-center gap-1.5">
+            <span
+              className="font-mono text-xs font-bold text-sky-300 uppercase flex items-center gap-1.5 hw-engraved !text-sky-300"
+              title="Sub-Sonic DC Blocker"
+            >
               <Zap className="w-3.5 h-3.5 text-sky-400" />
-              2. Sub-Sonic DC Blocker
+              2 · DC Blocker
             </span>
             <span className="font-mono text-[10px] text-slate-400">18 Hz (24 dB/Oct)</span>
           </div>
 
-          <p className="text-xs text-slate-300 leading-relaxed">
-            Stops inaudible sub-audible DC drift, stage floor thuds, and HVAC vibrations below 18 Hz from wasting amplifier wattage or heating speaker voice coils, preserving full headroom for clean bass.
-          </p>
-
-          <div className="rounded bg-[#070A10] border border-slate-800 p-3 text-center space-y-1">
-            <div className="font-mono text-xs text-slate-400">High-Pass Filter Cutoff</div>
+          <div
+            className="hw-lcd rounded p-3 text-center space-y-1"
+            title="Stops inaudible sub-audible DC drift, stage floor thuds, and HVAC vibrations below 18 Hz from wasting amplifier wattage or heating speaker voice coils, preserving full headroom for clean bass."
+          >
+            <div className="font-mono text-xs text-slate-400 uppercase tracking-wider">HPF Cutoff</div>
             <div className="font-mono text-xl font-bold text-sky-400">18.0 Hz</div>
-            <div className="text-[10px] font-mono text-emerald-400">Zero In-Band Phase Distortion</div>
+            <div className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider">Phase Linear</div>
           </div>
 
           <ConsolePushButton
@@ -153,30 +180,42 @@ export const CleanStandbyModule: React.FC<CleanStandbyModuleProps> = ({
         {/* Block 3: Mains Hum Notch Elimination */}
         <div className="rounded-lg border border-slate-800 bg-[#0E131C] p-3 flex flex-col justify-between gap-3">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <span className="font-mono text-xs font-bold text-amber-300 uppercase flex items-center gap-1.5">
+            <span
+              className="font-mono text-xs font-bold text-amber-300 uppercase flex items-center gap-1.5 hw-engraved !text-amber-300"
+              title="Mains Hum Notch Trap"
+            >
               <Radio className="w-3.5 h-3.5 text-amber-400" />
-              3. Mains Hum Notch Trap
+              3 · Hum Notch
             </span>
-            <span className={`font-mono text-[10px] ${humDetected ? 'text-red-400 font-bold' : 'text-slate-400'}`}>
-              {humDetected ? `HUM DETECTED @ ${humFreq} Hz` : 'SPECTRUM CLEAN'}
+            <span
+              className={`font-mono text-[10px] flex items-center gap-1.5 uppercase tracking-wider ${
+                humDetected ? 'text-red-400 font-bold' : 'text-slate-400'
+              }`}
+            >
+              <span
+                className="hw-lamp"
+                data-on={humDetected ? 'red' : 'green'}
+                style={{ width: 5, height: 5 }}
+                aria-hidden="true"
+              />
+              {humDetected ? `Hum @ ${humFreq} Hz` : 'Spectrum Clean'}
             </span>
           </div>
 
-          <p className="text-xs text-slate-300 leading-relaxed">
-            Surgical high-Q (Q=14) notch filters target 50 Hz or 60 Hz electrical mains hum plus the 2nd and 3rd ground loop harmonics (100/120 Hz and 150/180 Hz) without affecting musical bass response.
-          </p>
-
-          <div className="grid grid-cols-3 gap-1 p-1 rounded border border-slate-800 bg-[#070A10]">
+          <div
+            className="grid grid-cols-3 gap-1 p-1 rounded border border-slate-800 bg-[#070A10]"
+            title="Surgical high-Q (Q=14) notch filters target 50 Hz or 60 Hz electrical mains hum plus the 2nd and 3rd ground loop harmonics (100/120 Hz and 150/180 Hz) without affecting musical bass response."
+          >
             {(['60hz', '50hz', 'off'] as const).map((mode) => (
               <button
                 key={mode}
                 type="button"
                 disabled={panelLocked}
                 onClick={() => updateStandby({ mainsHumNotch: mode })}
-                className={`py-1.5 text-xs font-mono font-semibold rounded transition-colors ${
+                className={`py-1.5 text-xs font-mono font-semibold rounded transition-colors cursor-pointer hw-key ${
                   standby.mainsHumNotch === mode
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? '!bg-none !bg-amber-500/20 !border-amber-500/40 !text-amber-300'
+                    : '!text-slate-400 hover:!text-slate-200'
                 }`}
               >
                 {mode === '60hz' ? '60 Hz (USA)' : mode === '50hz' ? '50 Hz (EU/UK)' : 'OFF'}
@@ -184,8 +223,8 @@ export const CleanStandbyModule: React.FC<CleanStandbyModuleProps> = ({
             ))}
           </div>
 
-          <div className="text-[11px] font-mono text-slate-400 text-center">
-            Harmonics Trapped: {standby.mainsHumNotch === '60hz' ? '60, 120, 180 Hz' : standby.mainsHumNotch === '50hz' ? '50, 100, 150 Hz' : 'None'}
+          <div className="text-[11px] font-mono text-slate-400 text-center uppercase tracking-wider">
+            Trap: {standby.mainsHumNotch === '60hz' ? '60, 120, 180 Hz' : standby.mainsHumNotch === '50hz' ? '50, 100, 150 Hz' : 'None'}
           </div>
         </div>
       </div>

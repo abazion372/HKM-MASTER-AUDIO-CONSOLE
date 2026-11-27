@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
   Activity,
-  CheckCircle2,
   Play,
   RotateCcw,
   Sliders,
-  AlertTriangle,
 } from 'lucide-react';
 import type {
   AcousticMeasurement,
@@ -43,6 +41,15 @@ interface PhaseResult {
   status: 'idle' | 'running' | 'pass' | 'warn';
   detail: string;
 }
+
+// Full phase descriptions — silkscreen rows carry only short readouts;
+// the sentences ride on the row tooltips.
+const PHASE_INFO: Record<string, string> = {
+  clock: 'Phase 1 — verifies the hardware clock & driver lock while the engine runs',
+  gain: 'Phase 2 — audits per-channel gain staging against the noise floor and clip risk',
+  feedback: 'Phase 3 — checks ring-out margin and resonant feedback peaks',
+  broadcast: 'Phase 4 — verifies the broadcast LUFS target and limiter ceiling',
+};
 
 export const AutomatedSoundCheckModule: React.FC<AutomatedSoundCheckModuleProps> = ({
   device,
@@ -85,8 +92,8 @@ export const AutomatedSoundCheckModule: React.FC<AutomatedSoundCheckModuleProps>
                 ...p,
                 status: telemetry.isRunning ? 'pass' : 'warn',
                 detail: telemetry.isRunning
-                  ? `${(telemetry.sampleRate / 1000).toFixed(1)} kHz locked · ${device.model}`
-                  : 'DSP Engine in Standby — Engage Engine for live clock check',
+                  ? `${(telemetry.sampleRate / 1000).toFixed(1)} kHz LOCK · ${device.model}`
+                  : 'ENGINE STANDBY',
               };
             }
             if (idx === 1) {
@@ -100,10 +107,10 @@ export const AutomatedSoundCheckModule: React.FC<AutomatedSoundCheckModuleProps>
                 ...p,
                 status: !telemetry.isRunning || hot > 0 ? 'warn' : 'pass',
                 detail: !telemetry.isRunning
-                  ? 'Engine Standby — no active input capture'
+                  ? 'ENGINE STANDBY'
                   : hot > 0
-                    ? `${hot} channel(s) approaching clip (> -3 dBFS)`
-                    : `${telemetry.capturedChannels || 1} live input(s) within safe headroom`,
+                    ? `${hot} CH > -3 dBFS`
+                    : `${telemetry.capturedChannels || 1} CH NOMINAL`,
               };
             }
             if (idx === 2) {
@@ -111,14 +118,14 @@ export const AutomatedSoundCheckModule: React.FC<AutomatedSoundCheckModuleProps>
                 ...p,
                 status: telemetry.feedbackRisk.detected ? 'warn' : 'pass',
                 detail: telemetry.feedbackRisk.detected
-                  ? `Ring detected @ ${telemetry.feedbackRisk.frequencyHz} Hz (+${telemetry.feedbackRisk.prominenceDb.toFixed(1)} dB)`
-                  : `No resonant feedback peaks · RT60 ${measurement.rt60AvgSec.toFixed(2)}s`,
+                  ? `RING @ ${telemetry.feedbackRisk.frequencyHz} Hz +${telemetry.feedbackRisk.prominenceDb.toFixed(1)} dB`
+                  : `NO RING · RT60 ${measurement.rt60AvgSec.toFixed(2)}s`,
               };
             }
             return {
               ...p,
               status: obsStatus.connected && dsp.limiter.enabled ? 'pass' : 'warn',
-              detail: `Stream Target ${broadcastDsp.targetLufs} LUFS · Limiter ${dsp.limiter.ceilingDb} dBFS`,
+              detail: `${broadcastDsp.targetLufs} LUFS · CEIL ${dsp.limiter.ceilingDb} dBFS`,
             };
           })
         );
@@ -133,7 +140,7 @@ export const AutomatedSoundCheckModule: React.FC<AutomatedSoundCheckModuleProps>
       onStartEngine();
     }
     setPhases((curr) =>
-      curr.map((p) => ({ ...p, status: 'running', detail: 'Analyzing telemetry...' }))
+      curr.map((p) => ({ ...p, status: 'running', detail: 'ANALYZING' }))
     );
     setActivePhaseIdx(-1);
     setSequencerState('running');
@@ -172,8 +179,11 @@ export const AutomatedSoundCheckModule: React.FC<AutomatedSoundCheckModuleProps>
                 AUTOMATED SOUND CHECK &amp; GAIN STAGING BENCH
               </h1>
             </div>
-            <p className="text-[11px] font-mono text-slate-400">
-              4-Phase Telemetry Audit · Per-Channel Headroom Scanner · Nominal {targetNominalDbfs} dBFS Trim
+            <p
+              className="text-[9.5px] font-mono font-bold uppercase hw-engraved"
+              title="4-Phase Telemetry Audit · Per-Channel Headroom Scanner · Nominal trim target"
+            >
+              4-PHASE AUDIT · CH HEADROOM SCAN · NOM {targetNominalDbfs} dBFS
             </p>
           </div>
         </div>
@@ -182,7 +192,8 @@ export const AutomatedSoundCheckModule: React.FC<AutomatedSoundCheckModuleProps>
           <button
             type="button"
             onClick={handleAutoTrimChannels}
-            className="px-3 py-1.5 rounded border border-slate-700 bg-[#121824] hover:border-sky-500/50 text-sky-300 text-xs font-mono font-semibold flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded hw-key hover:!border-sky-500/50 !text-sky-300 text-xs font-mono font-semibold flex items-center gap-1.5 cursor-pointer"
+            title="Auto-trim live channel faders toward the nominal dBFS target"
           >
             <Sliders className="w-3.5 h-3.5" />
             <span>AUTO-TRIM FADERS ({targetNominalDbfs} dBFS)</span>
@@ -191,7 +202,8 @@ export const AutomatedSoundCheckModule: React.FC<AutomatedSoundCheckModuleProps>
             type="button"
             onClick={handleRunSequence}
             disabled={sequencerState === 'running'}
-            className="px-3.5 py-1.5 rounded bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white text-xs font-mono font-semibold flex items-center gap-1.5"
+            className="px-3.5 py-1.5 rounded hw-key !bg-none !bg-sky-600 hover:!bg-sky-500 !border-sky-400/60 !text-white disabled:opacity-50 text-xs font-mono font-semibold flex items-center gap-1.5 cursor-pointer"
+            title="Run the 4-phase automated sound check sweep"
           >
             <Play className="w-3.5 h-3.5 fill-current" />
             <span>{sequencerState === 'running' ? 'SCANNING...' : 'RUN AUTO SOUND CHECK'}</span>
@@ -203,22 +215,47 @@ export const AutomatedSoundCheckModule: React.FC<AutomatedSoundCheckModuleProps>
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
         <div className="xl:col-span-7 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 space-y-2.5">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <span className="font-mono text-xs font-semibold text-white uppercase flex items-center gap-1.5">
+            <span className="font-mono text-xs font-semibold uppercase flex items-center gap-1.5 hw-engraved">
               <Activity className="w-3.5 h-3.5 text-amber-400" />
               <span>Automated Verification Sequence</span>
             </span>
-            <button
-              type="button"
-              onClick={() => {
-                setSequencerState('idle');
-                setActivePhaseIdx(-1);
-                setPhases((p) => p.map((x) => ({ ...x, status: 'idle', detail: 'STANDBY' })));
-              }}
-              className="text-[10px] font-mono text-slate-400 hover:text-slate-200 flex items-center gap-1"
-            >
-              <RotateCcw className="w-3 h-3" />
-              <span>RESET</span>
-            </button>
+            <div className="flex items-center gap-3">
+              {/* Phase progress LED strip — one segment per verification phase */}
+              <div
+                className="hw-led-track-h w-20 h-2.5"
+                aria-hidden="true"
+                title="Sequence progress — one LED segment per phase"
+              >
+                {phases.map((p, idx) => (
+                  <span
+                    key={p.id}
+                    className="hw-led-seg"
+                    data-lit={
+                      p.status === 'pass'
+                        ? 'green'
+                        : p.status === 'warn'
+                          ? 'amber'
+                          : sequencerState === 'running' && idx === activePhaseIdx
+                            ? 'cyan'
+                            : undefined
+                    }
+                  />
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSequencerState('idle');
+                  setActivePhaseIdx(-1);
+                  setPhases((p) => p.map((x) => ({ ...x, status: 'idle', detail: 'STANDBY' })));
+                }}
+                className="text-[10px] font-mono font-bold uppercase hw-key rounded px-2 py-1 flex items-center gap-1 cursor-pointer"
+                title="Reset the verification sequence"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>RESET</span>
+              </button>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -235,12 +272,12 @@ export const AutomatedSoundCheckModule: React.FC<AutomatedSoundCheckModuleProps>
                         : 'border-slate-800 bg-[#070A10]'
                 }`}
               >
-                <div className="min-w-0">
+                <div className="min-w-0" title={PHASE_INFO[p.id]}>
                   <div className="font-mono text-xs font-semibold text-white">{p.label}</div>
                   <div className="text-[11px] font-mono text-slate-400 mt-0.5">{p.detail}</div>
                 </div>
                 <span
-                  className={`font-mono text-[10px] font-bold uppercase shrink-0 flex items-center gap-1 ${
+                  className={`font-mono text-[10px] font-bold uppercase shrink-0 flex items-center gap-1.5 ${
                     p.status === 'pass'
                       ? 'text-emerald-400'
                       : p.status === 'warn'
@@ -250,8 +287,20 @@ export const AutomatedSoundCheckModule: React.FC<AutomatedSoundCheckModuleProps>
                           : 'text-slate-500'
                   }`}
                 >
-                  {p.status === 'pass' && <CheckCircle2 className="w-3.5 h-3.5" />}
-                  {p.status === 'warn' && <AlertTriangle className="w-3.5 h-3.5" />}
+                  <span
+                    aria-hidden="true"
+                    className="hw-lamp"
+                    style={{ width: 6, height: 6 }}
+                    data-on={
+                      p.status === 'pass'
+                        ? 'green'
+                        : p.status === 'warn'
+                          ? 'amber'
+                          : p.status === 'running'
+                            ? 'cyan'
+                            : undefined
+                    }
+                  />
                   <span>{p.status.toUpperCase()}</span>
                 </span>
               </div>
@@ -261,7 +310,7 @@ export const AutomatedSoundCheckModule: React.FC<AutomatedSoundCheckModuleProps>
 
         {/* Calibration Knobs & Metering */}
         <div className="xl:col-span-5 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 flex flex-col justify-between gap-3">
-          <div className="font-mono text-xs font-semibold text-white uppercase border-b border-slate-800 pb-2">
+          <div className="font-mono text-xs font-semibold uppercase border-b border-slate-800 pb-2 hw-engraved">
             Reference Target &amp; Safety Calibration
           </div>
 
@@ -350,7 +399,7 @@ export const AutomatedSoundCheckModule: React.FC<AutomatedSoundCheckModuleProps>
       {/* Per-Channel Gain-Staging Audit Matrix */}
       <div className="rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 overflow-x-auto">
         <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2.5">
-          <span className="font-mono text-xs font-semibold text-white uppercase">
+          <span className="font-mono text-xs font-semibold uppercase hw-engraved">
             Per-Channel Headroom, Noise Floor &amp; Clip Audit
           </span>
           <span
@@ -367,7 +416,7 @@ export const AutomatedSoundCheckModule: React.FC<AutomatedSoundCheckModuleProps>
 
         <table className="w-full text-left text-xs font-mono border-collapse">
           <thead>
-            <tr className="border-b border-slate-800 text-[10px] text-slate-400 uppercase">
+            <tr className="border-b border-slate-800 text-[10px] uppercase hw-engraved">
               <th className="py-2 pr-3">Channel</th>
               <th className="py-2 pr-3">Authority</th>
               <th className="py-2 pr-3 text-right">Preamp</th>
@@ -412,19 +461,50 @@ export const AutomatedSoundCheckModule: React.FC<AutomatedSoundCheckModuleProps>
                     />
                   </td>
                   <td className="py-2 text-right font-semibold">
-                    {!telemetry.isRunning ? (
-                      <span className="text-slate-500">STANDBY</span>
-                    ) : !liveCh ? (
-                      <span className="text-slate-500">NO STREAM</span>
-                    ) : ch.mute ? (
-                      <span className="text-slate-400">MUTED</span>
-                    ) : hot ? (
-                      <span className="text-red-400">HOT PEAK</span>
-                    ) : noisy ? (
-                      <span className="text-amber-400">HIGH FLOOR</span>
-                    ) : (
-                      <span className="text-emerald-400">NOMINAL PASS</span>
-                    )}
+                    <span
+                      className="flex items-center justify-end gap-1.5"
+                      title={
+                        !telemetry.isRunning
+                          ? 'Engine standby — start the audio engine to audit this channel'
+                          : !liveCh
+                            ? 'No stream on this channel'
+                            : ch.mute
+                              ? 'Channel muted'
+                              : hot
+                                ? 'Peak above -3 dBFS — pull the preamp down'
+                                : noisy
+                                  ? 'Noise floor above -45 dBFS — check cabling'
+                                  : 'Within nominal headroom'
+                      }
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="hw-lamp"
+                        style={{ width: 5, height: 5 }}
+                        data-on={
+                          !telemetry.isRunning || !liveCh || ch.mute
+                            ? undefined
+                            : hot
+                              ? 'red'
+                              : noisy
+                                ? 'amber'
+                                : 'green'
+                        }
+                      />
+                      {!telemetry.isRunning ? (
+                        <span className="text-slate-500">STANDBY</span>
+                      ) : !liveCh ? (
+                        <span className="text-slate-500">NO STREAM</span>
+                      ) : ch.mute ? (
+                        <span className="text-slate-400">MUTED</span>
+                      ) : hot ? (
+                        <span className="text-red-400">HOT PEAK</span>
+                      ) : noisy ? (
+                        <span className="text-amber-400">HIGH FLOOR</span>
+                      ) : (
+                        <span className="text-emerald-400">NOMINAL PASS</span>
+                      )}
+                    </span>
                   </td>
                 </tr>
               );

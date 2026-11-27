@@ -137,8 +137,11 @@ export const MicrophoneIntelligenceModule: React.FC<MicrophoneIntelligenceModule
                 MICROPHONE INTELLIGENCE &amp; RF FLEET MONITOR
               </h1>
             </div>
-            <p className="text-[11px] font-mono text-slate-400">
-              Polar Null Geometry · Gain-Before-Feedback Margin · Preamp &amp; Phantom Control ({device.model})
+            <p
+              className="text-[9.5px] font-mono font-bold uppercase hw-engraved"
+              title={`Polar Null Geometry · Gain-Before-Feedback Margin · Preamp & Phantom Control (${device.model})`}
+            >
+              Polar Null · GBF Margin · Preamp +48V · {device.model}
             </p>
           </div>
         </div>
@@ -170,7 +173,7 @@ export const MicrophoneIntelligenceModule: React.FC<MicrophoneIntelligenceModule
         {/* Stage Map */}
         <div className="xl:col-span-4 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 flex flex-col justify-between gap-2.5">
           <div className="flex items-center justify-between text-xs border-b border-slate-800 pb-2">
-            <span className="font-mono font-semibold text-white uppercase flex items-center gap-1.5">
+            <span className="font-mono font-semibold uppercase flex items-center gap-1.5 hw-engraved">
               <Mic className="w-3.5 h-3.5 text-sky-400" />
               <span>Sanctuary Mic Stage Plot</span>
             </span>
@@ -178,6 +181,7 @@ export const MicrophoneIntelligenceModule: React.FC<MicrophoneIntelligenceModule
           </div>
           <div className="rounded bg-[#070A10] border border-slate-800 p-2">
             <svg viewBox="0 0 400 220" className="w-full h-52 select-none">
+              <title>Sanctuary mic stage plot — monitor-only topology</title>
               <rect x={16} y={14} width={368} height={154} fill="#101725" stroke="#334155" rx={5} />
               <text x={200} y={30} fill="#64748B" fontSize="9" textAnchor="middle" fontFamily="JetBrains Mono">
                 UPSTAGE / CHOIR RISERS
@@ -186,7 +190,7 @@ export const MicrophoneIntelligenceModule: React.FC<MicrophoneIntelligenceModule
               <polygon points="120,148 148,148 140,160 128,160" fill="#1E293B" stroke="#F59E0B" strokeWidth={1} />
               <polygon points="252,148 280,148 272,160 260,160" fill="#1E293B" stroke="#F59E0B" strokeWidth={1} />
               <text x={200} y={194} fill="#475569" fontSize="9" textAnchor="middle" fontFamily="JetBrains Mono">
-                STAGE LIP / FLOOR WEDGES → CONGREGATION
+                STAGE LIP · FLOOR WEDGES
               </text>
               {STAGE_MIC_NODES.map((n) => {
                 const cx = (n.x / 100) * 400;
@@ -208,7 +212,7 @@ export const MicrophoneIntelligenceModule: React.FC<MicrophoneIntelligenceModule
         {/* Polar Pattern & GBF Calculator */}
         <div className="xl:col-span-3 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 flex flex-col justify-between gap-2.5">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <span className="font-mono text-xs font-semibold text-white uppercase">
+            <span className="font-mono text-xs font-semibold uppercase hw-engraved">
               Polar Null &amp; GBF
             </span>
             <span className="font-mono text-[10px] text-sky-400">{selectedMic.pickupPattern}</span>
@@ -280,10 +284,10 @@ export const MicrophoneIntelligenceModule: React.FC<MicrophoneIntelligenceModule
                 key={mic.id}
                 type="button"
                 onClick={() => setSelectedMicId(mic.id)}
-                className={`px-2.5 py-1.5 rounded-xs border font-mono text-[11px] transition-colors ${
+                className={`px-2.5 py-1.5 rounded-xs font-mono text-[11px] transition-colors hw-key ${
                   selectedMic.id === mic.id
-                    ? 'border-sky-400 bg-sky-500/20 text-sky-300 font-semibold'
-                    : 'border-slate-800 bg-[#090D14] text-slate-400 hover:text-slate-200'
+                    ? '!bg-none !border-sky-400 !bg-sky-500/20 !text-sky-300 font-semibold'
+                    : 'hover:!text-slate-200'
                 }`}
               >
                 {mic.role}
@@ -303,9 +307,9 @@ export const MicrophoneIntelligenceModule: React.FC<MicrophoneIntelligenceModule
                 className="flex items-center gap-1.5 font-mono text-[9px] font-bold tracking-wider text-amber-300/90"
                 title={selectedMic.feedbackNote}
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                <span aria-hidden="true" className="hw-lamp shrink-0" style={{ width: 5, height: 5 }} data-on="amber" />
                 <span className="min-w-0 truncate">
-                  {selectedMic.pickupPattern.toUpperCase()} · AIM NULL AT LOUDEST SOURCE
+                  {selectedMic.pickupPattern.toUpperCase()} · AIM NULL
                 </span>
               </div>
               <div className="font-mono text-[10px] text-amber-400">
@@ -370,10 +374,10 @@ export const MicrophoneIntelligenceModule: React.FC<MicrophoneIntelligenceModule
           <button
             type="button"
             onClick={() => applyMicProfile(selectedMic)}
-            className={`w-full py-2 px-3 rounded text-xs font-mono font-semibold flex items-center justify-center gap-1.5 transition-colors ${
+            className={`w-full py-2 px-3 rounded text-xs font-mono font-semibold flex items-center justify-center gap-1.5 transition-colors hw-key ${
               appliedId === selectedMic.id
-                ? 'bg-emerald-600 text-white'
-                : 'bg-sky-600 hover:bg-sky-500 text-white'
+                ? '!bg-none !bg-emerald-600 !border-emerald-400/60 !text-white'
+                : '!bg-none !bg-sky-600 hover:!bg-sky-500 !border-sky-400/60 !text-white'
             }`}
           >
             {appliedId === selectedMic.id && <Check className="w-3.5 h-3.5" />}
@@ -391,7 +395,7 @@ export const MicrophoneIntelligenceModule: React.FC<MicrophoneIntelligenceModule
         {/* Active Mic Capture & Preamp Diagnostics */}
         <div className="xl:col-span-4 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 space-y-2.5">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <span className="font-mono text-xs font-semibold text-white uppercase flex items-center gap-1.5">
+            <span className="font-mono text-xs font-semibold uppercase flex items-center gap-1.5 hw-engraved">
               <Radio className="w-3.5 h-3.5 text-emerald-400" />
               <span>Live Mic Input Telemetry</span>
             </span>
@@ -429,10 +433,30 @@ export const MicrophoneIntelligenceModule: React.FC<MicrophoneIntelligenceModule
             })}
           </div>
 
-          <div className="p-2.5 rounded border border-slate-800 bg-[#090D14] text-[10px] font-mono text-slate-400 flex items-start gap-2">
-            <ShieldAlert className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-            <span>
-              Keep speech mics 10–15 cm from mouth; engage 110–130 Hz HPF before boosting presence. Network UHF RF battery telemetry requires paired receiver hardware.
+          {/* Mic technique LEDs — the old placement/advice paragraph is now
+              engraved status chips; full guidance rides on tooltips */}
+          <div className="p-2.5 rounded border border-slate-800 bg-[#090D14] text-[10px] font-mono flex flex-wrap items-center gap-x-3 gap-y-1">
+            <ShieldAlert className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span
+              className="flex items-center gap-1.5 font-bold tracking-wider text-amber-300"
+              title="Keep speech mics 10–15 cm from mouth for consistent level and reduced plosives."
+            >
+              <span aria-hidden="true" className="hw-lamp" style={{ width: 5, height: 5 }} data-on="amber" />
+              DIST 10–15 CM
+            </span>
+            <span
+              className="flex items-center gap-1.5 font-bold tracking-wider text-sky-300"
+              title="Engage 110–130 Hz HPF before boosting presence."
+            >
+              <span aria-hidden="true" className="hw-lamp" style={{ width: 5, height: 5 }} data-on="cyan" />
+              HPF 110–130 HZ
+            </span>
+            <span
+              className="flex items-center gap-1.5 font-bold tracking-wider text-slate-400"
+              title="Network UHF RF battery telemetry requires paired receiver hardware."
+            >
+              <span aria-hidden="true" className="hw-lamp" style={{ width: 5, height: 5 }} />
+              RF HW PAIRED
             </span>
           </div>
         </div>
@@ -440,7 +464,7 @@ export const MicrophoneIntelligenceModule: React.FC<MicrophoneIntelligenceModule
         {/* Vocal / Mic Preamp Bank */}
         <div className="xl:col-span-8 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 overflow-x-auto">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2.5">
-            <span className="font-mono text-xs font-semibold text-white uppercase">
+            <span className="font-mono text-xs font-semibold uppercase hw-engraved">
               Stage Mic Preamp, HPF &amp; +48V Phantom Strip
             </span>
             <span className="font-mono text-[10px] text-sky-400">

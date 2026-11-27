@@ -89,10 +89,13 @@ export const SignalJourneyModal: React.FC<SignalJourneyModalProps> = ({
             <GitBranch className="w-4 h-4 text-sky-400" />
             <div>
               <h2 className="font-display text-base font-bold text-white">
-                End-to-End Signal Journey — CH {channel.index} ({channel.name})
+                Signal Journey · CH {channel.index} ({channel.name})
               </h2>
-              <p className="font-mono text-[11px] text-slate-400">
-                Real-time physical-to-output routing trace · Live Level {channel.levelDb.toFixed(1)} dBFS
+              <p
+                className="font-mono text-[11px] text-slate-400 uppercase tracking-wider"
+                title={`Real-time physical-to-output routing trace · Live Level ${channel.levelDb.toFixed(1)} dBFS`}
+              >
+                Trace · Live {channel.levelDb.toFixed(1)} dBFS
               </p>
             </div>
           </div>
@@ -138,7 +141,7 @@ export const SignalJourneyModal: React.FC<SignalJourneyModalProps> = ({
                       onNavigateModule(st.target);
                       onClose();
                     }}
-                    className="px-2.5 py-1 rounded border border-slate-700 bg-slate-900 hover:bg-slate-800 text-sky-300 font-mono text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                    className="px-2.5 py-1 rounded border hw-key !text-sky-300 font-mono text-[10px] font-bold flex items-center gap-1 cursor-pointer"
                   >
                     Open
                     <ArrowRight className="w-3 h-3" />

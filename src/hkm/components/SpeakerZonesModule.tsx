@@ -228,8 +228,11 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
                 Intelligent Speaker Management
               </h1>
             </div>
-            <p className="text-[11px] font-mono text-slate-400">
-              Live Church Audio System · Acoustic Alignment (343 m/s) · LR24 / BW18 Matrix
+            <p
+              className="text-[11px] font-mono text-slate-400 hw-engraved"
+              title="Live Church Audio System · Acoustic Alignment (343 m/s) · LR24 / BW18 Matrix"
+            >
+              LIVE PA · 343 M/S ALIGN · LR24 / BW18
             </p>
           </div>
         </div>
@@ -248,7 +251,8 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
             <button
               type="button"
               onClick={() => void onScanAudioDevices(false)}
-              className="px-2.5 py-1.5 rounded border border-slate-600 bg-slate-800/80 text-slate-200 hover:bg-slate-700 font-semibold flex items-center gap-1.5 cursor-pointer"
+              className="px-2.5 py-1.5 rounded hw-key font-semibold flex items-center gap-1.5 cursor-pointer"
+              title="Scan audio output ports"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               <span>Scan Ports ({outputDevices.length})</span>
@@ -258,7 +262,7 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
             <button
               type="button"
               onClick={() => onAddZone(`Speaker Zone ${zones.length + 1}`, 'overflow')}
-              className="px-2.5 py-1.5 rounded border border-sky-400/50 bg-sky-500/20 text-sky-200 hover:bg-sky-500/35 font-semibold flex items-center gap-1 cursor-pointer"
+              className="px-2.5 py-1.5 rounded hw-key !bg-none !border-sky-400/50 !bg-sky-500/20 !text-sky-200 font-semibold flex items-center gap-1 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Speaker</span>
@@ -267,10 +271,10 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
           <button
             type="button"
             onClick={onToggleEmergencyMute ?? handleUnmuteAllZones}
-            className={`px-3 py-1.5 rounded border font-semibold flex items-center gap-1.5 transition-colors ${
+            className={`px-3 py-1.5 rounded hw-key font-semibold flex items-center gap-1.5 transition-colors ${
               emergencyMuted
-                ? 'bg-red-600 border-red-300 text-white shadow-[0_0_12px_rgba(239,68,68,0.6)]'
-                : 'bg-red-950/60 border-red-500/60 text-red-300 hover:bg-red-600/30'
+                ? '!bg-none !border-red-300 !bg-red-600 !text-white shadow-[0_0_12px_rgba(239,68,68,0.6)]'
+                : '!bg-none !border-red-500/60 !bg-red-950/60 !text-red-300 hover:!bg-red-600/30'
             }`}
           >
             <ShieldAlert className="w-3.5 h-3.5" />
@@ -286,7 +290,7 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
           {/* ZONE HEALTH SUMMARY */}
           <div className="rounded-lg border border-slate-800 bg-[#0D1119] p-3 space-y-2.5">
             <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
-              <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-200">
+              <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-200 hw-engraved">
                 Zone Health Summary
               </span>
               <span className="font-mono text-[10px] text-slate-400">{zoneStats.total} ZONES</span>
@@ -344,13 +348,16 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
                 {zones.slice(0, 5).map((z) => (
                   <div key={z.id} className="flex items-center gap-1.5 truncate text-slate-300">
                     <span
-                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                      className="hw-lamp shrink-0"
+                      data-on={
                         z.mute || emergencyMuted
-                          ? 'bg-red-500'
+                          ? 'red'
                           : z.levelDb > 3
-                            ? 'bg-amber-400'
-                            : 'bg-emerald-400'
-                      }`}
+                            ? 'amber'
+                            : 'green'
+                      }
+                      style={{ width: 5, height: 5 }}
+                      aria-hidden="true"
                     />
                     <span className="truncate">{z.name}</span>
                   </div>
@@ -362,10 +369,12 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
           {/* COVERAGE UNIFORMITY HEATMAP */}
           <div className="rounded-lg border border-slate-800 bg-[#0D1119] p-3 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-200">
+              <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-200 hw-engraved">
                 Coverage Uniformity
               </span>
-              <span className="font-mono text-[10px] text-emerald-400">±2.5 dB Target</span>
+              <span className="font-mono text-[10px] text-emerald-400" title="±2.5 dB uniformity target">
+                ±2.5 dB
+              </span>
             </div>
 
             <div className="bg-[#070A10] border border-slate-800 rounded p-2 space-y-1.5">
@@ -380,18 +389,27 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
                   ))
                 )}
               </div>
-              <div className="flex items-center justify-between font-mono text-[10px] text-slate-400 pt-1">
+              <div className="flex items-center justify-between font-mono text-[10px] text-slate-400 pt-1 uppercase">
                 <span>{coverageModel.uniformPct}% Uniform</span>
-                <span className="text-emerald-400">● Strong</span>
-                <span className="text-amber-400">● Edge</span>
-                <span className="text-red-400">● Null/Off</span>
+                <span className="text-emerald-400 flex items-center gap-1">
+                  <span className="hw-lamp" data-on="green" style={{ width: 5, height: 5 }} aria-hidden="true" />
+                  Strong
+                </span>
+                <span className="text-amber-400 flex items-center gap-1">
+                  <span className="hw-lamp" data-on="amber" style={{ width: 5, height: 5 }} aria-hidden="true" />
+                  Edge
+                </span>
+                <span className="text-red-400 flex items-center gap-1">
+                  <span className="hw-lamp" data-on="red" style={{ width: 5, height: 5 }} aria-hidden="true" />
+                  Null/Off
+                </span>
               </div>
             </div>
           </div>
 
           {/* SYSTEM OVERVIEW TABLE */}
           <div className="rounded-lg border border-slate-800 bg-[#0D1119] p-3 space-y-2 flex-1">
-            <div className="font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-200 border-b border-slate-800 pb-1.5">
+            <div className="font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-200 border-b border-slate-800 pb-1.5 hw-engraved">
               System Overview
             </div>
             <div className="space-y-1 max-h-48 overflow-y-auto pr-0.5">
@@ -419,13 +437,16 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
                   >
                     <span className="flex items-center gap-1.5 truncate w-28">
                       <span
-                        className={`w-2 h-2 rounded-full shrink-0 ${
+                        className="hw-lamp shrink-0"
+                        data-on={
                           z.mute || emergencyMuted
-                            ? 'bg-red-500'
+                            ? 'red'
                             : z.levelDb > 3
-                              ? 'bg-amber-400'
-                              : 'bg-emerald-400'
-                        }`}
+                              ? 'amber'
+                              : 'green'
+                        }
+                        style={{ width: 6, height: 6 }}
+                        aria-hidden="true"
                       />
                       <span className="truncate">{z.name}</span>
                     </span>
@@ -464,30 +485,31 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
 
           {/* SYSTEM ALERTS */}
           <div className="rounded-lg border border-slate-800 bg-[#0D1119] p-3 space-y-2">
-            <div className="font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-200">
+            <div className="font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-200 hw-engraved">
               System Alerts
             </div>
             {systemAlerts.length === 0 ? (
-              <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/30 font-mono text-[11px] text-emerald-300 flex items-center gap-2">
+              <div
+                className="p-2 rounded bg-emerald-500/10 border border-emerald-500/30 font-mono text-[11px] text-emerald-300 flex items-center gap-2"
+                title="All speaker arrays nominal."
+              >
                 <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                <span>All speaker arrays nominal.</span>
+                <span>ALL NOMINAL</span>
               </div>
             ) : (
               <div className="space-y-1.5">
                 {systemAlerts.map((a) => (
                   <div
                     key={a.id}
-                    className={`p-2 rounded border font-mono text-[10px] flex items-start gap-2 ${
+                    className={`p-2 rounded border font-mono text-[10px] flex items-center gap-2 ${
                       a.level === 'critical'
                         ? 'bg-red-950/50 border-red-500/40 text-red-200'
                         : 'bg-amber-950/40 border-amber-500/40 text-amber-200'
                     }`}
+                    title={`${a.title} — ${a.detail}`}
                   >
-                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                    <div>
-                      <div className="font-semibold">{a.title}</div>
-                      <div className="text-[9px] opacity-80">{a.detail}</div>
-                    </div>
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <span className="font-semibold truncate">{a.title}</span>
                   </div>
                 ))}
               </div>
@@ -498,7 +520,7 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
         {/* CENTER COLUMN (6 cols): STAGE-TO-ROOM SPEAKER TOPOLOGY */}
         <div className="xl:col-span-6 rounded-lg border border-slate-800 bg-[#0B0F17] p-3.5 flex flex-col justify-between gap-3">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <span className="font-mono text-xs font-semibold uppercase tracking-wider text-white">
+            <span className="font-mono text-xs font-semibold uppercase tracking-wider text-white hw-engraved">
               Stage-to-Room Speaker Topology
             </span>
             <div className="flex items-center gap-1 font-mono text-[10px]">
@@ -507,10 +529,10 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
                   key={t}
                   type="button"
                   onClick={() => setTopologyTab(t)}
-                  className={`px-2 py-0.5 rounded uppercase border ${
+                  className={`px-2 py-0.5 rounded uppercase hw-key ${
                     topologyTab === t
-                      ? 'border-sky-400 bg-sky-500/20 text-sky-300'
-                      : 'border-slate-800 bg-[#090D14] text-slate-400 hover:text-slate-200'
+                      ? '!bg-none !border-sky-400 !bg-sky-500/20 !text-sky-300'
+                      : ''
                   }`}
                 >
                   {t}
@@ -521,7 +543,7 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
 
           {/* STAGE SOURCES */}
           <div className="space-y-1.5">
-            <div className="font-mono text-[10px] text-slate-400 uppercase tracking-wider">
+            <div className="font-mono text-[10px] text-slate-400 uppercase tracking-wider hw-engraved">
               Stage Sources
             </div>
             <div className="grid grid-cols-5 gap-2">
@@ -533,15 +555,21 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
                   <div className="font-mono text-[10px] font-semibold text-slate-200 text-center truncate">
                     {src.label}
                   </div>
-                  <div className="h-5 rounded bg-[#070A10] border border-slate-800 px-1.5 flex items-center justify-between gap-1">
-                    <span className={`w-1.5 h-1.5 rounded-full ${src.levelPct > 0 ? 'bg-sky-400' : 'bg-slate-700'}`} />
-                    <div className="flex-1 h-1.5 bg-slate-800 rounded-xs overflow-hidden">
-                      <div
-                        className="h-full bg-sky-400 transition-[width] duration-75"
-                        style={{
-                          width: `${src.levelPct}%`,
-                        }}
-                      />
+                  <div className="h-5 rounded hw-lcd px-1.5 flex items-center justify-between gap-1.5">
+                    <span
+                      className="hw-lamp"
+                      data-on={src.levelPct > 0 ? 'cyan' : undefined}
+                      style={{ width: 5, height: 5 }}
+                      aria-hidden="true"
+                    />
+                    <div className="hw-led-track-h h-2.5 flex-1 rounded-xs">
+                      {Array.from({ length: 8 }, (_, seg) => (
+                        <span
+                          key={seg}
+                          className="hw-led-seg"
+                          data-lit={src.levelPct >= ((seg + 1) / 8) * 100 ? 'cyan' : undefined}
+                        />
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -551,8 +579,11 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
 
           {/* ILLUMINATED MAIN ARRAYS & CENTER CLUSTER SVG TOPOLOGY */}
           <div className="relative rounded-lg border border-slate-800 bg-[#070A10] p-3 overflow-hidden">
-            <div className="font-mono text-[10px] text-slate-400 uppercase tracking-wider mb-1">
-              Main Arrays (Click cabinet to inspect &amp; tune)
+            <div
+              className="font-mono text-[10px] text-slate-400 uppercase tracking-wider mb-1 hw-engraved"
+              title="Click a cabinet to inspect & tune"
+            >
+              Main Arrays
             </div>
             <svg viewBox="0 0 640 215" className="w-full h-52 select-none">
               <defs>
@@ -692,7 +723,7 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
                   <div className="font-mono text-[10px] font-semibold text-white truncate text-center">
                     {z.name}
                   </div>
-                  <div className="h-7 rounded bg-[#070A10] border border-slate-800 px-1.5 flex items-center justify-between">
+                  <div className="h-7 rounded hw-lcd px-1.5 flex items-center justify-between">
                     <span className="font-mono text-[9px] text-slate-400">
                       {z.levelDb > 0 ? `+${z.levelDb}` : z.levelDb}dB
                     </span>
@@ -700,9 +731,10 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
                   </div>
                   <div className="flex items-center justify-center gap-1.5 font-mono text-[9px]">
                     <span
-                      className={`w-2 h-2 rounded-full ${
-                        isMuted ? 'bg-red-500' : isCaution ? 'bg-amber-400' : 'bg-emerald-400'
-                      }`}
+                      className="hw-lamp"
+                      data-on={isMuted ? 'red' : isCaution ? 'amber' : 'green'}
+                      style={{ width: 6, height: 6 }}
+                      aria-hidden="true"
                     />
                     <span className={isMuted ? 'text-red-300' : isCaution ? 'text-amber-300' : 'text-emerald-300'}>
                       {isMuted ? 'Muted' : isCaution ? 'Caution' : 'Normal'}
@@ -715,8 +747,11 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
 
           {/* DISTRIBUTED ZONES */}
           <div className="space-y-1.5">
-            <div className="font-mono text-[10px] text-slate-400 uppercase tracking-wider">
-              Distributed Zones (Click to Toggle Mute)
+            <div
+              className="font-mono text-[10px] text-slate-400 uppercase tracking-wider hw-engraved"
+              title="Click a zone to toggle mute"
+            >
+              Distributed Zones
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {DISTRIBUTED_ZONES.map((dz) => {
@@ -732,15 +767,12 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
                   >
                     <div className="flex items-center gap-1.5">
                       <span
-                        className={`w-2 h-2 rounded-full ${
-                          isMuted
-                            ? 'bg-red-500'
-                            : telemetry?.isRunning
-                              ? 'bg-emerald-400'
-                              : 'bg-slate-600'
-                        }`}
+                        className="hw-lamp"
+                        data-on={isMuted ? 'red' : telemetry?.isRunning ? 'green' : undefined}
+                        style={{ width: 6, height: 6 }}
+                        aria-hidden="true"
                       />
-                      <span className="w-2 h-2 rounded-full bg-slate-700" />
+                      <span className="hw-lamp" style={{ width: 6, height: 6 }} aria-hidden="true" />
                     </div>
                     <span className="font-mono text-[9px] font-semibold text-slate-200 tracking-wide">
                       {dz.label}
@@ -757,24 +789,25 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
               <button
                 type="button"
                 onClick={handleAlignAllDelays}
-                className="px-2.5 py-1 rounded border border-sky-500/40 bg-sky-500/15 text-sky-300 hover:bg-sky-500/25 font-semibold"
+                className="px-2.5 py-1 rounded hw-key !bg-none !border-sky-500/40 !bg-sky-500/15 !text-sky-300 font-semibold"
+                title="Auto-align all zone delays (343 m/s)"
               >
-                ALIGN ALL DELAYS (343 m/s)
+                ALIGN ALL DELAYS
               </button>
               <button
                 type="button"
                 onClick={handleUnmuteAllZones}
-                className="px-2.5 py-1 rounded border border-emerald-500/40 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 font-semibold"
+                className="px-2.5 py-1 rounded hw-key !bg-none !border-emerald-500/40 !bg-emerald-500/15 !text-emerald-300 font-semibold"
               >
                 UNMUTE ALL ZONES
               </button>
             </div>
             <span
-              className="text-slate-400 flex items-center gap-1.5 font-mono text-[9px] font-bold tracking-wider uppercase"
+              className="text-slate-400 flex items-center gap-1.5 font-mono text-[9px] font-bold tracking-wider uppercase hw-engraved"
               title="Click any array or rack box to edit its DSP parameters"
             >
               <Sliders className="w-3 h-3 text-sky-400" />
-              <span>ARRAY / RACK = EDIT DSP</span>
+              <span>EDIT DSP</span>
             </span>
           </div>
         </div>
@@ -784,16 +817,16 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
           <div className="xl:col-span-3 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 flex flex-col justify-between gap-3">
             <div className="space-y-2 border-b border-slate-800 pb-2.5">
               <div className="flex items-center justify-between">
-                <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-200">
+                <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-200 hw-engraved">
                   Selected Speaker Controls
                 </span>
                 <button
                   type="button"
                   onClick={() => onUpdateZone(selectedZone.id, { mute: !selectedZone.mute })}
-                  className={`px-2 py-0.5 rounded font-mono text-[10px] font-semibold border ${
+                  className={`px-2 py-0.5 rounded font-mono text-[10px] font-semibold hw-key ${
                     selectedZone.mute
-                      ? 'border-red-500 bg-red-600/30 text-red-200'
-                      : 'border-emerald-500/50 bg-emerald-500/15 text-emerald-300'
+                      ? '!bg-none !border-red-500 !bg-red-600/30 !text-red-200'
+                      : '!bg-none !border-emerald-500/50 !bg-emerald-500/15 !text-emerald-300'
                   }`}
                 >
                   {selectedZone.mute ? 'MUTED' : 'ACTIVE'}
@@ -912,9 +945,10 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
                       onRemoveZone(selectedZone.id);
                       if (next) setSelectedId(next.id);
                     }}
-                    className="w-full py-1 rounded border border-rose-500/40 bg-rose-950/30 text-rose-300 hover:bg-rose-900/40 font-mono text-[10px]"
+                    className="w-full py-1 rounded hw-key !bg-none !border-rose-500/40 !bg-rose-950/30 !text-rose-300 font-mono text-[10px]"
+                    title="Remove speaker zone"
                   >
-                    Remove Speaker Zone
+                    REMOVE ZONE
                   </button>
                 )}
               </div>
@@ -1023,14 +1057,14 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
                 <button
                   type="button"
                   onClick={() => onUpdateZone(selectedZone.id, { polarityInverted: false })}
-                  className={`px-2.5 py-1 ${!selectedZone.polarityInverted ? 'bg-sky-600 text-white font-semibold' : 'bg-[#070A10] text-slate-400'}`}
+                  className={`px-2.5 py-1 hw-key ${!selectedZone.polarityInverted ? '!bg-none !bg-sky-600 !text-white font-semibold' : ''}`}
                 >
                   Normal
                 </button>
                 <button
                   type="button"
                   onClick={() => onUpdateZone(selectedZone.id, { polarityInverted: true })}
-                  className={`px-2.5 py-1 ${selectedZone.polarityInverted ? 'bg-amber-600 text-white font-semibold' : 'bg-[#070A10] text-slate-400'}`}
+                  className={`px-2.5 py-1 hw-key ${selectedZone.polarityInverted ? '!bg-none !bg-amber-600 !text-white font-semibold' : ''}`}
                 >
                   Inverted
                 </button>
@@ -1062,11 +1096,17 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
                     {estimatedTempC}°C
                   </span>
                 </div>
-                <div className="h-2 rounded-xs bg-[#070A10] border border-slate-800 overflow-hidden">
-                  <div
-                    className={`h-full ${estimatedTempC > 68 ? 'bg-amber-400' : 'bg-sky-400'}`}
-                    style={{ width: `${Math.min(100, estimatedTempC)}%` }}
-                  />
+                <div className="hw-led-track-h h-2.5 rounded-xs">
+                  {Array.from({ length: 12 }, (_, seg) => {
+                    const lit = ((seg + 1) / 12) * 100 <= Math.min(100, estimatedTempC);
+                    return (
+                      <span
+                        key={seg}
+                        className="hw-led-seg"
+                        data-lit={lit ? (estimatedTempC > 68 ? 'amber' : 'cyan') : undefined}
+                      />
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1078,16 +1118,20 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
 
             {/* Fault Protection Checklist */}
             <div className="p-2.5 rounded bg-[#080C13] border border-slate-800 space-y-1 font-mono text-[10px]">
-              <div className="text-slate-400 uppercase mb-1">Fault Protection</div>
+              <div className="text-slate-400 uppercase mb-1 hw-engraved">Fault Protection</div>
               {[
-                'Overcurrent Protection',
-                'Overheat Protection',
-                'Short Circuit Protection',
-                'Signal Loss Protection',
+                { short: 'OVERCURRENT', full: 'Overcurrent Protection' },
+                { short: 'OVERHEAT', full: 'Overheat Protection' },
+                { short: 'SHORT CIRCUIT', full: 'Short Circuit Protection' },
+                { short: 'SIGNAL LOSS', full: 'Signal Loss Protection' },
               ].map((item) => (
-                <div key={item} className="flex items-center gap-1.5 text-emerald-400">
-                  <CheckCircle2 className="w-3 h-3 shrink-0" />
-                  <span>{item}</span>
+                <div
+                  key={item.short}
+                  className="flex items-center gap-1.5 text-emerald-400"
+                  title={item.full}
+                >
+                  <span className="hw-lamp" data-on="green" style={{ width: 5, height: 5 }} aria-hidden="true" />
+                  <span>{item.short}</span>
                 </div>
               ))}
             </div>
@@ -1098,8 +1142,11 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
       {/* Hidden rotary trim bar for floor coordinates (accessible without cluttering main view) */}
       {selectedZone && (
         <div className="rounded-lg border border-slate-800 bg-[#0D1119] px-3.5 py-2 flex flex-wrap items-center justify-between gap-3 font-mono text-[10px]">
-          <span className="text-slate-400">
-            SELECTED ARRAY GEOMETRY ({selectedZone.name}): X={selectedZone.x}% · Y={selectedZone.y}% · Dispersion {selectedZone.dispersionDeg}°
+          <span
+            className="text-slate-400"
+            title={`Selected array geometry (${selectedZone.name}): X=${selectedZone.x}% · Y=${selectedZone.y}% · Dispersion ${selectedZone.dispersionDeg}°`}
+          >
+            {selectedZone.name.toUpperCase()} · X {selectedZone.x}% · Y {selectedZone.y}% · DISP {selectedZone.dispersionDeg}°
           </span>
           <div className="flex items-center gap-3">
             <RotaryKnob

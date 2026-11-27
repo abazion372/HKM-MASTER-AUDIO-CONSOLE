@@ -15,7 +15,6 @@ import {
   Cpu,
   Zap,
   Cable,
-  LifeBuoy,
   PanelLeft,
   PanelRight,
   PanelTop,
@@ -124,7 +123,10 @@ const NAV_TABS: NavTab[] = [
   makeTab('ai-engineer', 'AI', 'AI Sound Engineer', Sparkles, 'fuchsia'),
   makeTab('hardware', 'Hardware', 'Diagnostics, Hardware & Remote Access', Cpu, 'cyan'),
   makeTab('midi', 'MIDI', 'MIDI & Key Shortcuts', Cable, 'cyan'),
-  makeTab('help', 'Help', 'Help Desk — Operation Manual & Field Guide', LifeBuoy, 'cyan'),
+  // NOTE: the Help Desk intentionally has NO nav tab — it lives in the
+  // menu bar's Help menu (Help → Help Desk — Operation Manual), the way real
+  // consoles keep the manual off the surface. The 'help' module id remains
+  // valid and reachable via the menu, deep links and first-run guide.
 ];
 
 const DOCK_OPTIONS: {

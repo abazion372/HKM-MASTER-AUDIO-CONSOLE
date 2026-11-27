@@ -138,8 +138,16 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
 
         <div className="max-h-96 overflow-y-auto divide-y divide-slate-800/70">
           {results.length === 0 ? (
-            <div className="p-6 text-center text-xs font-mono text-slate-500">
-              No matching channels, modules, or speaker zones.
+            <div
+              className="p-6 flex items-center justify-center gap-2 text-xs font-mono text-slate-500 uppercase tracking-wider"
+              title="No matching channels, modules, or speaker zones."
+            >
+              <span
+                aria-hidden="true"
+                className="hw-lamp"
+                style={{ width: 6, height: 6 }}
+              />
+              No Match
             </div>
           ) : (
             results.map((item) => (
@@ -168,7 +176,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                     <button
                       type="button"
                       onClick={item.onTrace}
-                      className="px-2 py-1 rounded border border-emerald-500/40 bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-300 font-mono text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                      title="Trace signal journey"
+                      className="px-2 py-1 rounded border hw-key !bg-none !bg-emerald-500/15 !border-emerald-500/40 !text-emerald-300 hover:!bg-emerald-500/30 font-mono text-[10px] font-bold flex items-center gap-1 cursor-pointer"
                     >
                       <GitBranch className="w-3 h-3" />
                       Trace
@@ -177,7 +186,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                   <button
                     type="button"
                     onClick={item.onOpen}
-                    className="p-1.5 rounded border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300 cursor-pointer"
+                    title="Open"
+                    className="p-1.5 rounded border hw-key !text-slate-300 cursor-pointer"
                   >
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>

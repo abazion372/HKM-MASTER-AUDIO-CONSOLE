@@ -26,7 +26,7 @@ const PRESET_CURVES: {
   },
   {
     id: 'superbass-slam',
-    name: '⚡ SUPERBASS SLAM (+8 dB)',
+    name: 'SUPERBASS SLAM +8 dB',
     description: 'Deep subwoofer expansion with massive low-end weight (31.5-63Hz) and clean mid cut',
     apply: () => {
       return ISO_31_FREQUENCIES.map((hz) => {
@@ -42,7 +42,7 @@ const PRESET_CURVES: {
   },
   {
     id: 'punch-kick',
-    name: '💥 PUNCHY 808 & KICK',
+    name: 'PUNCHY 808 & KICK',
     description: 'Tight sub punch (+6dB @ 63-100Hz) with aggressive sub-sonic rumble filtering below 35Hz',
     apply: () => {
       return ISO_31_FREQUENCIES.map((hz) => {
@@ -336,10 +336,10 @@ export const StereoGraphicEqModule: React.FC<StereoGraphicEqModuleProps> = ({
               type="button"
               disabled={panelLocked}
               onClick={handleToggleStereoLink}
-              className={`px-2 py-1 rounded border font-bold flex items-center gap-1 cursor-pointer ${
+              className={`px-2 py-1 rounded hw-key font-bold flex items-center gap-1 cursor-pointer ${
                 isLinked
-                  ? 'bg-cyan-500/20 border-cyan-400/60 text-cyan-200'
-                  : 'bg-amber-500/20 border-amber-400/60 text-amber-200'
+                  ? '!bg-none !bg-cyan-500/20 !border-cyan-400/60 !text-cyan-200'
+                  : '!bg-none !bg-amber-500/20 !border-amber-400/60 !text-amber-200'
               }`}
             >
               {isLinked ? <Link2 className="w-3 h-3" /> : <Unlink className="w-3 h-3" />}
@@ -432,7 +432,7 @@ export const StereoGraphicEqModule: React.FC<StereoGraphicEqModuleProps> = ({
               type="button"
               disabled={panelLocked}
               onClick={() => handleTriggerSuperBass(4.0)}
-              className="px-2 py-1 rounded border border-cyan-400/50 bg-cyan-500/20 hover:bg-cyan-500/35 text-cyan-200 font-bold cursor-pointer"
+              className="px-2 py-1 rounded hw-key !bg-none !border-cyan-400/50 !bg-cyan-500/20 !text-cyan-200 font-bold cursor-pointer"
               title="SuperBass +4 dB Sub Punch"
             >
               +4 SUB
@@ -441,7 +441,7 @@ export const StereoGraphicEqModule: React.FC<StereoGraphicEqModuleProps> = ({
               type="button"
               disabled={panelLocked}
               onClick={() => handleTriggerSuperBass(7.5)}
-              className="px-2 py-1 rounded border border-fuchsia-400/60 bg-fuchsia-600/25 hover:bg-fuchsia-600/40 text-fuchsia-200 font-bold cursor-pointer"
+              className="px-2 py-1 rounded hw-key !bg-none !border-fuchsia-400/60 !bg-fuchsia-600/25 !text-fuchsia-200 font-bold cursor-pointer"
               title="SuperBass +7.5 dB Sub Slam"
             >
               +7.5 SLAM
@@ -450,7 +450,7 @@ export const StereoGraphicEqModule: React.FC<StereoGraphicEqModuleProps> = ({
               type="button"
               disabled={panelLocked}
               onClick={() => handleApplyPreset(PRESET_CURVES[0])}
-              className="px-2 py-1 rounded border border-slate-700 bg-[#121824] hover:bg-slate-800 text-slate-200 font-bold cursor-pointer flex items-center gap-1"
+              className="px-2 py-1 rounded hw-key font-bold cursor-pointer flex items-center gap-1"
             >
               <RotateCcw className="w-3 h-3 text-cyan-400" />
               FLAT
@@ -483,8 +483,11 @@ export const StereoGraphicEqModule: React.FC<StereoGraphicEqModuleProps> = ({
               </h2>
             </div>
             {!compactConsoleMode && (
-              <p className="text-[11px] font-mono text-slate-400">
-                Illuminated Constant-Q Sliders · Stereo L/R Matrix Routing · Instant SuperBass Accel
+              <p
+                className="text-[11px] font-mono text-slate-400 hw-engraved"
+                title="Illuminated Constant-Q Sliders · Stereo L/R Matrix Routing · Instant SuperBass Accel"
+              >
+                CONSTANT-Q · L/R MATRIX · SUPERBASS
               </p>
             )}
           </div>
@@ -496,10 +499,10 @@ export const StereoGraphicEqModule: React.FC<StereoGraphicEqModuleProps> = ({
             type="button"
             disabled={panelLocked}
             onClick={handleToggleStereoLink}
-            className={`px-3 py-1 rounded border text-[11px] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+            className={`px-3 py-1 rounded hw-key text-[11px] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
               isLinked
-                ? 'bg-cyan-500/20 border-cyan-400/60 text-cyan-200 shadow-[0_0_10px_rgba(6,182,212,0.2)]'
-                : 'bg-amber-500/15 border-amber-400/50 text-amber-200 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
+                ? '!bg-none !bg-cyan-500/20 !border-cyan-400/60 !text-cyan-200 shadow-[0_0_10px_rgba(6,182,212,0.2)]'
+                : '!bg-none !bg-amber-500/15 !border-amber-400/50 !text-amber-200 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
             }`}
           >
             {isLinked ? (
@@ -520,10 +523,10 @@ export const StereoGraphicEqModule: React.FC<StereoGraphicEqModuleProps> = ({
             <button
               type="button"
               onClick={() => setRangeMode(12)}
-              className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors cursor-pointer ${
+              className={`px-2.5 py-1 rounded hw-key text-[10px] font-semibold transition-colors cursor-pointer ${
                 rangeMode === 12
-                  ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 shadow-xs'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? '!bg-none !bg-cyan-500/25 !border-cyan-500/40 !text-cyan-300 shadow-xs'
+                  : ''
               }`}
             >
               ±12 dB (FOH)
@@ -531,10 +534,10 @@ export const StereoGraphicEqModule: React.FC<StereoGraphicEqModuleProps> = ({
             <button
               type="button"
               onClick={() => setRangeMode(6)}
-              className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors cursor-pointer ${
+              className={`px-2.5 py-1 rounded hw-key text-[10px] font-semibold transition-colors cursor-pointer ${
                 rangeMode === 6
-                  ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 shadow-xs'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? '!bg-none !bg-cyan-500/25 !border-cyan-500/40 !text-cyan-300 shadow-xs'
+                  : ''
               }`}
             >
               ±6 dB (FINE)
@@ -546,7 +549,7 @@ export const StereoGraphicEqModule: React.FC<StereoGraphicEqModuleProps> = ({
             type="button"
             disabled={panelLocked}
             onClick={() => handleApplyPreset(PRESET_CURVES[0])}
-            className="px-2.5 py-1 rounded border border-slate-700 bg-[#121824] hover:bg-slate-800 text-slate-200 flex items-center gap-1.5 transition-colors disabled:opacity-40 cursor-pointer"
+            className="px-2.5 py-1 rounded hw-key flex items-center gap-1.5 transition-colors disabled:opacity-40 cursor-pointer"
           >
             <RotateCcw className="w-3 h-3 text-cyan-400" />
             <span>FLAT RESET</span>
@@ -565,15 +568,18 @@ export const StereoGraphicEqModule: React.FC<StereoGraphicEqModuleProps> = ({
       {/* SuperBass Quick Boost Action Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-lg bg-gradient-to-r from-cyan-950/40 via-[#0A101C] to-fuchsia-950/30 border border-cyan-500/30">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] uppercase font-bold text-cyan-300 flex items-center gap-1.5">
+          <span
+            className="font-mono text-[10px] uppercase font-bold text-cyan-300 flex items-center gap-1.5 hw-engraved"
+            title="SuperBass accelerator"
+          >
             <Flame className="w-3.5 h-3.5 text-fuchsia-400 animate-pulse" />
-            SuperBass Accelerator:
+            SUPERBASS
           </span>
           <button
             type="button"
             disabled={panelLocked}
             onClick={() => handleTriggerSuperBass(4.0)}
-            className="px-2.5 py-1 rounded border border-cyan-400/50 bg-cyan-500/20 hover:bg-cyan-500/35 text-cyan-200 font-mono text-[10px] font-bold flex items-center gap-1 transition cursor-pointer shadow-[0_0_8px_rgba(6,182,212,0.3)]"
+            className="px-2.5 py-1 rounded hw-key !bg-none !border-cyan-400/50 !bg-cyan-500/20 !text-cyan-200 font-mono text-[10px] font-bold flex items-center gap-1 transition cursor-pointer shadow-[0_0_8px_rgba(6,182,212,0.3)]"
           >
             <Zap className="w-3 h-3 text-cyan-300" />
             +4 dB SUB PUNCH
@@ -582,7 +588,7 @@ export const StereoGraphicEqModule: React.FC<StereoGraphicEqModuleProps> = ({
             type="button"
             disabled={panelLocked}
             onClick={() => handleTriggerSuperBass(7.5)}
-            className="px-2.5 py-1 rounded border border-fuchsia-400/60 bg-fuchsia-600/25 hover:bg-fuchsia-600/40 text-fuchsia-200 font-mono text-[10px] font-bold flex items-center gap-1 transition cursor-pointer shadow-[0_0_10px_rgba(217,70,239,0.3)]"
+            className="px-2.5 py-1 rounded hw-key !bg-none !border-fuchsia-400/60 !bg-fuchsia-600/25 !text-fuchsia-200 font-mono text-[10px] font-bold flex items-center gap-1 transition cursor-pointer shadow-[0_0_10px_rgba(217,70,239,0.3)]"
           >
             <Flame className="w-3 h-3 text-fuchsia-300" />
             +7.5 dB SUB SLAM
@@ -591,7 +597,7 @@ export const StereoGraphicEqModule: React.FC<StereoGraphicEqModuleProps> = ({
 
         {/* Real-World Hardware Output Routing Matrix */}
         <div className="flex items-center gap-2 font-mono text-[11px]">
-          <span className="text-slate-400 text-[10px] uppercase font-semibold flex items-center gap-1">
+          <span className="text-slate-400 text-[10px] uppercase font-semibold flex items-center gap-1 hw-engraved">
             <Volume2 className="w-3.5 h-3.5 text-cyan-400" />
             Output Bus:
           </span>
@@ -613,11 +619,11 @@ export const StereoGraphicEqModule: React.FC<StereoGraphicEqModuleProps> = ({
       {/* Channel Selector Bar when Independent */}
       <div className="flex flex-wrap items-center justify-between gap-2.5 p-2 rounded-lg bg-[#080C14] border border-slate-800">
         <div className="flex items-center gap-1.5 font-mono text-[11px]">
-          <span className="text-slate-400 text-[10px] uppercase font-semibold mr-1">Channel Focus:</span>
+          <span className="text-slate-400 text-[10px] uppercase font-semibold mr-1 hw-engraved">Channel Focus:</span>
           {isLinked ? (
-            <div className="px-3 py-1 rounded bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 font-bold flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.8)]" />
-              CH 1 &amp; CH 2 (STEREO PA COUPLED)
+            <div className="px-3 py-1 rounded bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 font-bold flex items-center gap-1.5" title="Stereo PA coupled">
+              <span className="hw-lamp" data-on="cyan" style={{ width: 6, height: 6 }} aria-hidden="true" />
+              CH 1 + CH 2 LINKED
             </div>
           ) : (
             <div className="flex items-center rounded border border-slate-800 bg-[#06090F] p-0.5">
@@ -631,7 +637,7 @@ export const StereoGraphicEqModule: React.FC<StereoGraphicEqModuleProps> = ({
                 }`}
               >
                 <span className="w-2 h-2 rounded-full bg-cyan-400" />
-                CH 1 (LEFT PA)
+                CH 1 LEFT
               </button>
               <button
                 type="button"
@@ -643,7 +649,7 @@ export const StereoGraphicEqModule: React.FC<StereoGraphicEqModuleProps> = ({
                 }`}
               >
                 <span className="w-2 h-2 rounded-full bg-violet-400" />
-                CH 2 (RIGHT PA)
+                CH 2 RIGHT
               </button>
             </div>
           )}
@@ -653,7 +659,7 @@ export const StereoGraphicEqModule: React.FC<StereoGraphicEqModuleProps> = ({
               <button
                 type="button"
                 onClick={handleCopyLtoR}
-                className="px-2 py-0.5 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-[10px] text-cyan-300 flex items-center gap-1 cursor-pointer"
+                className="px-2 py-0.5 rounded hw-key !text-cyan-300 text-[10px] flex items-center gap-1 cursor-pointer"
                 title="Copy Left Channel EQ curve onto Right Channel"
               >
                 <Copy className="w-3 h-3" />
@@ -662,7 +668,7 @@ export const StereoGraphicEqModule: React.FC<StereoGraphicEqModuleProps> = ({
               <button
                 type="button"
                 onClick={handleCopyRtoL}
-                className="px-2 py-0.5 rounded border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-[10px] text-violet-300 flex items-center gap-1 cursor-pointer"
+                className="px-2 py-0.5 rounded hw-key !text-violet-300 text-[10px] flex items-center gap-1 cursor-pointer"
                 title="Copy Right Channel EQ curve onto Left Channel"
               >
                 <Copy className="w-3 h-3" />
@@ -674,7 +680,7 @@ export const StereoGraphicEqModule: React.FC<StereoGraphicEqModuleProps> = ({
 
         {/* Preset Curve Pills Bar */}
         <div className="flex flex-wrap items-center gap-1">
-          <span className="font-mono text-[10px] uppercase text-slate-400 mr-1 flex items-center gap-1">
+          <span className="font-mono text-[10px] uppercase text-slate-400 mr-1 flex items-center gap-1 hw-engraved">
             <Sparkles className="w-3 h-3 text-cyan-400" />
             Curves:
           </span>
@@ -685,7 +691,7 @@ export const StereoGraphicEqModule: React.FC<StereoGraphicEqModuleProps> = ({
               disabled={panelLocked}
               onClick={() => handleApplyPreset(curve)}
               title={curve.description}
-              className="px-2 py-0.5 rounded border border-slate-800 bg-[#0E1420] hover:border-cyan-500/40 hover:bg-[#131D2E] text-[10px] font-mono text-slate-300 transition-colors disabled:opacity-40 cursor-pointer"
+              className="px-2 py-0.5 rounded hw-key text-[10px] font-mono transition-colors disabled:opacity-40 cursor-pointer"
             >
               {curve.name}
             </button>
@@ -703,18 +709,18 @@ export const StereoGraphicEqModule: React.FC<StereoGraphicEqModuleProps> = ({
       >
         <div className="flex items-center justify-between font-mono text-[9px] mb-0.5">
           <div className="flex items-center gap-3">
-            <span className="text-cyan-400 font-semibold tracking-wider flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.8)]" />
-              CH 1 / LEFT TRANSFER CURVE
+            <span className="text-cyan-400 font-semibold tracking-wider flex items-center gap-1" title="CH 1 / Left transfer curve">
+              <span className="hw-lamp" data-on="cyan" style={{ width: 5, height: 5 }} aria-hidden="true" />
+              CH 1 CURVE
             </span>
             {!isLinked && (
-              <span className="text-violet-400 font-semibold tracking-wider flex items-center gap-1">
+              <span className="text-violet-400 font-semibold tracking-wider flex items-center gap-1" title="CH 2 / Right transfer curve">
                 <span className="w-2 h-2 rounded-full bg-violet-400 shadow-[0_0_6px_rgba(167,139,250,0.8)]" />
-                CH 2 / RIGHT TRANSFER CURVE
+                CH 2 CURVE
               </span>
             )}
           </div>
-          <span className="text-slate-500 font-mono">Range: ±{rangeMode} dB</span>
+          <span className="text-slate-500 font-mono hw-lcd rounded px-1.5" title="Transfer-curve range">RANGE ±{rangeMode} dB</span>
         </div>
 
         <svg

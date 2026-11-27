@@ -27,12 +27,14 @@ interface InstrumentIntelligenceModuleProps {
 }
 
 const BAND_SPECTRUM_SLOTS = [
-  { name: 'Kick Drum', lowHz: 45, highHz: 110, punchHz: 3200, color: '#F59E0B', note: 'HPF 35 Hz · Carve 300 Hz mud' },
-  { name: 'Bass Guitar DI', lowHz: 41, highHz: 260, punchHz: 900, color: '#38BDF8', note: 'Carve 80 Hz for Kick · 50 Hz hum check' },
-  { name: 'Keys / Piano', lowHz: 85, highHz: 4500, punchHz: 2400, color: '#A78BFA', note: 'HPF 85 Hz · Dip 350 Hz when band dense' },
-  { name: 'Acoustic Guitar', lowHz: 100, highHz: 6000, punchHz: 4500, color: '#10B981', note: 'HPF 100 Hz · Notch 180 Hz body boom' },
-  { name: 'Electric Guitar', lowHz: 110, highHz: 5200, punchHz: 2100, color: '#F472B6', note: 'Leave 2.5–3.5 kHz vocal pocket clear' },
-  { name: 'Lead Vocal Pocket', lowHz: 120, highHz: 8000, punchHz: 3000, color: '#FDE047', note: 'Priority clarity lane 2.0–4.2 kHz' },
+  // `note` is the full silkscreen advice — it rides on the tooltip; `short`
+  // is the compact readout rendered next to each masking bar.
+  { name: 'Kick Drum', lowHz: 45, highHz: 110, punchHz: 3200, color: '#F59E0B', note: 'HPF 35 Hz · Carve 300 Hz mud', short: 'HPF 35 · DIP 300' },
+  { name: 'Bass Guitar DI', lowHz: 41, highHz: 260, punchHz: 900, color: '#38BDF8', note: 'Carve 80 Hz for Kick · 50 Hz hum check', short: 'DIP 80 · 50 HZ CHK' },
+  { name: 'Keys / Piano', lowHz: 85, highHz: 4500, punchHz: 2400, color: '#A78BFA', note: 'HPF 85 Hz · Dip 350 Hz when band dense', short: 'HPF 85 · DIP 350' },
+  { name: 'Acoustic Guitar', lowHz: 100, highHz: 6000, punchHz: 4500, color: '#10B981', note: 'HPF 100 Hz · Notch 180 Hz body boom', short: 'HPF 100 · NOTCH 180' },
+  { name: 'Electric Guitar', lowHz: 110, highHz: 5200, punchHz: 2100, color: '#F472B6', note: 'Leave 2.5–3.5 kHz vocal pocket clear', short: 'POCKET 2.5–3.5K' },
+  { name: 'Lead Vocal Pocket', lowHz: 120, highHz: 8000, punchHz: 3000, color: '#FDE047', note: 'Priority clarity lane 2.0–4.2 kHz', short: 'LANE 2.0–4.2K' },
 ];
 
 export const InstrumentIntelligenceModule: React.FC<InstrumentIntelligenceModuleProps> = ({
@@ -111,8 +113,11 @@ export const InstrumentIntelligenceModule: React.FC<InstrumentIntelligenceModule
                 INSTRUMENT &amp; WORSHIP MUSIC INTELLIGENCE
               </h1>
             </div>
-            <p className="text-[11px] font-mono text-slate-400">
-              Band Frequency Masking Matrix · DI Ground-Loop Guard · Crest Factor &amp; Channel Preamp Strip
+            <p
+              className="text-[9.5px] font-mono font-bold uppercase hw-engraved"
+              title="Band Frequency Masking Matrix · DI Ground-Loop Guard · Crest Factor & Channel Preamp Strip"
+            >
+              MASK MATRIX · DI GUARD · CREST · PREAMP BANK
             </p>
           </div>
         </div>
@@ -127,7 +132,7 @@ export const InstrumentIntelligenceModule: React.FC<InstrumentIntelligenceModule
           <button
             type="button"
             onClick={handleCarveVocalPocket}
-            className="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-mono font-semibold"
+            className="px-3 py-1.5 rounded hw-key !bg-none !bg-emerald-600 hover:!bg-emerald-500 !border-emerald-400/60 !text-white text-xs font-mono font-semibold cursor-pointer"
           >
             CARVE {vocalPocketCarveDb.toFixed(1)} dB VOCAL POCKET
           </button>
@@ -139,11 +144,14 @@ export const InstrumentIntelligenceModule: React.FC<InstrumentIntelligenceModule
         {/* Frequency Masking Map */}
         <div className="xl:col-span-6 rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 flex flex-col justify-between gap-3">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <span className="font-mono text-xs font-semibold text-white uppercase flex items-center gap-1.5">
+            <span
+              className="font-mono text-xs font-semibold uppercase flex items-center gap-1.5 hw-engraved"
+              title="Worship band frequency masking map"
+            >
               <Music className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Worship Band Frequency Masking Map</span>
+              <span>Band Frequency Masking Map</span>
             </span>
-            <span className="font-mono text-[10px] text-slate-400">30 Hz – 16 kHz</span>
+            <span className="font-mono text-[10px] text-slate-300 hw-lcd rounded px-1.5 py-0.5">30 Hz – 16 kHz</span>
           </div>
 
           <div className="space-y-2.5 bg-[#070A10] border border-slate-800 rounded p-3">
@@ -158,7 +166,7 @@ export const InstrumentIntelligenceModule: React.FC<InstrumentIntelligenceModule
                 <div key={slot.name} className="space-y-1">
                   <div className="flex items-center justify-between text-[10px] font-mono">
                     <span className="text-slate-200 font-semibold">{slot.name}</span>
-                    <span className="text-slate-500">{slot.note}</span>
+                    <span className="text-slate-500" title={slot.note}>{slot.short}</span>
                   </div>
                   <div className="relative h-3.5 rounded-xs bg-[#0B0F17] border border-slate-800 overflow-hidden">
                     <div
@@ -183,10 +191,10 @@ export const InstrumentIntelligenceModule: React.FC<InstrumentIntelligenceModule
               displayValue={telemetry.isRunning ? `${crestFactorDb.toFixed(1)}dB` : '--'}
               sublabel={
                 !telemetry.isRunning
-                  ? 'Engine Standby'
+                  ? 'STANDBY'
                   : crestFactorDb < 7
-                    ? 'Over-Compressed'
-                    : 'Healthy Punch'
+                    ? 'OVER-COMP'
+                    : 'PUNCH OK'
               }
               tone={!telemetry.isRunning ? 'sky' : crestFactorDb < 7 ? 'amber' : 'emerald'}
             />
@@ -204,12 +212,20 @@ export const InstrumentIntelligenceModule: React.FC<InstrumentIntelligenceModule
                 onChange={setVocalPocketCarveDb}
               />
             </div>
-            <div className="p-2 rounded border border-slate-800 bg-[#090D14] text-[10px] font-mono text-slate-400">
-              <div className="text-amber-400 font-semibold mb-0.5">50 Hz HUM CHECK</div>
+            <div className="p-2 rounded hw-lcd text-[10px] font-mono text-slate-400">
+              <div className="text-amber-400 font-semibold mb-0.5 flex items-center gap-1.5">
+                <span
+                  aria-hidden="true"
+                  className="hw-lamp"
+                  style={{ width: 5, height: 5 }}
+                  data-on={telemetry.humRisk.detected ? 'red' : 'green'}
+                />
+                50 Hz HUM CHECK
+              </div>
               {telemetry.humRisk.detected ? (
-                <span className="text-red-400">HUM DETECTED @ {telemetry.humRisk.fundamentalHz} Hz</span>
+                <span className="text-red-400">HUM @ {telemetry.humRisk.fundamentalHz} Hz</span>
               ) : (
-                <span className="text-emerald-400">DI LINES CLEAN</span>
+                <span className="text-emerald-400">DI CLEAN</span>
               )}
             </div>
           </div>
@@ -223,10 +239,10 @@ export const InstrumentIntelligenceModule: React.FC<InstrumentIntelligenceModule
                 key={inst.id}
                 type="button"
                 onClick={() => setSelectedInstId(inst.id)}
-                className={`px-2.5 py-1.5 rounded-xs border font-mono text-[11px] transition-colors ${
+                className={`px-2.5 py-1.5 rounded-xs font-mono text-[11px] transition-colors hw-key ${
                   selectedInst.id === inst.id
-                    ? 'border-emerald-400 bg-emerald-500/20 text-emerald-300 font-semibold'
-                    : 'border-slate-800 bg-[#090D14] text-slate-400 hover:text-slate-200'
+                    ? '!bg-none !border-emerald-400 !bg-emerald-500/20 !text-emerald-300 font-semibold'
+                    : 'hover:!text-slate-200'
                 }`}
               >
                 {inst.instrument}
@@ -247,10 +263,10 @@ export const InstrumentIntelligenceModule: React.FC<InstrumentIntelligenceModule
                   type="button"
                   onClick={() => setRigNotesOpen((v) => !v)}
                   aria-expanded={rigNotesOpen}
-                  className={`px-2 py-1 rounded border font-mono text-[9px] font-bold tracking-wider transition-colors cursor-pointer ${
+                  className={`px-2 py-1 rounded font-mono text-[9px] font-bold tracking-wider transition-colors cursor-pointer hw-key ${
                     rigNotesOpen
-                      ? 'border-amber-400/70 bg-amber-500/15 text-amber-200'
-                      : 'border-slate-700 bg-[#0A0F16] text-slate-400 hover:text-slate-100'
+                      ? '!bg-none !border-amber-400/70 !bg-amber-500/15 !text-amber-200'
+                      : 'hover:!text-slate-100'
                   }`}
                   title={selectedInst.diagnosticNotes.join('\n')}
                 >
@@ -325,7 +341,12 @@ export const InstrumentIntelligenceModule: React.FC<InstrumentIntelligenceModule
                 }`}
                 title="DI ground-lift recommendation flag — toggled by the DI GROUND LIFT key above"
               >
-                <span className={`w-1.5 h-1.5 rounded-full ${diGroundLiftAdvice ? 'bg-amber-400' : 'bg-slate-600'}`} />
+                <span
+                  aria-hidden="true"
+                  className="hw-lamp"
+                  style={{ width: 5, height: 5 }}
+                  data-on={diGroundLiftAdvice ? 'amber' : undefined}
+                />
                 GND LIFT REC
               </span>
               <span
@@ -336,7 +357,12 @@ export const InstrumentIntelligenceModule: React.FC<InstrumentIntelligenceModule
                 }`}
                 title={telemetry.humRisk.detected ? `Mains hum detected at ${telemetry.humRisk.fundamentalHz} Hz — ground-lift the DI before EQ cuts` : 'No mains hum detected on DI lines'}
               >
-                <span className={`w-1.5 h-1.5 rounded-full ${telemetry.humRisk.detected ? 'bg-red-400 animate-pulse' : 'bg-emerald-400'}`} />
+                <span
+                  aria-hidden="true"
+                  className={`hw-lamp ${telemetry.humRisk.detected ? 'animate-pulse' : ''}`}
+                  style={{ width: 5, height: 5 }}
+                  data-on={telemetry.humRisk.detected ? 'red' : 'green'}
+                />
                 {telemetry.humRisk.detected ? `HUM ${telemetry.humRisk.fundamentalHz} HZ` : 'DI CLEAN'}
               </span>
             </div>
@@ -344,7 +370,7 @@ export const InstrumentIntelligenceModule: React.FC<InstrumentIntelligenceModule
               type="button"
               onClick={() => openHelpTopic('instruments')}
               title="Open the DI & ground-loop field guide in the Help Desk"
-              className="px-2 py-1 rounded border border-[#2A3646] bg-[#0A0F16] text-slate-300 hover:text-white hover:border-teal-400/50 font-mono text-[9px] font-bold tracking-wider cursor-pointer shrink-0"
+              className="px-2 py-1 rounded hw-key hover:!text-white hover:!border-teal-400/50 font-mono text-[9px] font-bold tracking-wider cursor-pointer shrink-0"
             >
               DI GUIDE
             </button>
@@ -353,10 +379,10 @@ export const InstrumentIntelligenceModule: React.FC<InstrumentIntelligenceModule
           <button
             type="button"
             onClick={() => applyInstrumentProfile(selectedInst)}
-            className={`w-full py-2 px-3 rounded text-xs font-mono font-semibold flex items-center justify-center gap-1.5 transition-colors ${
+            className={`w-full py-2 px-3 rounded text-xs font-mono font-semibold flex items-center justify-center gap-1.5 transition-colors hw-key ${
               appliedId === selectedInst.id
-                ? 'bg-emerald-600 text-white'
-                : 'bg-sky-600 hover:bg-sky-500 text-white'
+                ? '!bg-none !bg-emerald-600 !border-emerald-400/60 !text-white'
+                : '!bg-none !bg-sky-600 hover:!bg-sky-500 !border-sky-400/60 !text-white'
             }`}
           >
             {appliedId === selectedInst.id && <Check className="w-3.5 h-3.5" />}
@@ -372,11 +398,14 @@ export const InstrumentIntelligenceModule: React.FC<InstrumentIntelligenceModule
       {/* Bottom Row: Instrument Console Channels Strip */}
       <div className="rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 overflow-x-auto">
         <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2.5">
-          <span className="font-mono text-xs font-semibold text-white uppercase">
-            Instrument &amp; Band Channel Preamp / DI Bank
+          <span
+            className="font-mono text-xs font-semibold uppercase hw-engraved"
+            title="Instrument & Band Channel Preamp / DI Bank"
+          >
+            Band Channel Preamp / DI Bank
           </span>
           <span className="font-mono text-[10px] text-sky-400">
-            {device.capabilities.perChannelCapture ? `${instrumentChannels.length} Band Channels` : 'Stereo USB Return Mode'}
+            {device.capabilities.perChannelCapture ? `${instrumentChannels.length} Band Channels` : 'Stereo USB Return'}
           </span>
         </div>
 

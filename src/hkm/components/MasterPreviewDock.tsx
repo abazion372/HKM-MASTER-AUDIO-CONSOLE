@@ -263,11 +263,12 @@ export const MasterPreviewDock: React.FC<MasterPreviewDockProps> = ({
       <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 shrink-0">
         <div className="flex items-center gap-1.5">
           <span
-            className={`w-2 h-2 rounded-full ${
-              telemetry.isRunning ? 'bg-emerald-400' : 'bg-slate-600'
-            }`}
+            aria-hidden="true"
+            className="hw-lamp shrink-0"
+            data-on={telemetry.isRunning ? 'green' : undefined}
+            style={{ width: 6, height: 6 }}
           />
-          <span className="font-bold text-white tracking-wider">LIVE MASTER PREVIEW</span>
+          <span className="font-bold text-white tracking-wider hw-engraved !text-white">LIVE MASTER PREVIEW</span>
         </div>
         <button
           type="button"
@@ -281,9 +282,12 @@ export const MasterPreviewDock: React.FC<MasterPreviewDockProps> = ({
 
       {/* Live Pre vs Post Stereo Meters + LUFS */}
       <div className="p-2 rounded-lg border border-slate-800 bg-[#05080F] space-y-2 shrink-0">
-        <div className="flex items-center justify-between text-[9px] text-slate-400">
+        <div className="flex items-center justify-between text-[9px] text-slate-400 hw-engraved">
           <span>PRE · POST L/R</span>
-          <span className="text-sky-300 font-bold tabular-nums">
+          <span
+            className="hw-lcd text-sky-300 font-bold tabular-nums px-1.5 py-px rounded"
+            title="Integrated output loudness (LUFS)"
+          >
             {telemetry.isRunning ? `${telemetry.estimatedLufs.toFixed(1)} LUFS` : 'STANDBY'}
           </span>
         </div>
@@ -371,18 +375,27 @@ export const MasterPreviewDock: React.FC<MasterPreviewDockProps> = ({
         </div>
 
         <div className="space-y-0.5">
-          <div className="flex justify-between text-[8px] text-slate-400">
+          <div className="flex justify-between text-[8px] text-slate-400 hw-engraved">
             <span>PHASE CORR: +{phaseCorr.toFixed(2)}</span>
             <span>HEADROOM: {headroomDb.toFixed(1)} dB</span>
           </div>
-          <div className="h-1.5 rounded-full bg-[#030509] border border-slate-800 relative overflow-hidden">
-            <div className="absolute left-1/2 top-0 bottom-0 w-px bg-slate-600" />
-            <div
-              className={`h-full transition-all duration-100 ${
-                phaseCorr >= 0.5 ? 'bg-emerald-400' : 'bg-amber-400'
-              }`}
-              style={{ width: `${Math.max(10, Math.min(100, ((phaseCorr + 1) / 2) * 100))}%` }}
-            />
+          <div
+            className="relative hw-led-track-h h-2 rounded-full"
+            title={`Stereo phase correlation +${phaseCorr.toFixed(2)} · ${headroomDb.toFixed(1)} dB headroom`}
+          >
+            <div className="absolute left-1/2 top-0 bottom-0 w-px bg-slate-600 z-10 pointer-events-none" />
+            {Array.from({ length: 12 }).map((_, i) => {
+              const corrPct = Math.max(10, Math.min(100, ((phaseCorr + 1) / 2) * 100));
+              const lit = corrPct >= ((i + 1) / 12) * 100;
+              return (
+                <span
+                  key={i}
+                  aria-hidden="true"
+                  className="hw-led-seg"
+                  data-lit={lit ? (phaseCorr >= 0.5 ? 'green' : 'amber') : undefined}
+                />
+              );
+            })}
           </div>
         </div>
       </div>
@@ -390,7 +403,7 @@ export const MasterPreviewDock: React.FC<MasterPreviewDockProps> = ({
       {/* Live Output Quality Gate & Surgical Filter Alerts */}
       <div className="p-2 rounded-lg border border-slate-800 bg-[#070B12] space-y-1.5 shrink-0">
         <div className="flex items-center justify-between">
-          <span className="text-slate-400 flex items-center gap-1">
+          <span className="text-slate-400 flex items-center gap-1 hw-engraved">
             <ShieldCheck className="w-3 h-3 text-emerald-400" />
             QUALITY GATE
           </span>
@@ -464,7 +477,7 @@ export const MasterPreviewDock: React.FC<MasterPreviewDockProps> = ({
         <button
           type="button"
           onClick={handleSmartOptimize}
-          className="w-full py-1 rounded border border-sky-500/40 bg-sky-500/15 hover:bg-sky-500/30 text-sky-200 font-bold text-[9px] flex items-center justify-center gap-1 cursor-pointer"
+          className="w-full py-1 rounded border font-bold text-[9px] flex items-center justify-center gap-1 cursor-pointer hw-key !bg-none !bg-sky-500/15 !border-sky-500/40 !text-sky-200 hover:!bg-sky-500/30"
           title="Engage Smart AGC, Quality Gate, HPF & Hum Protection in 1 click"
         >
           <Sparkles className="w-3 h-3 text-sky-300" />
@@ -475,7 +488,7 @@ export const MasterPreviewDock: React.FC<MasterPreviewDockProps> = ({
       {/* Always-On Master Output & Safety Controls */}
       <div className="p-2 rounded-lg border border-sky-500/30 bg-[#080D17] space-y-2 shrink-0">
         <div className="flex items-center justify-between text-sky-300 font-bold">
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1 hw-engraved !text-sky-300">
             <Sliders className="w-3 h-3" />
             MASTER OUTPUT
           </span>
@@ -494,8 +507,8 @@ export const MasterPreviewDock: React.FC<MasterPreviewDockProps> = ({
           className="w-full accent-sky-400 cursor-pointer"
         />
 
-        <div className="flex items-center justify-between text-[9px] text-amber-300">
-          <span>LIMITER CEILING</span>
+        <div className="flex items-center justify-between text-[9px] text-amber-300 hw-engraved">
+          <span className="!text-amber-300">LIMITER CEILING</span>
           <span className="font-bold tabular-nums">{dsp.limiter.ceilingDb.toFixed(1)} dBFS</span>
         </div>
         <input
@@ -526,10 +539,10 @@ export const MasterPreviewDock: React.FC<MasterPreviewDockProps> = ({
                 },
               })
             }
-            className={`py-1 rounded border font-bold text-[9px] cursor-pointer ${
+            className={`py-1 rounded border font-bold text-[9px] cursor-pointer hw-key ${
               dsp.smartAgc?.enabled
-                ? 'bg-emerald-500/25 border-emerald-400 text-emerald-200'
-                : 'bg-slate-900 border-slate-700 text-slate-400'
+                ? '!bg-none !bg-emerald-500/25 !border-emerald-400 !text-emerald-200'
+                : '!text-slate-400'
             }`}
           >
             AGC {dsp.smartAgc?.enabled ? 'ON' : 'OFF'}
@@ -538,10 +551,10 @@ export const MasterPreviewDock: React.FC<MasterPreviewDockProps> = ({
           <button
             type="button"
             onClick={onToggleTotalBypass}
-            className={`py-1 rounded border font-bold text-[9px] cursor-pointer ${
+            className={`py-1 rounded border font-bold text-[9px] cursor-pointer hw-key ${
               dsp.bypassed
-                ? 'bg-amber-500 text-slate-950 border-amber-300'
-                : 'bg-sky-500/20 border-sky-400/50 text-sky-200'
+                ? '!bg-none !bg-amber-500 !border-amber-300 !text-slate-950'
+                : '!bg-none !bg-sky-500/20 !border-sky-400/50 !text-sky-200'
             }`}
           >
             {dsp.bypassed ? 'BYPASSED' : 'DSP ACTIVE'}
@@ -568,14 +581,12 @@ export const MasterPreviewDock: React.FC<MasterPreviewDockProps> = ({
           )}
           <span
             aria-hidden="true"
-            className={`relative w-2 h-2 rounded-full shrink-0 transition-colors duration-200 ${
-              emergencyMuted
-                ? 'bg-red-100 shadow-[0_0_5px_rgba(255,255,255,0.95)]'
-                : 'bg-red-900 border border-red-500/50'
-            }`}
+            className="relative hw-lamp shrink-0"
+            data-on={emergencyMuted ? 'red' : undefined}
+            style={{ width: 7, height: 7 }}
           />
           <ShieldAlert className="relative w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-          <span className="relative">{emergencyMuted ? 'ALL OUTPUTS MUTED — CLICK TO UNMUTE' : 'EMERGENCY SAFE MUTE'}</span>
+          <span className="relative">{emergencyMuted ? 'ALL OUTPUTS MUTED' : 'EMERGENCY MUTE'}</span>
         </button>
       </div>
 
@@ -586,7 +597,7 @@ export const MasterPreviewDock: React.FC<MasterPreviewDockProps> = ({
         className="p-2 rounded-lg border border-slate-800 bg-[#060910] hover:border-sky-500/40 text-left space-y-0.5 shrink-0 cursor-pointer"
       >
         <div className="flex items-center justify-between text-[9px]">
-          <span className="text-slate-400 flex items-center gap-1">
+          <span className="text-slate-400 flex items-center gap-1 hw-engraved">
             <Radio className="w-3 h-3 text-sky-400" />
             OBS SYNC
           </span>
@@ -595,7 +606,7 @@ export const MasterPreviewDock: React.FC<MasterPreviewDockProps> = ({
           </span>
         </div>
         <div className="text-[9px] text-slate-300 truncate">
-          Scene: {obsStatus.activeScene}
+          <span className="hw-engraved !text-slate-300">SCN</span> {obsStatus.activeScene}
         </div>
       </button>
     </aside>

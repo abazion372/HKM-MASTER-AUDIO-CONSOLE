@@ -147,10 +147,10 @@ export const ChannelFxRackPanel: React.FC<ChannelFxRackPanelProps> = ({
           onClick={() =>
             onUpdateChannelFx(channel.id, (prev) => ({ ...prev, enabled: !prev.enabled }))
           }
-          className={`h-6 px-2 rounded border font-mono text-[9px] font-bold tracking-[0.14em] transition cursor-pointer flex items-center gap-1 ${
+          className={`h-6 px-2 rounded border font-mono text-[9px] font-bold tracking-[0.14em] transition cursor-pointer flex items-center gap-1 hw-key ${
             rack.enabled
-              ? 'bg-teal-500/25 border-teal-400/70 text-teal-200 shadow-[0_0_8px_rgba(45,212,191,0.3)]'
-              : 'bg-[#0A0E14] border-[#2A3544] text-slate-500 hover:text-slate-300'
+              ? '!bg-none !bg-teal-500/25 !border-teal-400/70 !text-teal-200 shadow-[0_0_8px_rgba(45,212,191,0.3)]'
+              : '!text-slate-500'
           }`}
         >
           <Power className="w-3 h-3" />
@@ -186,10 +186,10 @@ export const ChannelFxRackPanel: React.FC<ChannelFxRackPanelProps> = ({
                   }
                 }
               }}
-              className={`relative h-7 rounded border font-mono text-[8.5px] font-bold tracking-wide transition-all cursor-pointer flex items-center justify-center gap-1 overflow-hidden ${
+              className={`relative h-7 rounded border font-mono text-[8.5px] font-bold tracking-wide transition-all cursor-pointer flex items-center justify-center gap-1 overflow-hidden hw-key ${
                 engaged
-                  ? 'border-[#5EEAD4]/60 bg-gradient-to-b from-[#1B3138] to-[#122028] text-teal-100'
-                  : 'border-[#2A3644] bg-[#0A0F16] text-slate-500 hover:text-slate-200 hover:border-[#3E5166]'
+                  ? '!bg-none !bg-teal-950/70 !border-[#5EEAD4]/60 !text-teal-100 shadow-[0_0_8px_rgba(94,234,212,0.25)]'
+                  : '!text-slate-500 hover:!text-slate-200 hover:!border-[#3E5166]'
               } ${isOpen ? 'ring-1 ring-[#5EEAD4]/50' : ''}`}
             >
               <span
@@ -208,13 +208,13 @@ export const ChannelFxRackPanel: React.FC<ChannelFxRackPanelProps> = ({
       {openDef && openSlotState && (
         <div className="border-t border-[#1E2A38] bg-[#080D13]/70 p-2 flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
+            <div
+              className="min-w-0"
+              title={`${openDef.name} · ${openDef.archetype} — ${openDef.description}`}
+            >
               <div className="font-mono text-[10px] font-bold text-slate-200 truncate">
                 {openDef.name}
                 <span className="text-slate-500 font-normal"> · {openDef.archetype}</span>
-              </div>
-              <div className="text-[8.5px] text-slate-500 leading-tight mt-0.5 truncate" title={openDef.description}>
-                {openDef.description}
               </div>
             </div>
             <div className="flex items-center gap-1 shrink-0">
@@ -222,7 +222,7 @@ export const ChannelFxRackPanel: React.FC<ChannelFxRackPanelProps> = ({
                 type="button"
                 title="Reset knobs to real-world defaults"
                 onClick={() => resetSlot(openSlot!)}
-                className="h-6 w-7 rounded border border-[#2A3644] bg-[#0A0F16] text-slate-500 hover:text-slate-200 flex items-center justify-center cursor-pointer"
+                className="h-6 w-7 rounded border hw-key !text-slate-500 hover:!text-slate-200 flex items-center justify-center cursor-pointer"
               >
                 <RotateCcw className="w-3 h-3" />
               </button>
@@ -232,10 +232,10 @@ export const ChannelFxRackPanel: React.FC<ChannelFxRackPanelProps> = ({
                 aria-checked={openSlotState.engaged}
                 title={openSlotState.engaged ? 'Disengage pedal' : 'Engage pedal'}
                 onClick={() => patchSlot(openSlot!, { engaged: !openSlotState.engaged })}
-                className={`h-6 px-2 rounded border font-mono text-[9px] font-bold tracking-[0.14em] transition cursor-pointer flex items-center gap-1 ${
+                className={`h-6 px-2 rounded border font-mono text-[9px] font-bold tracking-[0.14em] transition cursor-pointer flex items-center gap-1 hw-key ${
                   openSlotState.engaged
-                    ? 'bg-teal-500/25 border-teal-400/70 text-teal-200'
-                    : 'bg-[#0A0E14] border-[#2A3544] text-slate-500 hover:text-slate-300'
+                    ? '!bg-none !bg-teal-500/25 !border-teal-400/70 !text-teal-200'
+                    : '!text-slate-500 hover:!text-slate-300'
                 }`}
               >
                 <Power className="w-3 h-3" />
@@ -299,15 +299,24 @@ export const ChannelFxRackPanel: React.FC<ChannelFxRackPanelProps> = ({
               type="button"
               onClick={handleTapTempo}
               title="Tap 2–4 beats to set the delay tempo"
-              className="h-7 rounded border border-cyan-400/60 bg-cyan-500/15 text-cyan-200 font-mono text-[9px] font-bold tracking-[0.2em] cursor-pointer hover:bg-cyan-500/25 transition"
+              className="h-7 rounded border hw-key !bg-none !bg-cyan-500/15 !border-cyan-400/60 !text-cyan-200 hover:!bg-cyan-500/25 font-mono text-[9px] font-bold tracking-[0.2em] cursor-pointer transition"
             >
               TAP TEMPO · {Math.round(openSlotState.params.bpm ?? 100)} BPM
             </button>
           )}
 
           {engineRunning && !rack.enabled && (
-            <div className="text-[8.5px] text-amber-400/80 font-mono">
-              Pedals are armed — switch the rack ON to hear them.
+            <div
+              className="flex items-center gap-1.5 text-[8.5px] font-bold text-amber-400/90 font-mono tracking-wider uppercase"
+              title="Pedals are armed — switch the rack ON to hear them."
+            >
+              <span
+                aria-hidden="true"
+                className="hw-lamp"
+                data-on="amber"
+                style={{ width: 5, height: 5 }}
+              />
+              ARMED · RACK OFF
             </div>
           )}
         </div>

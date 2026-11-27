@@ -401,10 +401,10 @@ export const ConsoleRightPanel: React.FC<ConsoleRightPanelProps> = ({
             </div>
           </div>
 
-          {/* Card 2: SYSTEM CPU */}
+          {/* Card 2: DSP LOAD */}
           <div className="hw-card rounded-md overflow-hidden shrink-0">
             <div className="hw-card-subheader px-2 py-1 text-[9px] font-bold tracking-[0.1em] uppercase">
-              SYSTEM CPU UTILIZATION
+              DSP LOAD
             </div>
             <div className="p-1.5 space-y-1">
               <div className="flex items-center gap-2">
@@ -461,11 +461,11 @@ export const ConsoleRightPanel: React.FC<ConsoleRightPanelProps> = ({
             </div>
           </div>
 
-          {/* Card 3: QUALITY & HEADROOM (Real Telemetry Semi-Circular Arc Gauge — Zero Mock Temps) */}
+          {/* Card 3: HEADROOM (Real Telemetry Semi-Circular Arc Gauge — Zero Mock Temps) */}
           <div className="hw-card rounded-md overflow-hidden shrink-0">
             <div className="hw-card-subheader px-2 py-1 flex items-center justify-between">
               <span className="text-[9px] font-bold tracking-[0.1em] uppercase">
-                QUALITY &amp; HEADROOM
+                HEADROOM
               </span>
               <button
                 type="button"
@@ -584,9 +584,15 @@ export const ConsoleRightPanel: React.FC<ConsoleRightPanelProps> = ({
             </div>
             <div className="p-1.5 space-y-1">
               <div className="flex items-center justify-between gap-2">
-                <span className="px-1.5 py-0.5 rounded bg-[#0E1319] border border-[#48596D] text-[9px] font-bold text-slate-200 flex items-center gap-1">
+                <span className="px-1.5 py-0.5 rounded bg-[#0E1319] border border-[#48596D] text-[9px] font-bold text-slate-200 flex items-center gap-1.5">
+                  <span
+                    aria-hidden="true"
+                    className={`hw-lamp ${engineRunning ? '' : 'opacity-60'}`}
+                    data-on={engineRunning ? 'green' : undefined}
+                    style={{ width: 6, height: 6 }}
+                  />
                   <Lock className="w-2.5 h-2.5 text-teal-400" />
-                  LOCKED
+                  LOCK
                 </span>
                 <span className="text-xs font-bold text-[#4ADE80] tabular-nums">
                   {(sampleRate / 1000).toFixed(1)} kHz
@@ -611,7 +617,7 @@ export const ConsoleRightPanel: React.FC<ConsoleRightPanelProps> = ({
             className="hw-card rounded-md overflow-hidden shrink-0 text-left hover:border-[#687F99] cursor-pointer"
           >
             <div className="hw-card-subheader px-2 py-1 text-[9px] font-bold tracking-[0.1em] uppercase">
-              FIRMWARE / ENGINE
+              ENGINE
             </div>
             <div className="p-1.5 space-y-0.5">
               <div className="flex items-center justify-between text-[9.5px]">
@@ -620,10 +626,28 @@ export const ConsoleRightPanel: React.FC<ConsoleRightPanelProps> = ({
               </div>
               <div className="flex items-center justify-between text-[8.5px] pt-0.5 border-t border-[#273342]">
                 <span className="text-slate-400 flex items-center gap-1">
-                  <Radio className="w-2.5 h-2.5 text-teal-400" />
-                  OBS: {obsStatus.streaming ? 'LIVE' : obsStatus.connected ? 'READY' : 'STANDBY'}
+                  <span
+                    aria-hidden="true"
+                    className="hw-lamp shrink-0"
+                    data-on={
+                      obsStatus.streaming ? 'red' : obsStatus.connected ? 'green' : undefined
+                    }
+                    style={{ width: 5, height: 5 }}
+                  />
+                  OBS
+                  <span className="text-slate-300 font-semibold">
+                    {obsStatus.streaming ? 'LIVE' : obsStatus.connected ? 'RDY' : 'SBY'}
+                  </span>
                 </span>
-                <span className="text-[#4ADE80] font-bold">STATUS OK</span>
+                <span className="text-[#4ADE80] font-bold flex items-center gap-1">
+                  <span
+                    aria-hidden="true"
+                    className="hw-lamp"
+                    data-on="green"
+                    style={{ width: 5, height: 5 }}
+                  />
+                  OK
+                </span>
               </div>
             </div>
           </button>
@@ -649,9 +673,9 @@ export const ConsoleRightPanel: React.FC<ConsoleRightPanelProps> = ({
                         : 'bg-[#131A23] border border-[#3B4B5E] text-slate-200 hover:border-[#5D738E] hover:text-white'
                     }`}
                   >
-                    <span className="flex items-center gap-1.5 min-w-0">
+                    <span className="flex items-center gap-1.5 min-w-0" title={preset.name}>
                       <ArrowLeftRight className={`w-2.5 h-2.5 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                      <span className="truncate">{preset.name}</span>
+                      <span className="truncate">{preset.name.split(' (')[0]}</span>
                     </span>
                     {showWarn && (
                       <span className="px-1 py-0.5 rounded bg-gradient-to-b from-amber-500 to-orange-600 text-white font-mono text-[7px] font-bold uppercase shrink-0 shadow-xs">
