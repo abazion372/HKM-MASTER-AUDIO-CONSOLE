@@ -43,6 +43,7 @@ import { GainStagingAssistantModal } from './components/GainStagingAssistantModa
 import { GlobalSearchModal } from './components/GlobalSearchModal.tsx';
 import { SignalJourneyModal } from './components/SignalJourneyModal.tsx';
 import { MultitrackRecorderModule } from './components/MultitrackRecorderModule.tsx';
+import { HelpDeskModule } from './components/HelpDeskModule.tsx';
 import { UniversalRoutingModule } from './components/UniversalRoutingModule.tsx';
 import { validateDspConfig } from './utils/camillaDsp.ts';
 import { Toaster } from '@/components/ui/sonner';
@@ -90,6 +91,17 @@ export default function App() {
   const [desktopSourceIsolationStatus, setDesktopSourceIsolationStatus] =
     useState<DesktopSourceIsolationStatus | null>(null);
   const sourceIsolationQueueRef = useRef<Promise<DesktopSourceIsolationStatus | null>>(Promise.resolve(null));
+
+  // Module deep-link bus — lets any dashboard (e.g. an inline HELP key) jump
+  // the console to another module without threading extra props everywhere.
+  useEffect(() => {
+    const nav = (e: Event) => {
+      const detail = (e as CustomEvent).detail as ModuleId | undefined;
+      if (detail) setActiveModule(detail);
+    };
+    window.addEventListener('hkm-navigate-module', nav);
+    return () => window.removeEventListener('hkm-navigate-module', nav);
+  }, []);
 
   const syncDesktopSourceIsolation = useCallback((enabled: boolean) => {
     const next = sourceIsolationQueueRef.current.then(() => setDesktopAudioSourceIsolation(enabled));
@@ -1312,6 +1324,8 @@ export default function App() {
                     telemetry={audio.telemetry}
                     engineRunning={audio.engineRunning}
                   />
+                ) : activeModule === 'help' ? (
+                  <HelpDeskModule panelLocked={consoleLocked} />
                 ) : (
                   <HardwareDiagnosticsModule
                     devices={session.devices}

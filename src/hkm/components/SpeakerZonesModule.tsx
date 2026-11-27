@@ -769,9 +769,12 @@ export const SpeakerZonesModule: React.FC<SpeakerZonesModuleProps> = ({
                 UNMUTE ALL ZONES
               </button>
             </div>
-            <span className="text-slate-400 flex items-center gap-1.5">
+            <span
+              className="text-slate-400 flex items-center gap-1.5 font-mono text-[9px] font-bold tracking-wider uppercase"
+              title="Click any array or rack box to edit its DSP parameters"
+            >
               <Sliders className="w-3 h-3 text-sky-400" />
-              <span>Click any array or rack box to edit DSP parameters</span>
+              <span>ARRAY / RACK = EDIT DSP</span>
             </span>
           </div>
         </div>

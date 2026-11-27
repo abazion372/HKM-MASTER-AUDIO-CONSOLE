@@ -386,7 +386,7 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
   return (
     <aside
       aria-label="Live Console Inputs & Outputs Rack"
-      className="w-[272px] 2xl:w-[300px] shrink-0 h-full hw-panel rounded-lg flex flex-col overflow-hidden select-none"
+      className="w-[228px] 2xl:w-[256px] shrink-0 h-full hw-panel rounded-lg flex flex-col overflow-hidden select-none"
     >
       {/* Top Interchangeable Tab Header */}
       <div className="h-8 shrink-0 px-1 2xl:px-1.5 hw-card-header flex items-center justify-between gap-1">

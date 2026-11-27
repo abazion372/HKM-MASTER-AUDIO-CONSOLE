@@ -40,7 +40,7 @@ interface AppMenuBarProps {
 
 type MenuKey = 'file' | 'edit' | 'view' | 'audio' | 'help';
 
-export const APP_VERSION = '1.1.5';
+export const APP_VERSION = '1.2.0';
 
 export const AppMenuBar: React.FC<AppMenuBarProps> = ({
   appVersion = APP_VERSION,
@@ -228,6 +228,7 @@ export const AppMenuBar: React.FC<AppMenuBarProps> = ({
       key: 'help',
       label: 'Help',
       items: [
+        { label: 'Help Desk — Operation Manual…', onClick: () => runAction(() => onNavigateModule('help')) },
         { label: 'Check for Updates…', onClick: () => runAction(onCheckForUpdates) },
         { label: 'Automated Soundcheck…', onClick: () => runAction(() => onNavigateModule('soundcheck')) },
         { divider: true },

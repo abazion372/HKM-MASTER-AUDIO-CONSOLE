@@ -134,49 +134,49 @@ const SignalRoutingOverlay = React.memo<SignalRoutingOverlayProps>(
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 w-full h-full z-20"
       >
-        {renderGlowSeam('M 195 148 L 195 588 Q 195 594 201 594 L 397 594', seam1Color, seam1Opacity, [
-          { cx: 195, cy: 148, glow: chAssigned },
-          { cx: 195, cy: 330, glow: chAssigned },
-          { cx: 195, cy: 594, r: 3.5 },
-          { cx: 298, cy: 594, r: 3.5 },
+        {renderGlowSeam('M 260 148 L 260 588 Q 260 594 266 594 L 449 594', seam1Color, seam1Opacity, [
+          { cx: 260, cy: 148, glow: chAssigned },
+          { cx: 260, cy: 330, glow: chAssigned },
+          { cx: 260, cy: 594, r: 3.5 },
+          { cx: 354, cy: 594, r: 3.5 },
         ])}
-        {renderGlowSeam('M 397 148 L 397 588 Q 397 594 403 594 L 599 594', agcColor, 0.92, [
-          { cx: 397, cy: 148, glow: true },
-          { cx: 397, cy: 330, glow: true },
-          { cx: 397, cy: 594, r: 3.5 },
+        {renderGlowSeam('M 449 148 L 449 588 Q 449 594 455 594 L 638 594', agcColor, 0.92, [
+          { cx: 449, cy: 148, glow: true },
+          { cx: 449, cy: 330, glow: true },
+          { cx: 449, cy: 594, r: 3.5 },
         ])}
         {renderGlowSeam(
-          'M 599 148 L 599 588 Q 599 594 605 594 L 700 594 L 700 600',
+          'M 638 148 L 638 588 Q 638 594 644 594 L 700 594 L 700 600',
           eqColor,
           0.92,
           [
-            { cx: 599, cy: 148, glow: true },
-            { cx: 599, cy: 330, glow: true },
+            { cx: 638, cy: 148, glow: true },
+            { cx: 638, cy: 330, glow: true },
           ]
         )}
         <circle cx="700" cy="594" r="6.6" fill="#4ADE80" fillOpacity={0.24} />
         <circle cx="700" cy="594" r="4.2" fill="#4ADE80" />
         {renderGlowSeam(
-          'M 700 594 L 801 594 L 801 148 M 801 588 Q 801 594 807 594 L 1003 594',
+          'M 700 594 L 828 594 L 828 148 M 828 588 Q 828 594 834 594 L 1017 594',
           compColor,
           0.9,
           [
-            { cx: 801, cy: 148, glow: true },
-            { cx: 801, cy: 330, glow: true },
-            { cx: 801, cy: 594, r: 3.5 },
+            { cx: 828, cy: 148, glow: true },
+            { cx: 828, cy: 330, glow: true },
+            { cx: 828, cy: 594, r: 3.5 },
           ]
         )}
-        {renderGlowSeam('M 1003 148 L 1003 588 Q 1003 594 1009 594 L 1205 594', fbxColor, 0.9, [
-          { cx: 1003, cy: 148, glow: true },
-          { cx: 1003, cy: 330, glow: true },
-          { cx: 1003, cy: 594, r: 3.5 },
+        {renderGlowSeam('M 1017 148 L 1017 588 Q 1017 594 1023 594 L 1206 594', fbxColor, 0.9, [
+          { cx: 1017, cy: 148, glow: true },
+          { cx: 1017, cy: 330, glow: true },
+          { cx: 1017, cy: 594, r: 3.5 },
         ])}
-        {renderGlowSeam('M 1205 148 L 1205 600', monColor, 0.92, [
-          { cx: 1205, cy: 148, glow: true },
-          { cx: 1205, cy: 330, glow: true },
+        {renderGlowSeam('M 1206 148 L 1206 600', monColor, 0.92, [
+          { cx: 1206, cy: 148, glow: true },
+          { cx: 1206, cy: 330, glow: true },
         ])}
-        <circle cx="1205" cy="594" r="6.6" fill="#4ADE80" fillOpacity={0.24} />
-        <circle cx="1205" cy="594" r="4.2" fill="#4ADE80" />
+        <circle cx="1206" cy="594" r="6.6" fill="#4ADE80" fillOpacity={0.24} />
+        <circle cx="1206" cy="594" r="4.2" fill="#4ADE80" />
       </svg>
     );
   }
@@ -682,7 +682,9 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
           ========================================================================= */}
       {subView === 'chain' && (
         <div className="flex-1 min-h-0 flex flex-col p-2 gap-1.5 overflow-x-auto overflow-y-hidden">
-          <div className="relative flex-1 min-h-0 min-w-[720px] grid grid-cols-7 gap-2.5 pb-3">
+          {/* COL 1 is 1.4fr — the full channel-input strip needs more width than
+              the processing columns so its fader keeps real console proportions */}
+          <div className="relative flex-1 min-h-0 min-w-[780px] grid grid-cols-[1.4fr_repeat(6,minmax(0,1fr))] gap-2.5 pb-3">
             {/* Clean Seam-Gutter Dual-Stroke SVG Signal Routing (Zero GPU Blur) */}
             <SignalRoutingOverlay
               chAssigned={chAssigned}
@@ -734,9 +736,9 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                     </span>
                     <span
                       className="font-mono text-[6.5px] text-slate-500 truncate"
-                      title={modeSpec.fullLabel}
+                      title={`${modeSpec.fullLabel} — ${modeSpec.domainNote}`}
                     >
-                      {modeSpec.domainNote}
+                      {chMode === 'mic' ? 'XLR' : chMode === 'line' ? 'TRS' : 'HI-Z'}
                     </span>
                   </div>
                   <div
@@ -779,8 +781,11 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                   </div>
                 </div>
 
-                {/* Green/Amber Semi-Circular Preamp Gain Arc */}
-                <svg viewBox="0 0 88 50" className="w-[84px] h-[42px] shrink-0">
+                {/* Preamp gain stage — numeric arc readout paired beside the
+                    PREAMP knob the way consoles pair a gain meter with its trim
+                    pot; keeps the vertical rail free for a full-size fader */}
+                <div className="w-full flex items-end justify-center gap-1.5 shrink-0">
+                <svg viewBox="0 0 88 50" className="w-[66px] h-[38px] shrink-0">
                   <defs>
                     <linearGradient id={`inArc-${uid}`} x1="0%" y1="0%" x2="100%" y2="0%">
                       <stop offset="0%" stopColor="#22C55E" />
@@ -854,26 +859,23 @@ export const CentralDspChainView: React.FC<CentralDspChainViewProps> = ({
                     onChange={(next) => onUpdateChannel(selectedChannel.id, { gainDb: next })}
                   />
                 </div>
+                </div>
 
-                {/* Input-domain silkscreen badge + mode gain range (moved from the
-                    left panel strip) */}
+                {/* Input-domain silkscreen badge — connector type engraved the
+                    way real consoles mark jack fields; full range note is on the
+                    badge tooltip + Help Desk */}
                 <div className="w-full flex flex-col items-center shrink-0">
                   <span
-                    className={`font-mono text-[7px] px-1 py-0.5 rounded border leading-none ${
+                    className={`font-mono text-[7px] px-1.5 py-0.5 rounded border leading-none ${
                       chMode === 'inst'
                         ? 'text-fuchsia-300 border-fuchsia-500/40 bg-fuchsia-950/40'
                         : chMode === 'line'
                           ? 'text-emerald-300 border-emerald-500/40 bg-emerald-950/40'
                           : 'text-cyan-300 border-cyan-500/40 bg-cyan-950/40'
                     }`}
+                    title={`${chMode === 'inst' ? 'INST 1MΩ' : chMode === 'line' ? 'LINE TRS' : 'MIC XLR'} — ${gainRangeNote}`}
                   >
                     {chMode === 'inst' ? 'INST 1MΩ' : chMode === 'line' ? 'LINE TRS' : 'MIC XLR'}
-                  </span>
-                  <span
-                    className="font-mono text-[6.5px] text-slate-500 text-center w-full truncate leading-none mt-0.5"
-                    title={gainRangeNote}
-                  >
-                    {gainRangeNote}
                   </span>
                 </div>
 

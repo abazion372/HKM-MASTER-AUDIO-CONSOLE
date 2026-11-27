@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { CheckCircle2, RotateCcw, ShieldAlert, Zap } from 'lucide-react';
+import { CheckCircle2, RotateCcw, Zap } from 'lucide-react';
 import type {
   BassDiConfig,
   DspConfig,
@@ -139,7 +139,8 @@ export const VirtualDiBassModule: React.FC<VirtualDiBassModuleProps> = ({
       ctx.setLineDash([]);
       ctx.fillStyle = '#94A3B8';
       ctx.textAlign = 'right';
-      ctx.fillText('FILTER CURVE PREVIEW (ENGINE STANDBY)', w - 8, 14);
+      /* Drawn bottom-right so it never collides with the XOVER label at top */
+      ctx.fillText('FILTER CURVE PREVIEW (ENGINE STANDBY)', w - 8, h - 26);
     }
   }, [bassDi, spectrum, telemetry]);
 
@@ -322,10 +323,42 @@ export const VirtualDiBassModule: React.FC<VirtualDiBassModuleProps> = ({
             />
           </div>
 
-          <div className="p-2.5 rounded border border-slate-800 bg-[#090D14] text-[10px] font-mono text-slate-400 flex items-start gap-2">
-            <ShieldAlert className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-            <span>
-              4-string E1 = 41.2 Hz, 5-string B0 = 30.9 Hz. Keep Subsonic HPF at 32–40 Hz to remove rumble without thinning fundamental weight.
+          {/* STRING SCALE — operational keys (replaces the old advice note):
+              4-string E1 ≈ 41.2 Hz → HPF 40 Hz; 5-string B0 ≈ 30.9 Hz → HPF 32 Hz.
+              Full string-scale reasoning lives in Help Desk → Virtual DI */}
+          <div className="p-2 rounded border border-slate-800 bg-[#090D14] flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-[8.5px] font-bold tracking-wider text-slate-500 uppercase shrink-0">
+                String Scale
+              </span>
+              {([
+                { label: '4-STR', hpf: 40, title: '4-string E1 ≈ 41.2 Hz — set Subsonic HPF to 40 Hz (keeps fundamental, sheds rumble)' },
+                { label: '5-STR', hpf: 32, title: '5-string B0 ≈ 30.9 Hz — set Subsonic HPF to 32 Hz so the low B survives' },
+              ] as const).map((opt) => {
+                const active = bassDi.subsonicHpfHz === opt.hpf;
+                return (
+                  <button
+                    key={opt.label}
+                    type="button"
+                    onClick={() => onUpdateBassDi({ subsonicHpfHz: opt.hpf })}
+                    title={opt.title}
+                    aria-pressed={active}
+                    className={`px-2 py-0.5 rounded border font-mono text-[9px] font-bold tracking-wider transition cursor-pointer ${
+                      active
+                        ? 'border-emerald-400 bg-emerald-500/20 text-emerald-200'
+                        : 'border-slate-700 bg-[#0A0F16] text-slate-400 hover:text-slate-100'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+            <span
+              className="font-mono text-[9px] font-bold tracking-wider text-amber-300 shrink-0"
+              title="Keep the Subsonic HPF at 32–40 Hz to remove rumble without thinning fundamental weight"
+            >
+              HPF {bassDi.subsonicHpfHz.toFixed(0)} Hz
             </span>
           </div>
         </div>

@@ -173,7 +173,7 @@ export const AiEngineerModule: React.FC<AiEngineerModuleProps> = ({
               </h1>
             </div>
             <p className="text-[11px] font-mono text-slate-400">
-              Observe Telemetry → Diagnose Fault → Propose Safe Patch → Engineer Approves &amp; Verifies
+              OBSERVE → DIAGNOSE → PROPOSE → ENGINEER APPROVES
             </p>
           </div>
         </div>
@@ -254,17 +254,21 @@ export const AiEngineerModule: React.FC<AiEngineerModuleProps> = ({
         </div>
       </div>
 
-      {/* Hardware Authority Boundary Summary */}
-      <div className="rounded-lg border border-slate-800 bg-[#0D1119] px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-3 font-mono text-[11px]">
-        <span className="text-slate-400">
-          HW AUTHORITY ({device.model}):{' '}
+      {/* Authority boundary — engraved LED chips, details in Help Desk */}
+      <div className="rounded-lg border border-slate-800 bg-[#0D1119] px-3 py-2 flex flex-wrap items-center justify-between gap-2 font-mono text-[9.5px] font-bold tracking-wider">
+        <span className="flex items-center gap-1.5"
+          title={`HW AUTHORITY (${device.model}) — ${device.capabilities.perChannelFaderControl ? 'Remote preamp & fader control active' : 'Manual physical knobs/faders required — software can only advise'}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${device.capabilities.perChannelFaderControl ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+          <span className="text-slate-500">HW AUTH</span>
           <span className={device.capabilities.perChannelFaderControl ? 'text-emerald-400' : 'text-amber-400'}>
-            {device.capabilities.perChannelFaderControl ? 'Remote Preamp & Faders Active' : 'Manual Physical Knobs / Faders Required'}
+            {device.capabilities.perChannelFaderControl ? 'REMOTE PRE/FADERS' : 'PHYSICAL KNOBS'}
           </span>
         </span>
-        <span className="text-slate-400">
-          SW DSP AUTHORITY:{' '}
-          <span className="text-sky-400">Full CamillaDSP PEQ, HPF, Dynamics, Limiter &amp; Stream Bus</span>
+        <span className="flex items-center gap-1.5"
+          title="SW DSP AUTHORITY — full CamillaDSP reach: PEQ, HPF, dynamics, limiter & stream bus">
+          <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+          <span className="text-slate-500">SW AUTH</span>
+          <span className="text-sky-400">FULL DSP · PEQ · DYN · LIM · STREAM</span>
         </span>
       </div>
 
@@ -282,8 +286,17 @@ export const AiEngineerModule: React.FC<AiEngineerModuleProps> = ({
           </div>
 
           {findings.length === 0 ? (
-            <div className="py-10 text-center text-xs font-mono text-slate-500">
-              No diagnostic events queued. Start the audio engine or run an AI diagnosis.
+            <div className="py-10 flex flex-col items-center justify-center gap-2.5 text-center">
+              <span className="w-2.5 h-2.5 rounded-full bg-slate-600" />
+              <span
+                className="font-mono text-[10px] font-bold tracking-wider text-slate-500"
+                title="Start the audio engine or run an AI diagnosis — findings queue here for human approval"
+              >
+                QUEUE EMPTY — RUN AI DIAGNOSIS
+              </span>
+              <span className="font-mono text-[8.5px] tracking-wider text-slate-600">
+                APPROVALS STAY IN ENGINEER HANDS
+              </span>
             </div>
           ) : (
             <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1">
@@ -383,8 +396,13 @@ export const AiEngineerModule: React.FC<AiEngineerModuleProps> = ({
 
           <div className="flex-1 overflow-y-auto space-y-3 py-2 border-y border-slate-800">
             {messages.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-center text-xs font-mono text-slate-500 px-4">
-                Ask any sanctuary acoustics or routing question. Answers cite {device.model} capabilities and live FFT telemetry.
+              <div className="h-full flex items-center justify-center text-center px-4">
+                <span
+                  className="font-mono text-[10px] font-bold tracking-wider text-slate-500"
+                  title={`Answers cite ${device.model} capabilities and live FFT telemetry`}
+                >
+                  ASK — CITES {device.model.toUpperCase()} + LIVE FFT
+                </span>
               </div>
             ) : (
               messages.map((m, i) => (

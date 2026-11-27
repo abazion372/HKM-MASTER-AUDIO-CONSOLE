@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Cable, GitBranch, Mic, Plus, RefreshCw, ShieldCheck, Sliders, Speaker, Trash2 } from 'lucide-react';
 import type { DspConfig, InputChannel, SpeakerZone } from '../types/audio.ts';
+import { openHelpTopic } from './HelpDeskModule.tsx';
 
 interface UniversalRoutingModuleProps {
   channels: InputChannel[];
@@ -122,8 +123,8 @@ export const UniversalRoutingModule: React.FC<UniversalRoutingModuleProps> = ({
       }
       setGuardNotice(
         autoMap
-          ? `Scanned ${outputs.length} system output port(s) and auto-assigned across speaker zones.`
-          : `Scanned ${outputs.length} system output port(s). Assign Front, Rear, Subs, or any speaker below.`
+          ? `SCAN OK — ${outputs.length} PORTS · ZONES AUTO-ASSIGNED`
+          : `SCAN OK — ${outputs.length} PORTS · ASSIGN BELOW`
       );
       window.setTimeout(() => setGuardNotice(null), 5000);
     } catch (err) {
@@ -244,7 +245,7 @@ export const UniversalRoutingModule: React.FC<UniversalRoutingModuleProps> = ({
                   Input Channel Scanner &amp; Port Assignment ({channels.length})
                 </h3>
                 <p className="font-mono text-[10px] text-slate-400">
-                  {inputDevices.length} audio input(s) detected · Unlimited channels · Auto or manual port mapping
+                  {inputDevices.length} INPUT PORTS · UNLIMITED STRIPS · AUTO / MANUAL MAP
                 </p>
               </div>
             </div>
@@ -345,7 +346,7 @@ export const UniversalRoutingModule: React.FC<UniversalRoutingModuleProps> = ({
                   Output Speaker &amp; Port Assignment ({zones.length})
                 </h3>
                 <p className="font-mono text-[10px] text-slate-400">
-                  {outputDevices.length} system output(s) auto-scanned · Assign Front, Rear, Subs &amp; unlimited ports
+                  {outputDevices.length} OUTPUT PORTS · FRONT / REAR / SUBS / FREE
                 </p>
               </div>
             </div>
@@ -435,9 +436,25 @@ export const UniversalRoutingModule: React.FC<UniversalRoutingModuleProps> = ({
               </select>
             </label>
           </div>
-          <p className="px-1 text-[10px] font-mono text-slate-400">
-            OBS can capture HKM’s processed application audio with its built-in Application Audio Capture source. This optional second playback route is not an OBS input and does not require a virtual cable.
-          </p>
+          {/* OBS capture note — engraved chip; full OBS route explained in
+              Help Desk → Livestream */}
+          <div className="flex items-center justify-between gap-2 px-1">
+            <span
+              className="flex items-center gap-1.5 font-mono text-[9px] font-bold tracking-wider text-slate-400"
+              title="OBS can capture HKM's processed application audio with its built-in Application Audio Capture source. This optional second playback route is not an OBS input and does not require a virtual cable."
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              OBS APP CAPTURE · ROUTE 2 OPTIONAL · NO CABLE
+            </span>
+            <button
+              type="button"
+              onClick={() => openHelpTopic('routing')}
+              title="Routing & OBS second-route guide — Help Desk"
+              className="px-2 py-0.5 rounded border border-[#2A3646] bg-[#0A0F16] text-slate-300 hover:text-white hover:border-teal-400/50 font-mono text-[9px] font-bold tracking-wider cursor-pointer shrink-0"
+            >
+              ROUTE GUIDE
+            </button>
+          </div>
 
           <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
             {zones.map((z) => (

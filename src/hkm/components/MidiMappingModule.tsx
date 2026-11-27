@@ -31,6 +31,7 @@ import {
   VerticalFader,
 } from './StudioControls.tsx';
 import { KeyboardShortcutManager } from './KeyboardShortcutManager.tsx';
+import { openHelpTopic } from './HelpDeskModule.tsx';
 
 interface MidiMappingModuleProps {
   platform: PlatformTarget;
@@ -249,12 +250,18 @@ export const MidiMappingModule: React.FC<MidiMappingModuleProps> = ({
       {/* Virtual Hardware MIDI Surface (True Fader + Rotary Knobs + Tactile Pads) */}
       <div className="rounded-lg border border-slate-800 bg-[#0D1119] p-3.5 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2">
-          <div>
+          <div className="min-w-0">
             <div className="font-mono text-xs font-semibold text-white uppercase">
               Virtual Hardware MIDI Control Surface (Live Test &amp; Learn Bench)
             </div>
-            <div className="text-[11px] text-slate-400">
-              Drag the hardware fader, twist encoders, or hit transport pads to test live MIDI Learn and DSP bindings.
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+              <span
+                className="font-mono text-[9px] font-bold tracking-wider text-slate-400 uppercase"
+                title="Drag the hardware fader, twist encoders, or hit transport pads to test live MIDI Learn and DSP bindings"
+              >
+                LIVE BENCH — FADERS · ENCODERS · PADS
+              </span>
             </div>
           </div>
           <div className="font-mono text-[11px] text-sky-400 shrink-0">
@@ -355,8 +362,24 @@ export const MidiMappingModule: React.FC<MidiMappingModuleProps> = ({
           </div>
 
           {midiDevices.length === 0 ? (
-            <div className="p-3 rounded bg-[#070A10] border border-slate-800 text-xs text-slate-400">
-              No physical USB MIDI ports enumerated yet. Connect a MIDI controller or use the Virtual Hardware MIDI Surface above.
+            <div className="p-3 rounded bg-[#070A10] border border-slate-800 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-2 h-2 rounded-full bg-slate-600 shrink-0" />
+                <span
+                  className="font-mono text-[10px] font-bold tracking-wider text-slate-400"
+                  title="No physical USB MIDI ports enumerated yet. Connect a MIDI controller or use the Virtual Hardware MIDI Surface above."
+                >
+                  NO USB MIDI PORTS
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => openHelpTopic('midi')}
+                title="MIDI setup & control-surface guide — Help Desk"
+                className="px-2 py-0.5 rounded border border-[#2A3646] bg-[#0A0F16] text-slate-300 hover:text-white hover:border-teal-400/50 font-mono text-[9px] font-bold tracking-wider cursor-pointer shrink-0"
+              >
+                SETUP
+              </button>
             </div>
           ) : (
             <div className="divide-y divide-slate-800 text-xs max-h-32 overflow-y-auto">
@@ -381,7 +404,10 @@ export const MidiMappingModule: React.FC<MidiMappingModuleProps> = ({
                 {lastPacket.deviceName} · CH{lastPacket.channel} · {lastPacket.messageType.toUpperCase()} #{lastPacket.controller} = {lastPacket.rawValue}
               </span>
             ) : (
-              <span className="text-slate-500">Waiting for MIDI event...</span>
+              <span className="flex items-center gap-1.5 text-slate-500">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
+                STANDBY
+              </span>
             )}
           </div>
         </div>

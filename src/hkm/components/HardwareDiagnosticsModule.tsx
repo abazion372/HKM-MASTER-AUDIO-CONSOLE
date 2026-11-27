@@ -52,6 +52,7 @@ import type {
   SystemAudioCaptureMethod,
 } from '../audio/systemAudioBridge.ts';
 import { ArcGauge, ConsolePushButton } from './StudioControls.tsx';
+import { openHelpTopic } from './HelpDeskModule.tsx';
 import {
   getDiagEvents,
   getDiagnosticsReport,
@@ -904,13 +905,32 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-300 leading-relaxed max-w-4xl">
-                  {desktopBridgeState?.safetyReason
-                    ? desktopBridgeState.safetyReason
-                    : desktopBuild
-                      ? 'Engine 1 (WASAPI Process-Exclusion Loopback) runs automatically out of the box—capturing Chrome, Edge, Spotify, VLC, and all desktop audio while excluding this console (zero feedback).'
-                      : 'Routes browser tabs, Spotify, YouTube, or OS media audio directly into the DSP via getDisplayMedia (with self-browser & local playback suppression) or specialized virtual cables — guarded by an automatic Self-Loopback Firewall.'}
-                </p>
+                {/* Safety status line — engraved status chip; the full safety
+                    reason + method walkthrough lives in Help Desk → System & Hardware */}
+                <div className="flex items-center gap-2 max-w-4xl">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${
+                    desktopBridgeState?.selfLoopbackBlocked
+                      ? 'bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.8)]'
+                      : desktopBridgeState?.active
+                        ? 'bg-emerald-400 shadow-[0_0_6px_rgba(74,222,128,0.85)]'
+                        : 'bg-slate-600'
+                  }`} />
+                  <span className="font-mono text-[10px] text-slate-300 truncate" title={desktopBridgeState?.safetyReason ?? undefined}>
+                    {desktopBridgeState?.safetyReason
+                      ? 'SAFETY: ' + desktopBridgeState.safetyReason
+                      : desktopBuild
+                        ? 'WASAPI PROCESS-EXCLUSION LOOPBACK — ZERO-FEEDBACK ENGINE 1'
+                        : 'GETDISPLAYMEDIA / VIRTUAL CABLE BRIDGE — SELF-LOOPBACK FIREWALL ON'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => openHelpTopic('hardware-bridge')}
+                    title="Open the System Audio Bridge methods walkthrough in the Help Desk"
+                    className="px-2 py-0.5 rounded border border-[#2A3646] bg-[#0A0F16] text-slate-300 hover:text-white hover:border-teal-400/50 font-mono text-[9px] font-bold tracking-wider cursor-pointer shrink-0"
+                  >
+                    GUIDE
+                  </button>
+                </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -972,10 +992,20 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                         : 'USE PICKER'}
                     </button>
                   </div>
-                  <div className="font-mono text-[10px] text-slate-400 space-y-1">
-                    <div>• Enforces <code className="text-cyan-300">selfBrowserSurface: &apos;exclude&apos;</code> so this console cannot capture itself</div>
-                    <div>• Requests <code className="text-cyan-300">suppressLocalAudioPlayback: true</code> on browser tabs to prevent echo</div>
-                    <div>• Automatically mutes monitor output if capturing Whole Screen on shared default speakers</div>
+                  {/* Method facts as engraved LED chips — details in tooltips */}
+                  <div className="flex flex-wrap items-center gap-1.5 font-mono text-[9px] font-bold tracking-wider">
+                    <span className="flex items-center gap-1.5 px-1.5 py-0.5 rounded border border-cyan-500/35 bg-cyan-950/30 text-cyan-300"
+                      title="Enforces selfBrowserSurface: 'exclude' so this console cannot capture itself">
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> SELF-EXCLUDE
+                    </span>
+                    <span className="flex items-center gap-1.5 px-1.5 py-0.5 rounded border border-cyan-500/35 bg-cyan-950/30 text-cyan-300"
+                      title="Requests suppressLocalAudioPlayback: true on browser tabs to prevent echo">
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> NO ECHO
+                    </span>
+                    <span className="flex items-center gap-1.5 px-1.5 py-0.5 rounded border border-cyan-500/35 bg-cyan-950/30 text-cyan-300"
+                      title="Automatically mutes monitor output if capturing Whole Screen on shared default speakers">
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> AUTO-MUTE MON
+                    </span>
                   </div>
                 </div>
 
@@ -986,8 +1016,24 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                     </span>
                   </div>
                   {specializedDesktopInputs.length === 0 ? (
-                    <div className="font-mono text-[10px] text-slate-400 leading-relaxed">
-                      No virtual audio bridge detected yet (VB-Audio Cable, BlackHole, Stereo Mix, or VoiceMeeter). Click Refresh Hardware after installing or enabling Stereo Mix in Windows Sound settings.
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-600 shrink-0" />
+                        <span
+                          className="font-mono text-[10px] text-slate-400 truncate"
+                          title="No virtual audio bridge detected yet (VB-Audio Cable, BlackHole, Stereo Mix, or VoiceMeeter). Click Refresh Hardware after installing or enabling Stereo Mix in Windows Sound settings."
+                        >
+                          NO VIRTUAL BRIDGE DETECTED
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openHelpTopic('hardware-bridge')}
+                        title="How to install / enable a virtual audio bridge — Help Desk"
+                        className="px-2 py-0.5 rounded border border-[#2A3646] bg-[#0A0F16] text-slate-400 hover:text-white hover:border-teal-400/50 font-mono text-[9px] font-bold tracking-wider cursor-pointer shrink-0"
+                      >
+                        HOW-TO
+                      </button>
                     </div>
                   ) : (
                     <div className="space-y-1.5 max-h-28 overflow-y-auto pr-1">
@@ -1048,10 +1094,20 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
                     </span>
                   </div>
 
-                  <div className="font-mono text-[10px] text-slate-400 space-y-1">
-                    <div>• No VB-Audio Virtual Cable required, zero picker dialogs, zero Admin needed</div>
-                    <div>• Auto-slotted to CH N+1 after connected hardware microphones</div>
-                    <div>• Speaker routing temporarily mutes Windows source-app sessions and restores their prior mute states when monitoring stops</div>
+                  {/* Engine 1 facts as engraved LED chips */}
+                  <div className="flex flex-wrap items-center gap-1.5 font-mono text-[9px] font-bold tracking-wider">
+                    <span className="flex items-center gap-1.5 px-1.5 py-0.5 rounded border border-cyan-500/35 bg-cyan-950/30 text-cyan-300"
+                      title="No VB-Audio Virtual Cable required, zero picker dialogs, zero Admin needed">
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> NO CABLE REQ
+                    </span>
+                    <span className="flex items-center gap-1.5 px-1.5 py-0.5 rounded border border-cyan-500/35 bg-cyan-950/30 text-cyan-300"
+                      title="Auto-slotted to CH N+1 after connected hardware microphones">
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> AUTO-SLOT CH N+1
+                    </span>
+                    <span className="flex items-center gap-1.5 px-1.5 py-0.5 rounded border border-cyan-500/35 bg-cyan-950/30 text-cyan-300"
+                      title="Speaker routing temporarily mutes Windows source-app sessions and restores their prior mute states when monitoring stops">
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> MUTE-RESTORE
+                    </span>
                   </div>
 
                   {/* Quick Browser -> DSP -> Built-In Speakers Strip */}
@@ -1258,12 +1314,21 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
               <div className="flex items-center gap-2">
                 <Radar className="w-4 h-4 text-sky-400" />
-                <div>
+                <div className="min-w-0">
                   <div className="font-mono text-xs font-semibold text-white uppercase">
                     Auto-Recognized Connected Hardware (Internal &amp; External)
                   </div>
-                  <div className="text-[11px] text-slate-400">
-                    Automatic USB VID:PID fingerprinting, internal sound card profiling, LAN OSC console discovery &amp; hot-plug listener
+                  {/* Recognition capabilities as engraved chips — details in
+                      Help Desk → System & Hardware */}
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1 font-mono text-[8.5px] font-bold tracking-wider">
+                    <span className="px-1.5 py-0.5 rounded border border-sky-500/35 bg-sky-950/30 text-sky-300"
+                      title="Automatic USB VID:PID fingerprinting profiles every connected interface">USB VID:PID</span>
+                    <span className="px-1.5 py-0.5 rounded border border-sky-500/35 bg-sky-950/30 text-sky-300"
+                      title="Internal sound card profiling">CARD PROFILING</span>
+                    <span className="px-1.5 py-0.5 rounded border border-sky-500/35 bg-sky-950/30 text-sky-300"
+                      title="LAN OSC console discovery">LAN OSC</span>
+                    <span className="px-1.5 py-0.5 rounded border border-sky-500/35 bg-sky-950/30 text-sky-300"
+                      title="Hot-plug listener detects devices the moment they connect">HOT-PLUG</span>
                   </div>
                 </div>
               </div>
@@ -1290,19 +1355,20 @@ export const HardwareDiagnosticsModule: React.FC<HardwareDiagnosticsModuleProps>
             </div>
 
             {detectedEndpoints.length === 0 ? (
-              <div className="p-4 rounded border border-slate-800 bg-[#070A10] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                <div className="space-y-1">
-                  <div className="font-semibold text-slate-200">
-                    No OS audio endpoints enumerated in sandbox yet
-                  </div>
-                  <div className="text-slate-400">
-                    Plug in any USB mixer or audio interface on Windows/macOS/Linux, or click Re-Scan Hardware to unlock browser MediaDevices labels and probe local cards. Remembered devices persist in IndexedDB for instant offline recall.
-                  </div>
+              <div className="p-3 rounded border border-slate-800 bg-[#070A10] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="w-2 h-2 rounded-full bg-slate-600 shrink-0" />
+                  <span
+                    className="font-mono text-[11px] text-slate-300"
+                    title="Plug in any USB mixer or audio interface on Windows/macOS/Linux, or click Re-Scan Hardware to unlock browser MediaDevices labels and probe local cards. Remembered devices persist in IndexedDB for instant offline recall."
+                  >
+                    NO OS ENDPOINTS ENUMERATED
+                  </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => onScanHardware(true)}
-                  className="px-3 py-1.5 rounded bg-sky-600 hover:bg-sky-500 text-white font-mono text-[11px] font-semibold shrink-0"
+                  className="px-3 py-1.5 rounded bg-sky-600 hover:bg-sky-500 text-white font-mono text-[11px] font-semibold shrink-0 cursor-pointer"
                 >
                   GRANT &amp; SCAN INTERFACES
                 </button>

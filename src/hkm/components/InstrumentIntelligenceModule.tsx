@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Check, Music, ShieldAlert } from 'lucide-react';
 import { INSTRUMENT_PROFILES } from '../data/hardwareCatalog.ts';
+import { openHelpTopic } from './HelpDeskModule.tsx';
 import type {
   DspConfig,
   HardwareDevice,
@@ -47,6 +48,7 @@ export const InstrumentIntelligenceModule: React.FC<InstrumentIntelligenceModule
   const [appliedId, setAppliedId] = useState<string | null>(null);
   const [diGroundLiftAdvice, setDiGroundLiftAdvice] = useState<boolean>(true);
   const [vocalPocketCarveDb, setVocalPocketCarveDb] = useState<number>(-2.5);
+  const [rigNotesOpen, setRigNotesOpen] = useState<boolean>(false);
 
   const selectedInst =
     INSTRUMENT_PROFILES.find((i) => i.id === selectedInstId) ?? INSTRUMENT_PROFILES[0];
@@ -238,11 +240,30 @@ export const InstrumentIntelligenceModule: React.FC<InstrumentIntelligenceModule
                 {selectedInst.sourceType} · {selectedInst.diRequired ? 'ACTIVE / ISOLATED DI' : 'DIRECT / MIC'}
               </div>
               <div className="text-base font-semibold text-white">{selectedInst.instrument}</div>
-              <ul className="space-y-1 text-xs text-slate-400 list-disc pl-4">
-                {selectedInst.diagnosticNotes.map((note, idx) => (
-                  <li key={idx}>{note}</li>
-                ))}
-              </ul>
+              {/* RIG NOTES — collapsed hardware-style note key; the full rig
+                  checklist opens on demand instead of filling the surface */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setRigNotesOpen((v) => !v)}
+                  aria-expanded={rigNotesOpen}
+                  className={`px-2 py-1 rounded border font-mono text-[9px] font-bold tracking-wider transition-colors cursor-pointer ${
+                    rigNotesOpen
+                      ? 'border-amber-400/70 bg-amber-500/15 text-amber-200'
+                      : 'border-slate-700 bg-[#0A0F16] text-slate-400 hover:text-slate-100'
+                  }`}
+                  title={selectedInst.diagnosticNotes.join('\n')}
+                >
+                  ◈ RIG NOTES ({selectedInst.diagnosticNotes.length})
+                </button>
+                {rigNotesOpen && (
+                  <ul className="mt-1.5 space-y-1 text-[10px] font-mono text-slate-400 list-disc pl-4 border-l-2 border-amber-500/30 py-0.5">
+                    {selectedInst.diagnosticNotes.map((note, idx) => (
+                      <li key={idx}>{note}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
 
             <div className="md:col-span-6 grid grid-cols-3 gap-2 place-items-center">
@@ -286,13 +307,47 @@ export const InstrumentIntelligenceModule: React.FC<InstrumentIntelligenceModule
             </div>
           </div>
 
-          <div className="p-2.5 rounded border border-slate-800 bg-[#070A10] text-[11px] font-mono text-slate-400 flex items-start gap-2">
-            <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-            <span>
-              {selectedInst.diRequired
-                ? 'Active DI Box Required: Engage physical Ground Lift switch if 50/60 Hz mains buzz persists before applying EQ cuts.'
-                : 'Dynamic/Modeler Input: Check pad (-20 dB) if input preamps clip during full band chorus.'}
-            </span>
+          {/* DI guard status LEDs — the old advisory paragraph is now an
+              engraved status row; full guidance lives in Help Desk → Band */}
+          <div className="p-2 rounded border border-slate-800 bg-[#070A10] flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3 font-mono text-[9px] font-bold tracking-wider min-w-0 flex-wrap">
+              <span className="flex items-center gap-1.5" title={selectedInst.diRequired ? 'Active DI Box Required: engage the physical Ground Lift switch if 50/60 Hz mains buzz persists before applying EQ cuts.' : 'Dynamic/Modeler Input: check the -20 dB pad if input preamps clip during full band chorus.'}>
+                <ShieldAlert className={`w-3.5 h-3.5 shrink-0 ${selectedInst.diRequired ? 'text-amber-400' : 'text-sky-400'}`} />
+                <span className={selectedInst.diRequired ? 'text-amber-300' : 'text-sky-300'}>
+                  {selectedInst.diRequired ? 'ACTIVE DI REQ' : 'PAD CHECK'}
+                </span>
+              </span>
+              <span
+                className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded border ${
+                  diGroundLiftAdvice
+                    ? 'border-amber-500/50 bg-amber-500/10 text-amber-200'
+                    : 'border-slate-700 bg-[#0A0F16] text-slate-400'
+                }`}
+                title="DI ground-lift recommendation flag — toggled by the DI GROUND LIFT key above"
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${diGroundLiftAdvice ? 'bg-amber-400' : 'bg-slate-600'}`} />
+                GND LIFT REC
+              </span>
+              <span
+                className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded border ${
+                  telemetry.humRisk.detected
+                    ? 'border-red-500/60 bg-red-500/10 text-red-300'
+                    : 'border-emerald-500/40 bg-emerald-950/40 text-emerald-300/90'
+                }`}
+                title={telemetry.humRisk.detected ? `Mains hum detected at ${telemetry.humRisk.fundamentalHz} Hz — ground-lift the DI before EQ cuts` : 'No mains hum detected on DI lines'}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${telemetry.humRisk.detected ? 'bg-red-400 animate-pulse' : 'bg-emerald-400'}`} />
+                {telemetry.humRisk.detected ? `HUM ${telemetry.humRisk.fundamentalHz} HZ` : 'DI CLEAN'}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => openHelpTopic('instruments')}
+              title="Open the DI & ground-loop field guide in the Help Desk"
+              className="px-2 py-1 rounded border border-[#2A3646] bg-[#0A0F16] text-slate-300 hover:text-white hover:border-teal-400/50 font-mono text-[9px] font-bold tracking-wider cursor-pointer shrink-0"
+            >
+              DI GUIDE
+            </button>
           </div>
 
           <button

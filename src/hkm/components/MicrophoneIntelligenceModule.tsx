@@ -297,7 +297,17 @@ export const MicrophoneIntelligenceModule: React.FC<MicrophoneIntelligenceModule
                 {selectedMic.makeModel}
               </div>
               <div className="text-sm font-semibold text-white">{selectedMic.role}</div>
-              <p className="text-[11px] text-slate-400 leading-relaxed">{selectedMic.feedbackNote}</p>
+              {/* Feedback positioning note — engraved one-line chip; the full
+                  placement note rides on the tooltip + Help Desk → Mics */}
+              <div
+                className="flex items-center gap-1.5 font-mono text-[9px] font-bold tracking-wider text-amber-300/90"
+                title={selectedMic.feedbackNote}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                <span className="min-w-0 truncate">
+                  {selectedMic.pickupPattern.toUpperCase()} · AIM NULL AT LOUDEST SOURCE
+                </span>
+              </div>
               <div className="font-mono text-[10px] text-amber-400">
                 {selectedMic.requiresPhantom ? '+48V PHANTOM REQUIRED' : 'DYNAMIC CAPSULE'} ·{' '}
                 {selectedMic.sensitivityMvPa} mV/Pa

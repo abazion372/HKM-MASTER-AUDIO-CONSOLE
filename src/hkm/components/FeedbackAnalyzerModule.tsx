@@ -578,7 +578,12 @@ export const FeedbackAnalyzerModule: React.FC<FeedbackAnalyzerModuleProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-slate-400 border-t border-slate-800 pt-2">
-            <span>20 Hz – 20 kHz Log Axis · Vertical Ridge = Transient Ringing Energy</span>
+            <span
+              className="font-mono text-[9px] font-bold tracking-wider uppercase"
+              title="20 Hz – 20 kHz log axis · a vertical ridge marks transient ringing energy (feedback candidate)"
+            >
+              20 HZ – 20 KHZ LOG · RIDGE = RING RISK
+            </span>
             <span className="text-sky-400">
               {telemetry.isRunning
                 ? `${historySlicesRef.current.length} / ${MAX_SLICES} slices (10.0s depth)`

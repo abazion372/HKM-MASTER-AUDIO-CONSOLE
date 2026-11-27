@@ -10,7 +10,6 @@ import {
   EyeOff,
   X,
   Info,
-  Tv,
   Lock,
   Circle,
   Volume2,
@@ -31,6 +30,7 @@ import {
   SegmentedLedMeter,
 } from './StudioControls.tsx';
 import { obsWsService, type ObsConnectionState } from '../services/obsWebSocket.ts';
+import { openHelpTopic } from './HelpDeskModule.tsx';
 
 interface LivestreamObsModuleProps {
   broadcastDsp: BroadcastDspConfig;
@@ -493,42 +493,35 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
         </div>
       )}
 
-      {/* OBS Offline Smart Guidance Card (Dismissible & Actionable) */}
+      {/* OBS Offline status strip — connection state as LEDs + keys, guide
+          text lives in the Help Desk (Livestream topic) */}
       {!obsState.connected && !dismissedOfflineWarning && (
-        <div className="p-3.5 rounded-lg border border-slate-800 bg-[#0C101A] text-xs font-mono text-slate-300 flex items-start justify-between gap-3 shadow-md">
-          <div className="flex items-start gap-3">
-            <Tv className="w-5 h-5 text-sky-400 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <div className="font-semibold text-white flex items-center gap-2">
-                <span>OBS Studio Standby</span>
-                <span className="text-slate-500 text-[11px]">({wsUrl})</span>
-              </div>
-              <p className="text-slate-400 text-[11px] leading-relaxed">
-                OBS WebSocket server v5 is configured on port 4455. Launch OBS Studio on this computer, then click{' '}
-                <button
-                  type="button"
-                  onClick={handleConnectObs}
-                  className="text-sky-400 underline hover:text-sky-300 font-semibold inline"
-                >
-                  Connect OBS WS
-                </button>{' '}
-                to sync live program scenes, stream controls, and dropped frames.
-              </p>
-            </div>
+        <div className="px-3 py-2 rounded-lg border border-slate-800 bg-[#0C101A] flex items-center justify-between gap-3 shadow-md">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="relative flex items-center justify-center shrink-0" title="OBS WebSocket: disconnected">
+              <span className="absolute w-3.5 h-3.5 rounded-full bg-sky-500/30 animate-ping" />
+              <span className="w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.8)]" />
+            </span>
+            <span className="font-mono text-[11px] font-bold text-white tracking-wider shrink-0">
+              OBS STANDBY
+            </span>
+            <span className="font-mono text-[10px] text-slate-500 truncate">{wsUrl}</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={handleConnectObs}
-              className="px-2.5 py-1 rounded border border-sky-500/50 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 text-[11px]"
+              title="Retry the OBS WebSocket connection (obs-websocket v5 · port 4455, enabled in OBS Studio settings)"
+              className="px-2.5 py-1 rounded border border-sky-500/50 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 text-[10px] font-mono font-bold tracking-wider cursor-pointer"
             >
-              Retry
+              RETRY WS
             </button>
             <button
               type="button"
               onClick={() => setDismissedOfflineWarning(true)}
-              className="p-1 text-slate-500 hover:text-slate-300"
               title="Dismiss note"
+              aria-label="Dismiss OBS standby note"
+              className="p-1 text-slate-500 hover:text-slate-300 cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -536,61 +529,99 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
         </div>
       )}
 
-      {/* OBS APP CAPTURE OF HKM'S POST-DSP OUTPUT (NO VIRTUAL DRIVER) */}
-      <div className="p-3.5 rounded-xl border border-emerald-500/40 bg-gradient-to-r from-[#081814] via-[#09141E] to-[#070B13] flex flex-col gap-3 shadow-lg">
-        <div className="flex items-start gap-3">
-          <div className="p-2.5 rounded-lg bg-emerald-500/20 border border-emerald-400/50 text-emerald-300">
-            <Radio className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs font-bold text-white uppercase tracking-wider">
-                Send Processed HKM Audio to OBS
-              </span>
-              <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
-                processedAudioSource
-                  ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
-                  : 'bg-amber-500/15 border-amber-500/50 text-amber-200'
-              }`}>
-                {processedAudioSource ? 'SOURCE DETECTED' : 'OBS SETUP REQUIRED'}
-              </span>
+      {/* OBS APP CAPTURE OF HKM'S POST-DSP OUTPUT (NO VIRTUAL DRIVER)
+          Console-style: LED status row + operational keys. The 4-step OBS
+          setup walkthrough lives in the Help Desk (Livestream topic). */}
+      <div className="p-3 rounded-xl border border-emerald-500/40 bg-gradient-to-r from-[#081814] via-[#09141E] to-[#070B13] flex flex-col gap-2.5 shadow-lg">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="p-2 rounded-lg bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 shrink-0">
+              <Radio className="w-4 h-4" />
             </div>
-            <p className="font-mono text-[11px] text-slate-300 mt-0.5">
-              OBS captures HKM’s post-DSP application audio directly. This uses OBS’s built-in Application Audio Capture source; no VB-Audio cable or extra audio driver is required.
-            </p>
+            <span className="font-mono text-xs font-bold text-white uppercase tracking-wider shrink-0">
+              Send Processed HKM Audio to OBS
+            </span>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border shrink-0 ${
+              processedAudioSource
+                ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
+                : 'bg-amber-500/15 border-amber-500/50 text-amber-200'
+            }`}>
+              {processedAudioSource ? 'SOURCE DETECTED' : 'AWAITING SOURCE'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span
+              className={`px-2 py-1 rounded border font-mono text-[9px] font-bold tracking-wider ${
+                processedOutputActive
+                  ? 'border-emerald-400/60 bg-emerald-500/15 text-emerald-300'
+                  : 'border-amber-500/50 bg-amber-500/10 text-amber-200'
+              }`}
+              title={processedOutputActive
+                ? "HKM is rendering the processed signal to its selected output; OBS can capture this application audio."
+                : 'OBS can capture the signal while HKM renders it. Start the processed output route below; the same signal will play through the selected speakers.'}
+            >
+              {processedOutputActive ? 'OUTPUT LIVE' : 'OUTPUT STANDBY'}
+            </span>
+            <button
+              type="button"
+              onClick={() => openHelpTopic('livestream')}
+              title="Open the OBS Application Audio Capture setup walkthrough in the Help Desk"
+              className="px-2 py-1 rounded border border-[#2A3646] bg-[#0A0F16] text-slate-300 hover:text-white hover:border-teal-400/50 font-mono text-[9px] font-bold tracking-wider cursor-pointer"
+            >
+              SETUP GUIDE
+            </button>
           </div>
         </div>
-        <div className="ml-11 text-[10px] font-mono text-slate-300">
-          {processedOutputActive
-            ? 'HKM is rendering the processed signal to its selected output; OBS can capture this application audio.'
-            : 'OBS can capture the signal while HKM renders it. Start the processed output route below; the same signal will play through the selected speakers.'}
+
+        {/* Silkscreen capability chips — engraved facts, not sentences */}
+        <div className="flex items-center gap-1.5 flex-wrap font-mono text-[9px] font-bold tracking-wider">
+          <span className="px-1.5 py-0.5 rounded border border-emerald-500/40 bg-emerald-950/40 text-emerald-300/90"
+            title="OBS captures HKM's post-DSP application audio with its built-in Application Audio Capture source">
+            APP CAPTURE
+          </span>
+          <span className="px-1.5 py-0.5 rounded border border-emerald-500/40 bg-emerald-950/40 text-emerald-300/90"
+            title="No VB-Audio cable or extra audio driver required">
+            NO VIRTUAL CABLE
+          </span>
+          <span className="px-1.5 py-0.5 rounded border border-slate-700 bg-[#0A0F16] text-slate-400"
+            title="OBS receives the main console DSP output; the broadcast mastering rack below is not inserted into this application audio path">
+            MAIN DSP BUS
+          </span>
+          <span className={`px-1.5 py-0.5 rounded border ${
+            obsState.connected
+              ? 'border-sky-400/50 bg-sky-500/10 text-sky-300'
+              : 'border-slate-700 bg-[#0A0F16] text-slate-500'
+          }`}
+            title={obsState.connected
+              ? 'OBS WebSocket is connected and HKM can detect the named source'
+              : 'Connect OBS WebSocket to let HKM detect the named source here; application capture itself works without WebSocket'}>
+            WS {obsState.connected ? 'LINKED' : 'OFFLINE'}
+          </span>
         </div>
-        <div className="ml-11 text-[9px] font-mono text-amber-200/90">
-          OBS receives the main console DSP output. The separate broadcast mastering controls below are not inserted into this application audio path.
-        </div>
-        <ol className="grid gap-1.5 pl-11 font-mono text-[10px] text-slate-200 leading-relaxed">
-          <li>1. In OBS Studio 28+ on Windows, Sources → + → <strong className="text-white">Application Audio Capture (BETA)</strong>.</li>
-          <li>2. Select the <strong className="text-white">[hkm-audio-system.exe]: HKM Audio System — Church Audio Console</strong> window and name the source <strong className="text-white">HKM Processed Audio</strong>.</li>
-          <li>3. In OBS Settings → Audio, disable global <strong className="text-white">Desktop Audio</strong> to prevent a second, unprocessed copy.</li>
-          <li>4. Leave the source’s audio monitoring off, add it to the stream scenes, and assign it to the intended stream track.</li>
-        </ol>
-        {!processedOutputActive && (
-          <div className="ml-11">
+
+        {/* Live source readout + start key */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 min-w-0 font-mono text-[10px]">
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+              processedAudioSource ? 'bg-emerald-400 shadow-[0_0_6px_rgba(74,222,128,0.9)]' : 'bg-slate-600'
+            }`} />
+            <span className={processedAudioSource ? 'text-emerald-300 truncate' : 'text-slate-500 truncate'}>
+              {processedAudioSource
+                ? `SOURCE: ${processedAudioSource.inputName} (${processedAudioSource.inputKind})`
+                : obsState.connected
+                  ? 'WS LINKED — SOURCE NOT IN OBS YET'
+                  : 'AWAITING OBS SOURCE'}
+            </span>
+          </div>
+          {!processedOutputActive && (
             <button
               type="button"
               onClick={onEnableProcessedOutput}
-              className="px-3 py-1.5 rounded border border-emerald-400/60 bg-emerald-600/25 hover:bg-emerald-600/40 text-emerald-100 font-mono text-[10px] font-bold"
+              className="px-3 py-1.5 rounded border border-emerald-400/60 bg-emerald-600/25 hover:bg-emerald-600/40 text-emerald-100 font-mono text-[10px] font-bold cursor-pointer"
             >
               START HKM PROCESSED OUTPUT
             </button>
-          </div>
-        )}
-        <div className="ml-11 text-[10px] font-mono text-slate-400">
-          {obsState.connected
-            ? processedAudioSource
-              ? `OBS WebSocket sees “${processedAudioSource.inputName}” (${processedAudioSource.inputKind}). Confirm its meter moves while HKM audio is playing.`
-              : 'OBS WebSocket is connected, but the named processed audio source is not in OBS yet.'
-            : 'Connect OBS WebSocket to let HKM detect the named source here. OBS application capture itself works without WebSocket.'}
+          )}
         </div>
       </div>
 
@@ -1030,9 +1061,15 @@ export const LivestreamObsModule: React.FC<LivestreamObsModuleProps> = ({
                 })}
               </div>
             ) : (
-              <p className="font-mono text-[10px] text-slate-400">
-                Connect OBS WebSocket above to view &amp; mute all OBS mics/inputs and lock the stream exclusively to this app&apos;s audio.
-              </p>
+              <div className="flex items-center gap-2 py-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-600 shrink-0" />
+                <span
+                  className="font-mono text-[9px] font-bold tracking-wider text-slate-500 uppercase"
+                  title="Connect OBS WebSocket above to view & mute all OBS mics/inputs and lock the stream exclusively to this app's audio."
+                >
+                  WS OFFLINE — INPUT LOCK UNAVAILABLE
+                </span>
+              </div>
             )}
           </div>
 

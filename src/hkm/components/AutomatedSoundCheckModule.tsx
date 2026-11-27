@@ -61,10 +61,10 @@ export const AutomatedSoundCheckModule: React.FC<AutomatedSoundCheckModuleProps>
   const [activePhaseIdx, setActivePhaseIdx] = useState<number>(-1);
   const [targetNominalDbfs, setTargetNominalDbfs] = useState<number>(-18);
   const [phases, setPhases] = useState<PhaseResult[]>([
-    { id: 'clock', label: '1. Hardware Clock & Driver Lock', status: 'idle', detail: 'Pending scan' },
-    { id: 'gain', label: '2. Channel Gain Staging & Noise Floor', status: 'idle', detail: 'Pending scan' },
-    { id: 'feedback', label: '3. Ring-Out & Feedback Margin Check', status: 'idle', detail: 'Pending scan' },
-    { id: 'broadcast', label: '4. Broadcast LUFS & Limiter Ceiling', status: 'idle', detail: 'Pending scan' },
+    { id: 'clock', label: '1. Hardware Clock & Driver Lock', status: 'idle', detail: 'STANDBY' },
+    { id: 'gain', label: '2. Channel Gain Staging & Noise Floor', status: 'idle', detail: 'STANDBY' },
+    { id: 'feedback', label: '3. Ring-Out & Feedback Margin Check', status: 'idle', detail: 'STANDBY' },
+    { id: 'broadcast', label: '4. Broadcast LUFS & Limiter Ceiling', status: 'idle', detail: 'STANDBY' },
   ]);
 
   useEffect(() => {
@@ -212,7 +212,7 @@ export const AutomatedSoundCheckModule: React.FC<AutomatedSoundCheckModuleProps>
               onClick={() => {
                 setSequencerState('idle');
                 setActivePhaseIdx(-1);
-                setPhases((p) => p.map((x) => ({ ...x, status: 'idle', detail: 'Pending scan' })));
+                setPhases((p) => p.map((x) => ({ ...x, status: 'idle', detail: 'STANDBY' })));
               }}
               className="text-[10px] font-mono text-slate-400 hover:text-slate-200 flex items-center gap-1"
             >
@@ -353,10 +353,15 @@ export const AutomatedSoundCheckModule: React.FC<AutomatedSoundCheckModuleProps>
           <span className="font-mono text-xs font-semibold text-white uppercase">
             Per-Channel Headroom, Noise Floor &amp; Clip Audit
           </span>
-          <span className="font-mono text-[10px] text-slate-400">
-            {device.capabilities.perChannelFaderControl
-              ? 'Hardware-Linked Auto-Trim Capable'
-              : 'Software DSP Trim (Verify Analog Mixer Preamps Manually)'}
+          <span
+            className="font-mono text-[10px] text-slate-400"
+            title={
+              device.capabilities.perChannelFaderControl
+                ? 'Hardware-linked auto-trim capable'
+                : 'Software DSP trim — verify analog mixer preamps manually'
+            }
+          >
+            {device.capabilities.perChannelFaderControl ? 'AUTO-TRIM LINKED' : 'SW TRIM · ANALOG PRE VERIFY'}
           </span>
         </div>
 

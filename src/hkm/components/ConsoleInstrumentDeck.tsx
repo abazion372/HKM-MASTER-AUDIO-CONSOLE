@@ -687,8 +687,11 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
                     </button>
                   ))}
                 </div>
-                <span className="text-[10px] text-slate-400 leading-tight">
-                  Eliminates 50/60 Hz AC ground hum &amp; harmonics with zero phase smear.
+                <span
+                  className="font-mono text-[9px] font-bold tracking-wider text-slate-500 uppercase"
+                  title="Eliminates 50/60 Hz AC ground hum & harmonics with zero phase smear — pick your mains region"
+                >
+                  50/60 HZ AC HUM · ZERO PHASE SMEAR
                 </span>
               </div>
             </div>
@@ -706,17 +709,22 @@ export const ConsoleInstrumentDeck: React.FC<ConsoleInstrumentDeckProps> = ({
                 </div>
                 <div className="mt-1 grid grid-cols-3 gap-2 font-mono text-[9px] leading-snug text-slate-300">
                   {INSTRUMENT_RIG_CHECKLIST.slice(0, 3).map((note, i) => (
-                    <span key={i} className="flex gap-1">
+                    <span key={i} className="flex gap-1" title={note}>
                       <span className="text-fuchsia-400 font-bold shrink-0">{i + 1}.</span>
-                      <span className="min-w-0">{note}</span>
+                      <span className="sr-only">{note}</span>
+                      <span className="min-w-0 truncate">{note.split(/[.,]/)[0].slice(0, 26)}…</span>
                     </span>
                   ))}
                 </div>
               </div>
             ) : (
-              <div className="px-3 py-1.5 rounded border border-slate-800 bg-[#050609] flex items-center justify-between font-mono text-[11px] text-slate-400 shrink-0">
-                <span>Subsonic DC Protection: 18 Hz Butterworth Active</span>
-                <span className="text-emerald-400 font-semibold">PFL Headroom: +18 dBFS</span>
+              <div className="px-3 py-1.5 rounded border border-slate-800 bg-[#050609] flex items-center justify-between font-mono text-[9px] font-bold tracking-wider uppercase shrink-0">
+                <span className="flex items-center gap-1.5 text-slate-400" title="Subsonic DC protection: 18 Hz Butterworth, always active ahead of the fader">
+                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400" /> DC GUARD 18 HZ BW
+                </span>
+                <span className="flex items-center gap-1.5 text-emerald-400" title="PFL headroom: +18 dBFS">
+                  PFL +18 DBFS
+                </span>
               </div>
             )}
           </div>

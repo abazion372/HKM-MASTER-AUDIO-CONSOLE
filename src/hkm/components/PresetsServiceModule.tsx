@@ -144,7 +144,12 @@ export const PresetsServiceModule: React.FC<PresetsServiceModuleProps> = ({
             <Layers className="w-3.5 h-3.5 text-sky-400" />
             <span>Sunday Service Cue Sequencer (DSP + OBS Linked Recall)</span>
           </span>
-          <span className="font-mono text-[10px] text-slate-400">Click cue to recall audio &amp; stream scene</span>
+            <span
+              className="font-mono text-[10px] text-slate-400"
+              title="Click a cue to recall its DSP state + OBS stream scene together"
+            >
+              CUE FIRE = DSP + OBS
+            </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
@@ -183,8 +188,11 @@ export const PresetsServiceModule: React.FC<PresetsServiceModuleProps> = ({
             <span className="font-mono text-xs font-bold text-white uppercase tracking-wider">
               Scene Memory Bank ({presets.length} Profiles)
             </span>
-            <span className="font-mono text-[10px] text-sky-400">
-              Click row to inspect · LOAD to recall DSP + OBS curve
+            <span
+              className="font-mono text-[10px] text-sky-400"
+              title="Click a row to inspect · LOAD recalls its DSP + OBS curve"
+            >
+              ROW = INSPECT · LOAD = RECALL
             </span>
           </div>
 
@@ -254,10 +262,14 @@ export const PresetsServiceModule: React.FC<PresetsServiceModuleProps> = ({
             })}
           </div>
 
-          {/* Selected Scene Summary Bar */}
+          {/* Selected Scene Summary Bar — console scribble strip: name + version,
+              full description rides on the tooltip */}
           <div className="px-3 py-2 rounded border border-slate-800 bg-[#060910] font-mono text-[11px] flex items-center justify-between gap-2">
-            <span className="text-slate-300 truncate">
-              <strong className="text-sky-300">{comparePreset.name}:</strong> {comparePreset.description}
+            <span
+              className="text-slate-300 truncate"
+              title={`${comparePreset.name}: ${comparePreset.description}`}
+            >
+              <strong className="text-sky-300">{comparePreset.name}</strong>
             </span>
             <span className="text-slate-500 shrink-0">v{comparePreset.version}</span>
           </div>
@@ -276,37 +288,58 @@ export const PresetsServiceModule: React.FC<PresetsServiceModuleProps> = ({
               </span>
             </div>
 
+            {/* Diff readout — live vs selected scene, LED per parameter
+                (amber = will change on recall, green = identical) */}
             <div className="rounded border border-slate-800 bg-[#070A10] p-2.5 text-[11px] font-mono space-y-1.5 tabular-nums">
-              <div className="flex justify-between">
-                <span className="text-slate-400">HPF Cutoff</span>
-                <span>
-                  <span className="text-slate-300">{dsp.hpfHz} Hz</span> →{' '}
-                  <span className="text-sky-400">{comparePreset.dsp.hpfHz} Hz</span>
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Comp Threshold / Ratio</span>
-                <span>
-                  <span className="text-slate-300">
-                    {dsp.compressor.thresholdDb} dB ({dsp.compressor.ratio}:1)
-                  </span>{' '}
-                  →{' '}
-                  <span className="text-sky-400">
-                    {comparePreset.dsp.compressor.thresholdDb} dB ({comparePreset.dsp.compressor.ratio}:1)
+              {([
+                {
+                  label: 'HPF CUTOFF',
+                  live: `${dsp.hpfHz} Hz`,
+                  target: `${comparePreset.dsp.hpfHz} Hz`,
+                  delta: dsp.hpfHz !== comparePreset.dsp.hpfHz,
+                },
+                {
+                  label: 'COMP THR',
+                  live: `${dsp.compressor.thresholdDb} dB`,
+                  target: `${comparePreset.dsp.compressor.thresholdDb} dB`,
+                  delta: dsp.compressor.thresholdDb !== comparePreset.dsp.compressor.thresholdDb,
+                },
+                {
+                  label: 'COMP RATIO',
+                  live: `${dsp.compressor.ratio}:1`,
+                  target: `${comparePreset.dsp.compressor.ratio}:1`,
+                  delta: dsp.compressor.ratio !== comparePreset.dsp.compressor.ratio,
+                },
+                {
+                  label: 'LIMITER CEIL',
+                  live: `${dsp.limiter.ceilingDb} dBFS`,
+                  target: `${comparePreset.dsp.limiter.ceilingDb} dBFS`,
+                  delta: dsp.limiter.ceilingDb !== comparePreset.dsp.limiter.ceilingDb,
+                },
+                {
+                  label: 'STREAM TGT',
+                  live: `${comparePreset.broadcastDsp.targetLufs} LUFS`,
+                  target: `${comparePreset.broadcastDsp.targetLufs} LUFS`,
+                  delta: false,
+                },
+              ] as const).map((row) => (
+                <div key={row.label} className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                        row.delta ? 'bg-amber-400 shadow-[0_0_5px_rgba(245,158,11,0.7)]' : 'bg-emerald-400'
+                      }`}
+                      title={row.delta ? 'Changes on recall' : 'Identical'}
+                    />
+                    <span className="text-slate-400">{row.label}</span>
                   </span>
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Limiter Ceiling</span>
-                <span>
-                  <span className="text-slate-300">{dsp.limiter.ceilingDb} dBFS</span> →{' '}
-                  <span className="text-sky-400">{comparePreset.dsp.limiter.ceilingDb} dBFS</span>
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Stream Target LUFS</span>
-                <span className="text-emerald-400">{comparePreset.broadcastDsp.targetLufs} LUFS</span>
-              </div>
+                  <span className="shrink-0">
+                    <span className="text-slate-300">{row.live}</span>
+                    <span className="text-slate-600 mx-1">→</span>
+                    <span className="text-sky-400">{row.target}</span>
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -335,8 +368,14 @@ export const PresetsServiceModule: React.FC<PresetsServiceModuleProps> = ({
 
             <div className="divide-y divide-slate-800/80 max-h-56 overflow-y-auto bg-[#090D14] rounded border border-slate-800 px-3 flex-1">
               {versions.length === 0 ? (
-                <div className="py-6 text-center text-xs font-mono text-slate-500">
-                  No snapshots stored yet. Save a baseline before live service edits.
+                <div className="py-6 flex flex-col items-center justify-center gap-2 text-center">
+                  <span className="w-2 h-2 rounded-full bg-slate-600" />
+                  <span
+                    className="font-mono text-[10px] font-bold tracking-wider text-slate-500"
+                    title="Save a baseline snapshot before live service edits — snapshots become your rollback points"
+                  >
+                    NO SNAPSHOTS — STORE A BASELINE
+                  </span>
                 </div>
               ) : (
                 versions.map((v) => (

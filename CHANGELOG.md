@@ -5,6 +5,24 @@ All notable changes to HKM Audio System are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-11-27 — The Help Desk & the De-Texted Console: a Real Surface, a Real Manual
+
+### Changed
+
+- **Every dashboard is now operation-first, like a physical console surface.** A full audit of all 16 module dashboards found paragraphs, numbered checklists and instructional sentences sitting on the mixing surfaces — the things real consoles never print on the metal. All of it is now operational: **LED status chips** (with the full sentence preserved on hover tooltips), **engraved capability chips** (e.g. `APP CAPTURE · NO VIRTUAL CABLE · MAIN DSP BUS`), **operation keys** where text used to describe an action, and **compact empty states** with a status LED instead of placeholder prose. The worst offenders — the Livestream OBS 4-step setup article, the Band module's DI ground-loop checklist, the Hardware module's capture-method bullet lists, the Acoustics prose analysis and room-tuning checklist — are all transformed. Text remains on surfaces **for labelling only**, per real console silkscreen practice (short, uppercase, engraved).
+
+- **New HELP DESK module (nav tab + Help menu): a comprehensive operation manual, off the surfaces.** Everything removed from the dashboards is organized into a searchable, categorized field guide — Quick Start, Input Conditioning & Channel Strip, DSP Chain, Console Deck phases, Feedback, Acoustics/REW workflow, Speakers, Routing, Microphones, Band/DI practices, Virtual DI string-scale fundamentals, Livestream/OBS setup, Recorder, Sound Check, Presets/Cues, AI Engineer authority model, System Audio Bridge methods, MIDI control surfaces, Keyboard Shortcuts and a Sunday-morning Troubleshooting FAQ. Any dashboard can deep-link into a topic (GUIDE / SETUP / WORKFLOW keys); the menu bar's Help menu opens it too.
+
+- **The first strip card got its width back.** The INPUT CONDITIONING card (first column of the DSP signal chain) was stuffed thin after consolidating the whole input strip into it. The left panel was narrowed (272→228px, 300→256px @2xl) and the chain grid now gives the strip column a 1.4fr share (~187px at 1600px wide) — the **fader keeps real console proportions** (full-height, calibrated tick ladder), the gain arc now sits **beside the PREAMP knob** the way consoles pair a meter with its trim pot, and the connector badge/range note collapsed into engraved labels with tooltips. The routing overlay seams were re-flowed for the new column geometry.
+
+- **New operational controls where advice used to be**: the Virtual DI's string-scale note is now a **4-STR / 5-STR key group** that actually sets the Subsonic HPF (40 Hz / 32 Hz) with a live readout; the Band module's DI advisory paragraph became a **GND LIFT REC / HUM / DI CLEAN LED row** plus a collapsed **RIG NOTES (n)** note key; the Presets diff inspector became a **live-vs-target readout with per-parameter change LEDs**; the Recorder's stem-lane placeholder sentence became a **live 24-segment LED ladder** driven by channel telemetry; the welcome banner is now a single-line **status rail** with LED step chips.
+
+### Fixed
+
+- **A literal `\n` artifact** rendered inside the Hardware module's capture-method chip row (stray escape from a prior edit) — removed.
+- **Canvas label collision** in the Virtual DI low-end scope: the "FILTER CURVE PREVIEW (ENGINE STANDBY)" legend overlapped the XOVER label at the top of the graph; it now renders bottom-right.
+- **Pre-existing type error** (`title` receiving `string | null | undefined`) in the Hardware module status line — normalized to `?? undefined`.
+
 ## [1.1.5] - 2026-11-26 — One Input Strip, Zero Duplication: the Channel Bay
 
 ### Changed

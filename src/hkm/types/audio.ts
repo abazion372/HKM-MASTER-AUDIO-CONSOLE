@@ -26,7 +26,8 @@ export type ModuleId =
   | 'virtual-di'
   | 'midi'
   | 'routing'
-  | 'recorder';
+  | 'recorder'
+  | 'help';
 
 export type HardwareTier = 1 | 2 | 3 | 4;
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Upload, Download, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import type { AcousticMeasurement } from '../types/audio.ts';
 import { ArcGauge, ConsolePushButton, RotaryKnob } from './StudioControls.tsx';
+import { openHelpTopic } from './HelpDeskModule.tsx';
 
 interface AcousticAnalyzerModuleProps {
   measurement: AcousticMeasurement;
@@ -17,6 +18,7 @@ export const AcousticAnalyzerModule: React.FC<AcousticAnalyzerModuleProps> = ({
   const [importError, setImportError] = useState<string | null>(null);
   const [targetTiltDb, setTargetTiltDb] = useState<number>(-0.5);
   const [splOffsetDb, setSplOffsetDb] = useState<number>(0);
+  const [analysisOpen, setAnalysisOpen] = useState<boolean>(false);
   const [roomLengthM, setRoomLengthM] = useState<number>(24);
   const [roomWidthM, setRoomWidthM] = useState<number>(16);
   const [roomHeightM, setRoomHeightM] = useState<number>(6.5);
@@ -209,20 +211,30 @@ export const AcousticAnalyzerModule: React.FC<AcousticAnalyzerModuleProps> = ({
             />
           </div>
 
-          <div className="p-2.5 rounded border border-slate-800 bg-[#090D14] space-y-1.5 text-[11px]">
-            <div className="flex items-center gap-1.5 font-mono font-semibold text-slate-200">
+          {/* Calibration status — engraved LED chip; policy note in tooltip */}
+          <div className="p-2 rounded border border-slate-800 bg-[#090D14] flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 font-mono text-[9.5px] font-bold tracking-wider min-w-0">
               {measurement.calibratedMic ? (
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               ) : (
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
               )}
-              <span className="truncate">{measurement.micModel}</span>
+              <span className="truncate text-slate-200">{measurement.micModel}</span>
             </div>
-            <p className="text-slate-400 leading-snug text-[11px]">
-              {measurement.calibratedMic
-                ? '90° calibration curve active — room-correction filter export permitted.'
-                : 'Safety Policy: Room-correction EQ filters locked without a calibrated mic.'}
-            </p>
+            <span
+              className={`px-1.5 py-0.5 rounded border font-mono text-[8.5px] font-bold tracking-wider shrink-0 ${
+                measurement.calibratedMic
+                  ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-300'
+                  : 'border-amber-500/50 bg-amber-950/40 text-amber-200'
+              }`}
+              title={
+                measurement.calibratedMic
+                  ? '90° calibration curve active — room-correction filter export permitted.'
+                  : 'Safety Policy: Room-correction EQ filters locked without a calibrated mic.'
+              }
+            >
+              {measurement.calibratedMic ? 'CAL OK · EXPORT ON' : 'EXPORT LOCKED'}
+            </span>
           </div>
         </div>
 
@@ -269,7 +281,27 @@ export const AcousticAnalyzerModule: React.FC<AcousticAnalyzerModuleProps> = ({
               <path d={frPath} fill="none" stroke="#38BDF8" strokeWidth={2.4} />
             </svg>
           </div>
-          <p className="text-xs text-slate-400 font-mono leading-relaxed">{measurement.notes}</p>
+          {/* Measured analysis — on-demand notes key; the surface keeps the
+              graph + headline values only */}
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setAnalysisOpen((v) => !v)}
+              aria-expanded={analysisOpen}
+              className={`px-2 py-0.5 rounded border font-mono text-[9px] font-bold tracking-wider cursor-pointer ${
+                analysisOpen
+                  ? 'border-sky-400/70 bg-sky-500/15 text-sky-200'
+                  : 'border-slate-700 bg-[#0A0F16] text-slate-400 hover:text-slate-100'
+              }`}
+              title={measurement.notes}
+            >
+              ◈ MEASURED ANALYSIS
+            </button>
+            <span className="font-mono text-[10px] text-slate-500 tabular-nums">RT60 1k {measurement.rt60AvgSec.toFixed(2)}s</span>
+          </div>
+          {analysisOpen && (
+            <p className="text-xs text-slate-400 font-mono leading-relaxed border-l-2 border-sky-500/30 pl-2">{measurement.notes}</p>
+          )}
         </div>
 
         {/* Right Octave RT60 Decay Matrix */}
@@ -299,8 +331,28 @@ export const AcousticAnalyzerModule: React.FC<AcousticAnalyzerModuleProps> = ({
               );
             })}
           </div>
-          <div className="p-2.5 rounded bg-[#090D14] border border-slate-800 text-[11px] text-slate-400 leading-snug">
-            Measure 4+ sanctuary seating zones, verify sub polarity, and treat early reflections before cutting global EQ.
+          {/* Workflow reminder — checklist converted to an engraved LED row;
+              full workflow in Help Desk → Acoustics */}
+          <div className="p-2 rounded bg-[#090D14] border border-slate-800 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 font-mono text-[8.5px] font-bold tracking-wider text-slate-400 min-w-0">
+              <span className="flex items-center gap-1" title="Measure 4+ sanctuary seating zones before cutting global EQ">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-400" /> 4+ ZONES
+              </span>
+              <span className="flex items-center gap-1" title="Verify subwoofer polarity before EQ">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-400" /> SUB POLARITY
+              </span>
+              <span className="flex items-center gap-1" title="Treat early reflections before cutting global EQ">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-400" /> EARLY REFLECTIONS
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => openHelpTopic('acoustics')}
+              title="Open the REW room-tuning workflow in the Help Desk"
+              className="px-1.5 py-0.5 rounded border border-[#2A3646] bg-[#0A0F16] text-slate-300 hover:text-white hover:border-teal-400/50 font-mono text-[8.5px] font-bold tracking-wider cursor-pointer shrink-0"
+            >
+              WORKFLOW
+            </button>
           </div>
         </div>
       </div>

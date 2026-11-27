@@ -259,7 +259,7 @@ export const MultitrackRecorderModule: React.FC<MultitrackRecorderModuleProps> =
       {/* Channel Multitrack Lanes */}
       <div className="rounded-xl border border-slate-800 bg-[#080B13] p-3 space-y-2">
         <div className="flex items-center justify-between font-mono text-[11px] text-slate-400 pb-1 border-b border-slate-800">
-          <span>PER-CHANNEL STEM LANES (CLICK ARM TO RECORD)</span>
+          <span>PER-CHANNEL STEM LANES · ARM = REC</span>
           <span>24-BIT / 48.0 kHz</span>
         </div>
 
@@ -301,9 +301,52 @@ export const MultitrackRecorderModule: React.FC<MultitrackRecorderModuleProps> =
                 {/* Live / Take Waveform Strip */}
                 <div className="flex-1 h-9 rounded bg-[#04060B] border border-slate-800 overflow-hidden flex items-center px-1 gap-0.5">
                   {slices.length === 0 ? (
-                    <span className="text-[10px] font-mono text-slate-600 px-2">
-                      {isArmed ? 'Armed — press REC to capture stem waveform' : 'Disarmed'}
-                    </span>
+                    isArmed ? (
+                      /* Armed & waiting: live LED ladder driven by channel
+                         telemetry — a real console lane, not a sentence */
+                      (() => {
+                        const lvl =
+                          engineRunning && !ch.mute
+                            ? telemetry.channelLevels?.[ch.index - 1]?.rmsDb ?? -96
+                            : -96;
+                        const norm = Math.max(0, Math.min(1, (lvl + 54) / 54));
+                        return (
+                          <>
+                            {Array.from({ length: 24 }).map((_, i) => {
+                              const lit = norm > (i + 1) / 24;
+                              const hot = i >= 21;
+                              return (
+                                <span
+                                  key={i}
+                                  className={`w-1 h-3.5 rounded-[1px] shrink-0 transition-colors duration-75 ${
+                                    lit
+                                      ? hot
+                                        ? 'bg-rose-500'
+                                        : i >= 18
+                                          ? 'bg-amber-400'
+                                          : 'bg-emerald-400'
+                                      : 'bg-slate-800/80'
+                                  }`}
+                                />
+                              );
+                            })}
+                            <span
+                              className="ml-2 text-[9px] font-mono font-bold tracking-[0.14em] text-rose-300 shrink-0"
+                              title="Armed — REC captures this stem's waveform"
+                            >
+                              REC READY
+                            </span>
+                          </>
+                        );
+                      })()
+                    ) : (
+                      <span
+                        className="text-[9px] font-mono font-bold tracking-[0.14em] text-slate-600 px-2"
+                        title="Disarmed — click ARM to record this stem"
+                      >
+                        STANDBY
+                      </span>
+                    )
                   ) : (
                     slices.slice(-120).map((s, idx) => (
                       <div

@@ -15,6 +15,7 @@ import {
   Cpu,
   Zap,
   Cable,
+  LifeBuoy,
   PanelLeft,
   PanelRight,
   PanelTop,
@@ -123,6 +124,7 @@ const NAV_TABS: NavTab[] = [
   makeTab('ai-engineer', 'AI', 'AI Sound Engineer', Sparkles, 'fuchsia'),
   makeTab('hardware', 'Hardware', 'Diagnostics, Hardware & Remote Access', Cpu, 'cyan'),
   makeTab('midi', 'MIDI', 'MIDI & Key Shortcuts', Cable, 'cyan'),
+  makeTab('help', 'Help', 'Help Desk — Operation Manual & Field Guide', LifeBuoy, 'cyan'),
 ];
 
 const DOCK_OPTIONS: {
