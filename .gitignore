@@ -70,3 +70,4 @@ server.log
 
 # uploaded screenshots / verification artifacts
 /upload/
+tests/leftpanel-inputs.png

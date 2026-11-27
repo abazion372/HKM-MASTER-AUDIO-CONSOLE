@@ -707,9 +707,9 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                             </span>
                           </div>
                           <div className="flex items-stretch gap-[3px] h-[32px]">
-                            {/* RMS column */}
+                            {/* RMS column — hardware convention: fills upward from the bottom (green low → red clip at top) */}
                             <div
-                              className="hw-led-track w-[9px]"
+                              className="hw-led-track !flex-col-reverse w-[9px]"
                               role="meter"
                               aria-label={`Channel ${ch.index} RMS level meter`}
                               aria-valuenow={Math.round(rNorm * 100)}
@@ -728,9 +728,9 @@ export const ConsoleLeftPanel: React.FC<ConsoleLeftPanelProps> = ({
                                 );
                               })}
                             </div>
-                            {/* PEAK column */}
+                            {/* PEAK column — fills upward from the bottom like the RMS column */}
                             <div
-                              className="hw-led-track w-[9px]"
+                              className="hw-led-track !flex-col-reverse w-[9px]"
                               role="meter"
                               aria-label={`Channel ${ch.index} peak level meter`}
                               aria-valuenow={Math.round(pNorm * 100)}
